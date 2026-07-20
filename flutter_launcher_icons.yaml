@@ -1,0 +1,7 @@
+flutter_launcher_icons:
+  image_path: "assets/icon/budgy_icon_1024.png"
+  ios: true
+  remove_alpha_ios: true
+  android: "launcher_icon"
+  adaptive_icon_background: "#0F9E6C"
+  adaptive_icon_foreground: "assets/icon/budgy_icon_fg.png"

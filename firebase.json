@@ -1,0 +1,33 @@
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "kopilka-b75f6",
+          "appId": "1:838553523218:android:6baa810fcf124546f0f4cb",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "kopilka-b75f6",
+          "appId": "1:838553523218:ios:b7040e7a957ee049f0f4cb",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "kopilka-b75f6",
+          "configurations": {
+            "android": "1:838553523218:android:6baa810fcf124546f0f4cb",
+            "ios": "1:838553523218:ios:b7040e7a957ee049f0f4cb"
+          }
+        }
+      }
+    }
+  }
+}
