@@ -1,17 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/l10n.dart';
-import '../../core/tokens.dart';
+import '../../core/preview.dart';
 import '../../core/widget_service.dart';
+import '../envelopes/budget_repository.dart';
+import '../budget/budget_period.dart';
+import '../budget/budget_screen.dart';
+import '../automation/automation_screen.dart';
+import '../categories/categories_screen.dart';
+import '../envelopes/add_envelope_sheet.dart';
+import '../converter/converter_screen.dart';
+import '../converter/currency_picker_screen.dart';
 import '../envelopes/home_screen.dart';
-import '../goals/goals_screen.dart';
+import '../settings/data_management_screen.dart';
+import '../settings/settings_hub.dart';
+import '../space/space.dart';
 import '../stats/stats_screen.dart';
-import '../transactions/quick_add_sheet.dart';
-import '../workdays/calendar_screen.dart';
+import '../tags/tags_screen.dart';
+import '../transactions/quick_entry_screen.dart';
 
-/// Kök + özel alt bar: Ana · Takvim · [+] · Hedefler · İstatistik.
-/// Ortadaki yeşil FAB yeni işlem açar. Profil, ana ekrandaki avatardan.
+/// Kök ekran: alt sekme çubuğu yok — Takvim/Hedefler/İstatistik artık ana
+/// ekranın menüsünden push edilen rotalar. Burada yalnız ana ekran ve
+/// widget senkronu var.
 class RootScreen extends ConsumerStatefulWidget {
   const RootScreen({super.key});
 
@@ -20,127 +30,72 @@ class RootScreen extends ConsumerStatefulWidget {
 }
 
 class _RootScreenState extends ConsumerState<RootScreen> {
-  int _index = 0;
+  @override
+  void initState() {
+    super.initState();
+    // Debug önizlemesi: "+" ekranını (ve istenen alt sayfayı) otomatik aç.
+    if (kPreviewQuickEntry) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => showQuickEntry(
+            context,
+            initialExpression: kPreviewQuickEntryAmount,
+            autoSheet:
+                kPreviewQuickEntrySheet.isEmpty ? null : kPreviewQuickEntrySheet,
+          ));
+    }
+    final preview = switch (kPreviewBudget) {
+      'empty' => const BudgetScreen(),
+      'amount' => const BudgetAmountStep(initialPeriod: BudgetPeriod.weekly),
+      'amountMonthly' =>
+        const BudgetAmountStep(initialPeriod: BudgetPeriod.monthly),
+      'categories' => const BudgetCategoriesStep(
+          settings: BudgetSettings(amount: 15000, period: BudgetPeriod.monthly),
+          autoSuggest: true),
+      _ => switch (kPreviewConverter) {
+          'two' => const CurrencyConverterScreen(
+              initialRows: ['USD', 'TRY'], initialExpression: '100'),
+          'four' => const CurrencyConverterScreen(
+              initialRows: ['USD', 'TRY', 'EUR', 'KZT'], initialExpression: '250'),
+          'picker' => const CurrencyPickerScreen(exclude: {'TRY'}),
+          'pickerScrolled' => const CurrencyPickerScreen(
+              exclude: {'TRY'}, initialScroll: 1500),
+          _ => switch (kPreviewSettings) {
+          'hub' => const SettingsHubScreen(),
+          'hubScrolled' => const SettingsHubScreen(initialScroll: 620),
+          'categories' => const CategoriesScreen(),
+          'automation' => const AutomationScreen(),
+          'automationCat' => const RuleKeywordsScreen(
+              title: 'Groceries', catalogKey: 'groceries'),
+          'tags' => const TagsScreen(),
+          'data' => const DataManagementScreen(),
+          'newCategory' => const EnvelopeEditorScreen(sortOrder: 0),
+          'newCategoryFilled' => const EnvelopeEditorScreen(
+              sortOrder: 0,
+              previewName: 'Kahvaltı',
+              previewEmoji: '🥐',
+              previewColorIndex: 1,
+              previewSection: 'everyday'),
+          'sectionPicker' => const EnvelopeEditorScreen(
+              sortOrder: 0, previewName: 'Kahvaltı', autoOpenSection: true),
+          _ => kPreviewAnalytics
+              ? StatsScreen(initialMonthOffset: kPreviewAnalyticsOffset)
+              : null,
+        },
+      },
+    };
+    if (preview != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => Navigator.of(context)
+          .push(MaterialPageRoute(builder: (_) => preview)));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final c = context.budgy;
-    final str = ref.watch(strProvider);
     // Ana ekran widget'ını güncel tut (App Group yoksa güvenle no-op).
     ref.watch(widgetSyncProvider);
-    return Scaffold(
-      body: IndexedStack(
-        index: _index,
-        children: const [
-          HomeScreen(),
-          CalendarScreen(),
-          GoalsScreen(),
-          StatsScreen(),
-        ],
-      ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: c.tabbar,
-          border: Border(top: BorderSide(color: c.border)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: SizedBox(
-            height: 66,
-            child: Row(
-              children: [
-                _Tab(
-                  icon: Icons.home_rounded,
-                  label: str.tabHome,
-                  selected: _index == 0,
-                  onTap: () => setState(() => _index = 0),
-                ),
-                _Tab(
-                  icon: Icons.calendar_month_rounded,
-                  label: str.tabCalendar,
-                  selected: _index == 1,
-                  onTap: () => setState(() => _index = 1),
-                ),
-                // Ortadaki yeni-işlem FAB'ı.
-                SizedBox(
-                  width: 66,
-                  child: Center(
-                    child: Material(
-                      color: c.accent,
-                      shape: const CircleBorder(),
-                      elevation: 0,
-                      child: InkWell(
-                        customBorder: const CircleBorder(),
-                        onTap: () => showQuickAdd(context),
-                        child: const SizedBox(
-                          width: 52,
-                          height: 52,
-                          child: Icon(Icons.add_rounded,
-                              color: Colors.white, size: 28),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                _Tab(
-                  icon: Icons.flag_rounded,
-                  label: str.tabGoals,
-                  selected: _index == 2,
-                  onTap: () => setState(() => _index = 2),
-                ),
-                _Tab(
-                  icon: Icons.bar_chart_rounded,
-                  label: str.tabAnalytics,
-                  selected: _index == 3,
-                  onTap: () => setState(() => _index = 3),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _Tab extends StatelessWidget {
-  const _Tab({
-    required this.icon,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.budgy;
-    final color = selected ? c.accent : c.textFaint;
-    return Expanded(
-      child: InkWell(
-        onTap: onTap,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 24, color: color),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 10,
-                fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-                color: color,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+    // Vadesi gelen tekrarlayan işlemleri açılışta işle (yetişme).
+    ref.watch(recurringMaterializerProvider);
+    // Eski varsayılan cüzdan adını ("Cüzdanım") yeni varsayılana taşı.
+    ref.watch(spaceNameMigrationProvider);
+    return const HomeScreen();
   }
 }

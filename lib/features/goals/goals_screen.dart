@@ -8,6 +8,7 @@ import '../../core/palette.dart';
 import '../../core/tokens.dart';
 import '../envelopes/budget_repository.dart';
 import '../envelopes/envelope.dart';
+import '../../core/feedback.dart';
 
 const _goalEmojis = [
   '✈️', '🚗', '💻', '🏠', '📱', '🎓', '🏖️', '🎮', '⌚',
@@ -249,17 +250,18 @@ class _AddMoneySheetState extends ConsumerState<_AddMoneySheet> {
   Future<void> _save() async {
     final amount = parseAmount(_amount.text);
     if (amount == null) return;
+    final str = ref.read(strProvider);
     setState(() => _saving = true);
-    try {
-      await ref.read(budgetRepositoryProvider).fundGoal(
+    final ok = await guardWrite(context, str, () {
+      return ref.read(budgetRepositoryProvider).fundGoal(
             goalId: widget.goal.id,
             goalName: widget.goal.name,
             amount: amount,
           );
-      if (mounted) Navigator.of(context).pop();
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
+    });
+    if (!mounted) return;
+    setState(() => _saving = false);
+    if (ok) Navigator.of(context).pop();
   }
 
   @override
@@ -359,18 +361,19 @@ class _NewGoalSheetState extends ConsumerState<_NewGoalSheet> {
     final target = parseAmount(_target.text);
     final name = _name.text.trim();
     if (target == null || name.isEmpty) return;
+    final str = ref.read(strProvider);
     setState(() => _saving = true);
-    try {
-      await ref.read(budgetRepositoryProvider).addGoal(
+    final ok = await guardWrite(context, str, () {
+      return ref.read(budgetRepositoryProvider).addGoal(
             name: name,
             emoji: _emoji,
             targetAmount: target,
             sortOrder: widget.sortOrder,
           );
-      if (mounted) Navigator.of(context).pop();
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
+    });
+    if (!mounted) return;
+    setState(() => _saving = false);
+    if (ok) Navigator.of(context).pop();
   }
 
   @override

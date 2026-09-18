@@ -1,10 +1,13 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/brand.dart';
+import '../../core/feedback.dart';
 import '../../core/formatters.dart';
 import '../../core/l10n.dart';
 import '../../core/tokens.dart';
+import '../auth/auth_service.dart';
 import '../auth/sign_in_screen.dart';
 import 'budget_repository.dart';
 import 'onboarding_screen.dart';
@@ -85,7 +88,7 @@ class _OnboardingStoryScreenState
       );
     }
     if (_phase == _Phase.welcome) {
-      return _WelcomeScreen(
+      return WelcomeScreen(
         onStart: () =>
             ref.read(budgetRepositoryProvider).setOnboardingDone(),
       );
@@ -201,7 +204,9 @@ class _PrimaryButton extends StatelessWidget {
   const _PrimaryButton({required this.label, required this.onPressed});
 
   final String label;
-  final VoidCallback onPressed;
+
+  /// null → düğme devre dışı (giriş sürerken).
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -237,15 +242,49 @@ class _PrimaryButton extends StatelessWidget {
 }
 
 /// Финальный экран онбординга: монета + «Welcome to Budgy» + кнопка входа.
-class _WelcomeScreen extends ConsumerWidget {
-  const _WelcomeScreen({required this.onStart});
+/// Karşılama ekranı: gerçek sosyal giriş ya da hesapsız devam.
+///
+/// Butonlar daha önce yalnızca [onStart]'ı çağırıyordu — yani "Apple ile
+/// kaydol"a basan kullanıcı hiçbir hesap oluşturmuyor, anonim devam
+/// ediyordu. Hem yanıltıcıydı hem de mağaza reddi sebebi. Artık
+/// [AuthService] üzerinden gerçekten giriş yapılıyor; anonim hesap varsa
+/// ona BAĞLANIYOR, böylece o ana kadar girilen veri korunuyor.
+class WelcomeScreen extends ConsumerStatefulWidget {
+  const WelcomeScreen({super.key, required this.onStart});
 
   final VoidCallback onStart;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<WelcomeScreen> createState() => _WelcomeScreenState();
+}
+
+class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
+  bool _busy = false;
+
+  Future<void> _signIn(Future<UserCredential> Function() method) async {
+    if (_busy) return;
+    setState(() => _busy = true);
+    final str = ref.read(strProvider);
+    try {
+      await method();
+      widget.onStart();
+    } on FirebaseAuthException catch (e) {
+      // Kullanıcı pencereyi kapattıysa hata gösterme.
+      if (e.code != 'canceled' && e.code != 'web-context-canceled') {
+        if (mounted) showErrorSnack(context, str.signInError);
+      }
+    } catch (_) {
+      if (mounted) showErrorSnack(context, str.signInError);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final c = context.budgy;
     final str = ref.watch(strProvider);
+    final onStart = widget.onStart;
     // Контент-блок ровно по макету: 344×453, top 180 / left 16 /
     // right 15 / bottom 179 на экране 375×812.
     return Scaffold(
@@ -287,7 +326,9 @@ class _WelcomeScreen extends ConsumerWidget {
                   label: str.signUpApple,
                   leading:
                       Image.asset('assets/brand/apple.png', height: 22),
-                  onTap: onStart,
+                  onTap: _busy
+                      ? null
+                      : () => _signIn(AuthService.signInWithApple),
                 ),
                 // Butonlar arası = 8
                 const SizedBox(height: 8),
@@ -295,16 +336,12 @@ class _WelcomeScreen extends ConsumerWidget {
                   label: str.continueGoogle,
                   leading:
                       Image.asset('assets/brand/google.png', height: 22),
-                  onTap: onStart,
+                  onTap: _busy
+                      ? null
+                      : () => _signIn(AuthService.signInWithGoogle),
                 ),
-                const SizedBox(height: 8),
-                _SocialButton(
-                  label: str.continueFacebook,
-                  leading:
-                      Image.asset('assets/brand/facebook.png', height: 22),
-                  onTap: onStart,
-                ),
-                // Facebook ↓ "or sign up with" arası = 24
+                // Facebook butonu kaldırıldı: hiçbir yerde uygulanmamıştı
+                // (ne AuthService metodu ne de bir paket vardı).
                 const SizedBox(height: 24),
                 Row(
                   children: [
@@ -324,14 +361,34 @@ class _WelcomeScreen extends ConsumerWidget {
                 const SizedBox(height: 24),
                 _PrimaryButton(
                   label: str.loginMyAccount,
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => SignInScreen(onSignedIn: onStart),
-                    ),
-                  ),
+                  onPressed: _busy
+                      ? null
+                      : () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  SignInScreen(onSignedIn: onStart),
+                            ),
+                          ),
                 ),
-                // Login ↓ Terms = 100
-                const SizedBox(height: 100),
+                const SizedBox(height: 12),
+                // Hesapsız devam: eski davranış artık açıkça etiketli.
+                TextButton(
+                  onPressed: _busy ? null : onStart,
+                  style: TextButton.styleFrom(
+                    foregroundColor: c.textMuted,
+                    textStyle: const TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
+                  child: Text(str.continueWithoutAccount),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  str.withoutAccountNote,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      fontSize: 11.5, height: 1.35, color: c.textFaint),
+                ),
+                const SizedBox(height: 40),
                 Text(
                   str.termsNote,
                   textAlign: TextAlign.center,
@@ -467,7 +524,9 @@ class _SocialButton extends StatelessWidget {
 
   final String label;
   final Widget leading;
-  final VoidCallback onTap;
+
+  /// null → düğme devre dışı (giriş sürerken).
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -486,14 +545,22 @@ class _SocialButton extends StatelessWidget {
         ),
         onPressed: onTap,
         child: Row(
+          mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             leading,
             const SizedBox(width: 10),
-            Text(
-              label,
-              style: const TextStyle(
-                  fontSize: 15, fontWeight: FontWeight.w600),
+            // Etiket esner: bu ekran 375px'e sabit tasarlanmıştı, daha dar
+            // cihazlarda ("Facebook ile devam et" gibi uzun çevirilerde)
+            // düğme içeriği taşıyordu.
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    fontSize: 15, fontWeight: FontWeight.w600),
+              ),
             ),
           ],
         ),

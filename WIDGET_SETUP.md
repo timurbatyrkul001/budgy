@@ -1,43 +1,68 @@
-# Budgy Ana Ekran Widget'ı — Kurulum (senin yapacağın tek native adım)
+# Budgy Ana Ekran Widget'ı
 
-Flutter tarafı hazır: `lib/core/widget_service.dart` bugünkü kazanç / cepte kalan /
-kazanç serisini App Group'a yazıyor (`root_screen`'de otomatik izleniyor).
-iOS widget kodu da hazır: `ios/BudgyWidget/BudgyWidget.swift` + `Info.plist`.
+Widget üç parçadan oluşuyor:
 
-Geriye tek şey kaldı: Xcode'da **Widget Extension target'ı** + **App Group** eklemek.
-~2 dakika. Aşağıdaki adımları izle (istersen birlikte yaparız).
+| Parça | Durum |
+|---|---|
+| Flutter köprüsü (`lib/core/widget_service.dart`) | ✅ Hazır |
+| **Android** widget (`BudgyWidgetProvider` + layout) | ✅ **Çalışıyor** |
+| **iOS** widget (`ios/BudgyWidget/BudgyWidget.swift`) | ⏳ Kod hazır, Xcode target'ı eksik |
 
-## iOS (Xcode)
+Gösterdiği bilgi: 🟢 yeşil kart — Budgy + 🔥seri · "Bugün: {kazanç}" · "Kalan:
+{cepte kalan}". Etiketler uygulamadan localize gönderildiği için widget da üç
+dilli çalışır.
 
-1. Xcode'da projeyi aç:
-   `open ios/Runner.xcworkspace`  (workspace, .xcodeproj değil!)
+---
+
+## Android — kurulum gerekmiyor
+
+Her şey projede: `BudgyWidgetProvider.kt`, `res/layout/budgy_widget.xml`,
+`res/xml/budgy_widget_info.xml` ve manifest'teki receiver.
+
+Denemek için:
+
+```bash
+flutter run
+```
+
+Uygulamayı bir kez aç (veri yazılsın) → ana ekrana çık → boş alana uzun bas →
+**Widget'lar** → **Budgy** → sürükleyip bırak.
+
+---
+
+## iOS — Apple Developer hesabı gerekiyor
+
+Widget Extension'ın imzalanabilmesi ve **App Group** yetkilendirmesi
+alabilmesi için ücretli Apple Developer hesabı şart. Hesap açıldıktan sonra:
+
+1. Workspace'i aç (`.xcodeproj` değil!):
+   ```bash
+   open ios/Runner.xcworkspace
+   ```
 
 2. **File → New → Target…** → **Widget Extension** → Next.
-   - Product Name: **BudgyWidget**  (bu isim önemli, koddaki `iOSWidgetName` ile aynı)
-   - "Include Live Activity" ve "Include Configuration App Intent" → **KAPALI** (işaretleme).
-   - Team: kendi geliştirici hesabın. Finish.
-   - "Activate scheme?" sorarsa **Cancel** (Runner scheme'inde kal).
+   - Product Name: **BudgyWidget** (bu isim `widget_service.dart` içindeki
+     `iOSWidgetName` ile aynı olmalı)
+   - "Include Live Activity" ve "Include Configuration App Intent" → **KAPALI**
+   - Team: kendi geliştirici hesabın → Finish
+   - "Activate scheme?" sorarsa **Cancel** (Runner scheme'inde kal)
 
-3. Xcode senin için `BudgyWidget/` klasörü + otomatik bir `BudgyWidget.swift` oluşturur.
-   O otomatik dosyanın **içeriğini sil**, yerine benim yazdığım
-   `ios/BudgyWidget/BudgyWidget.swift` içeriğini yapıştır (ya da dosyayı onunla değiştir).
+3. Xcode'un oluşturduğu `BudgyWidget.swift` dosyasının içeriğini sil, yerine
+   `ios/BudgyWidget/BudgyWidget.swift` içeriğini yapıştır.
 
-4. **App Group** ekle (iki target'a da):
-   - Sol panelde **Runner** target → **Signing & Capabilities** → **+ Capability** →
-     **App Groups** → **+** → `group.co.ggtech.kopilkaApp`
-   - Aynısını **BudgyWidget** target'ı için de yap (aynı grup adı).
-   - Grup adı, `widget_service.dart` içindeki `appGroupId` ile **birebir** aynı olmalı.
+4. **App Group** ekle — **iki target'a da**:
+   - **Runner** target → Signing & Capabilities → + Capability → **App Groups**
+     → + → `group.co.ggtech.kopilkaApp`
+   - Aynısını **BudgyWidget** target'ı için tekrarla.
+   - Grup adı `widget_service.dart` içindeki `appGroupId` ile **birebir** aynı
+     olmalı, yoksa widget veriyi okuyamaz.
 
-5. Çalıştır:  `flutter run`  → uygulamayı bir kez aç (veri yazılsın) → ana ekrana çık →
-   boş bir alana uzun bas → **+** → "Budgy" widget'ını ekle.
+5. `flutter run` → uygulamayı bir kez aç → ana ekranda widget'ı ekle.
 
-Not: `@main` için SourceKit uyarısı, dosya target'a eklenene kadar normaldir; eklenince kaybolur.
+> `@main` için SourceKit uyarısı, dosya target'a eklenene kadar normaldir.
 
-## Android (opsiyonel, sonra)
-Android widget'ı için `AppWidgetProvider` + layout XML + manifest receiver gerekir;
-Flutter tarafı zaten `androidWidgetName = 'BudgyWidgetProvider'` ile hazır. iOS bitince
-istersen Android'i de ekleriz.
+### O zamana kadar ne oluyor?
 
-## Ne gösteriyor
-🟢 yeşil kart: Budgy + 🔥seri · "Bugün: {kazanç}" · "Kalan: {cepte kalan}".
-Üç dilli (etiketler uygulamadan localize gönderiliyor). small + medium boyut.
+Hiçbir şey bozulmuyor: `BudgyWidget.push()` içindeki tüm çağrılar `try/catch`
+ile sarılı, App Group yoksa sessizce no-op. iOS'ta widget görünmez, uygulama
+normal çalışır.

@@ -124,8 +124,6 @@ class _CalculateBudgetScreenState
                                 fontSize: 15, fontWeight: FontWeight.w600)),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    _Circle(icon: Icons.more_horiz, onTap: () {}),
                   ],
                 ),
               ),
@@ -309,25 +307,34 @@ class _CalculateBudgetScreenState
                 ],
               ),
               const SizedBox(height: 12),
-              for (final p in _Period.values)
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: _MiniIcon(
-                      child: const Icon(Icons.hourglass_empty_rounded,
-                          size: 18, color: inkMuted)),
-                  title: Text(switch (p) {
-                    _Period.weekly => str.periodWeekly,
-                    _Period.monthly => str.periodMonthly,
-                    _Period.yearly => str.periodYearly,
-                  }),
-                  trailing: Radio<_Period>(
-                    value: p,
-                    groupValue: sel,
-                    activeColor: accent,
-                    onChanged: (v) => setS(() => sel = v!),
-                  ),
-                  onTap: () => setS(() => sel = p),
+              // Radio.groupValue/onChanged Flutter 3.32'de kullanımdan
+              // kalktı — seçim artık RadioGroup ile yönetiliyor.
+              RadioGroup<_Period>(
+                groupValue: sel,
+                onChanged: (v) => setS(() => sel = v!),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (final p in _Period.values)
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: _MiniIcon(
+                            child: const Icon(Icons.hourglass_empty_rounded,
+                                size: 18, color: inkMuted)),
+                        title: Text(switch (p) {
+                          _Period.weekly => str.periodWeekly,
+                          _Period.monthly => str.periodMonthly,
+                          _Period.yearly => str.periodYearly,
+                        }),
+                        trailing: Radio<_Period>(
+                          value: p,
+                          activeColor: accent,
+                        ),
+                        onTap: () => setS(() => sel = p),
+                      ),
+                  ],
                 ),
+              ),
               const SizedBox(height: 8),
               SizedBox(
                 width: double.infinity,

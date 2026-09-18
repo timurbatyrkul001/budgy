@@ -9,6 +9,7 @@ import '../../core/palette.dart';
 import '../envelopes/budget_repository.dart';
 import '../envelopes/envelope.dart';
 import '../envelopes/envelope_l10n.dart';
+import '../../core/feedback.dart';
 
 /// Zarfa doğrudan para ekleme (gelir). Birikim zarflarına önceki birikimi
 /// veya yeni parayı eklemek için. Tutar zarfın para biriminde.
@@ -58,8 +59,8 @@ class _AddFundsSheetState extends ConsumerState<_AddFundsSheet> {
     if (amount == null) return;
     final str = ref.read(strProvider);
     setState(() => _saving = true);
-    try {
-      await ref.read(budgetRepositoryProvider).addEnvelopeIncome(
+    final ok = await guardWrite(context, str, () {
+      return ref.read(budgetRepositoryProvider).addEnvelopeIncome(
             envelopeId: widget.envelope.id,
             envelopeName: widget.envelope.displayName(str),
             amount: amount,
@@ -67,10 +68,10 @@ class _AddFundsSheetState extends ConsumerState<_AddFundsSheet> {
             note: _note.text.trim().isEmpty ? null : _note.text.trim(),
             date: _date,
           );
-      if (mounted) Navigator.of(context).pop();
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
+    });
+    if (!mounted) return;
+    setState(() => _saving = false);
+    if (ok) Navigator.of(context).pop();
   }
 
   @override

@@ -16,6 +16,7 @@ import 'add_envelope_sheet.dart';
 import 'budget_repository.dart';
 import 'envelope.dart';
 import 'envelope_l10n.dart';
+import '../../core/feedback.dart';
 
 /// Onay dialogu: emoji + başlık + mesaj + Cancel / Action.
 Future<bool> showConfirmDialog(
@@ -123,9 +124,10 @@ class EnvelopeDetailScreen extends ConsumerWidget {
       body: str.deleteCatBody,
       actionLabel: str.deleteWord,
     );
-    if (ok) {
-      await ref.read(budgetRepositoryProvider).deleteEnvelope(envelope.id);
-      if (context.mounted) Navigator.of(context).pop();
+    if (ok && context.mounted) {
+      final done = await guardWrite(context, str,
+          () => ref.read(budgetRepositoryProvider).deleteEnvelope(envelope.id));
+      if (done && context.mounted) Navigator.of(context).pop();
     }
   }
 

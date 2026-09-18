@@ -38,6 +38,20 @@ class PrivacyPolicyScreen extends ConsumerWidget {
                   'kullanılır.',
             ),
             (
+              'Çökme raporları',
+              'Uygulama beklenmedik şekilde kapanırsa, hatayı düzeltebilmek '
+                  'için Google Firebase Crashlytics\'e teknik bir rapor '
+                  'gönderilir: cihaz modeli, işletim sistemi sürümü ve hatanın '
+                  'oluştuğu kod satırları. Bu raporlar finansal verini '
+                  'içermez.',
+            ),
+            (
+              'Döviz kurları',
+              'Döviz çevirme ekranını açtığında güncel kuru almak için '
+                  'open.er-api.com adresine istek gönderilir. Bu isteğe hiçbir '
+                  'kişisel veri ya da tutar eklenmez.',
+            ),
+            (
               'Haklarin',
               'Hesabını ve tüm verini istediğin an silebilirsin: '
                   'Profil → Hesabı sil. Bu işlem kalıcıdır.',
@@ -76,6 +90,19 @@ class PrivacyPolicyScreen extends ConsumerWidget {
                   'работы приложения.',
             ),
             (
+              'Отчёты о сбоях',
+              'Если приложение неожиданно закроется, в Google Firebase '
+                  'Crashlytics отправляется технический отчёт: модель '
+                  'устройства, версия ОС и строки кода, где произошла ошибка. '
+                  'Финансовые данные в такие отчёты не попадают.',
+            ),
+            (
+              'Курсы валют',
+              'При открытии экрана обмена валюты приложение запрашивает '
+                  'актуальный курс с open.er-api.com. Никакие персональные '
+                  'данные или суммы в этот запрос не добавляются.',
+            ),
+            (
               'Твои права',
               'Ты можешь удалить аккаунт и все данные в любой момент: '
                   'Профиль → Удалить аккаунт. Действие необратимо.',
@@ -112,6 +139,19 @@ class PrivacyPolicyScreen extends ConsumerWidget {
               'We do not share your personal data with third parties, except '
                   'the cloud infrastructure provider (Google Firebase) needed '
                   'to run the app.',
+            ),
+            (
+              'Crash reports',
+              'If the app closes unexpectedly, a technical report is sent to '
+                  'Google Firebase Crashlytics so we can fix it: device model, '
+                  'OS version and the lines of code where the error occurred. '
+                  'These reports contain no financial data.',
+            ),
+            (
+              'Exchange rates',
+              'When you open the currency conversion screen, the app requests '
+                  'the current rate from open.er-api.com. No personal data or '
+                  'amounts are included in that request.',
             ),
             (
               'Your rights',

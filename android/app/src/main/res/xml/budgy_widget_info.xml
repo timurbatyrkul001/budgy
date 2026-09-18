@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Widget boyut/davranış tanımı. minWidth/Height 2x2 hücreye denk gelir. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:initialLayout="@layout/budgy_widget"
+    android:minWidth="150dp"
+    android:minHeight="110dp"
+    android:resizeMode="horizontal|vertical"
+    android:widgetCategory="home_screen"
+    android:previewLayout="@layout/budgy_widget"
+    android:description="@string/budgy_widget_description"
+    android:updatePeriodMillis="1800000" />

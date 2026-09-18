@@ -3,13 +3,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/app_date_picker.dart';
+import '../../core/category_avatar.dart';
 import '../../core/formatters.dart';
 import '../../core/l10n.dart';
 import '../../core/tokens.dart';
 import '../envelopes/budget_repository.dart';
+import '../envelopes/envelope.dart';
 import '../envelopes/envelope_l10n.dart';
 import '../workdays/work_days_repository.dart';
 import 'tx.dart';
+import '../../core/feedback.dart';
 
 /// History of Spending — Cashly: tür sekmeleri + arama + filtre + tarihli liste.
 class JournalScreen extends ConsumerStatefulWidget {
@@ -41,7 +44,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
   Widget build(BuildContext context) {
     final c = context.budgy;
     final str = ref.watch(strProvider);
-    final all = ref.watch(journalProvider).value ?? [];
+    final all = ref.watch(journalFullProvider).value ?? [];
     final q = _search.text.trim().toLowerCase();
 
     // Gelir sekmesinde Takvim maaş günlerini de göster (salt-okunur, id 'wd_').
@@ -392,29 +395,37 @@ class _HistoryTabs extends StatelessWidget {
       (TxType.income, str.incomeTitle),
       (TxType.transfer, str.transferTitle),
     ];
+    // Segmentler kalan genişliği eşit paylaşır — sabit genişlikte bırakılınca
+    // dar ekranlarda (320dp) satır taşıyor ve "Transfer" görünmez oluyordu.
     return Row(
       children: [
-        for (final (m, label) in items) ...[
-          GestureDetector(
-            onTap: () => onChanged(m),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-              decoration: BoxDecoration(
-                color: m == mode ? c.accent : c.surface,
-                borderRadius: BorderRadius.circular(24),
+        for (final (index, (m, label)) in items.indexed) ...[
+          if (index > 0) const SizedBox(width: 8),
+          Expanded(
+            child: GestureDetector(
+              onTap: () => onChanged(m),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 10, vertical: 10),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: m == mode ? c.accent : c.surface,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Text(label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight:
+                          m == mode ? FontWeight.w700 : FontWeight.w500,
+                      color: m == mode ? Colors.white : c.textMuted,
+                    )),
               ),
-              child: Text(label,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight:
-                        m == mode ? FontWeight.w700 : FontWeight.w500,
-                    color: m == mode ? Colors.white : c.textMuted,
-                  )),
             ),
           ),
-          const SizedBox(width: 8),
         ],
       ],
     );
@@ -489,8 +500,9 @@ class TxTile extends ConsumerWidget {
         ],
       ),
     );
-    if (ok == true) {
-      await ref.read(budgetRepositoryProvider).deleteTx(tx.id);
+    if (ok == true && context.mounted) {
+      await guardWrite(context, str,
+          () => ref.read(budgetRepositoryProvider).deleteTx(tx.id));
     }
   }
 
@@ -573,7 +585,9 @@ class TxTile extends ConsumerWidget {
                   ),
                   onPressed: () async {
                     Navigator.of(sheetCtx).pop();
-                    await ref.read(budgetRepositoryProvider).deleteTx(tx.id);
+                    if (!context.mounted) return;
+                    await guardWrite(context, str,
+                        () => ref.read(budgetRepositoryProvider).deleteTx(tx.id));
                   },
                   icon: const Icon(Icons.delete_outline_rounded),
                   label: Text(str.deleteWord),
@@ -616,6 +630,10 @@ class TxTile extends ConsumerWidget {
                 ? c.accent
                 : c.text;
 
+    final envById = {
+      for (final e in ref.watch(envelopesProvider).value ?? const <Envelope>[])
+        e.id: e,
+    };
     // Takvim maaş günleri (id 'wd_') salt-okunur: silinmez/düzenlenmez.
     final readOnly = tx.id.startsWith('wd_');
     return InkWell(
@@ -626,29 +644,30 @@ class TxTile extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: isIncome
-                  ? c.envMarket
-                  : isTransfer
-                      ? c.envFatura
-                      : c.surface2,
-              shape: BoxShape.circle,
+          // Gider: kategori görseli (kategorisizse soru işareti); gelir /
+          // çevirme / transfer: yön simgesi.
+          if (tx.type == TxType.expense && !tx.isConvert)
+            switch (tx.envelopeId) {
+              final id? when envById[id] != null =>
+                CategoryAvatar(envelope: envById[id], size: 44),
+              _ => const CategoryAvatar.none(size: 44),
+            }
+          else
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: isIncome ? c.envMarket : c.envFatura,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                tx.isConvert || isTransfer
+                    ? Icons.swap_horiz_rounded
+                    : Icons.south_west_rounded,
+                size: 20,
+                color: accentColor,
+              ),
             ),
-            child: Icon(
-              tx.isConvert
-                  ? Icons.swap_horiz_rounded
-                  : isIncome
-                      ? Icons.south_west_rounded
-                      : isTransfer
-                          ? Icons.swap_horiz_rounded
-                          : Icons.north_east_rounded,
-              size: 20,
-              color: accentColor,
-            ),
-          ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(

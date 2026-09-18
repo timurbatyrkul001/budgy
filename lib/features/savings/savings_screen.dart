@@ -18,7 +18,7 @@ class SavingsScreen extends ConsumerWidget {
     final c = context.budgy;
     final str = ref.watch(strProvider);
     final totals = ref.watch(foreignTotalsProvider); // {USD: 1700, ...}
-    final txs = ref.watch(journalProvider).value ?? [];
+    final txs = ref.watch(recentTxsProvider).value ?? [];
 
     // Son 6 ay.
     final now = DateTime.now();
@@ -145,15 +145,25 @@ class _CurrencyCard extends StatelessWidget {
                                 color: c.accent),
                           ),
                         const SizedBox(height: 4),
-                        Container(
-                          margin:
-                              const EdgeInsets.symmetric(horizontal: 5),
-                          height: maxVal > 0
-                              ? (12 + 72 * (values[i] / maxVal))
-                              : 12,
-                          decoration: BoxDecoration(
-                            color: values[i] > 0 ? c.accent : c.track,
-                            borderRadius: BorderRadius.circular(6),
+                        // Çubuk kalan yüksekliği oransal doldurur. Sabit
+                        // piksel yüksekliğinde, üstteki tutar + alttaki ay
+                        // etiketiyle birlikte 110px'i aşıp taşıyordu
+                        // (sistem yazı boyutu büyütülünce daha da fazla).
+                        Expanded(
+                          child: FractionallySizedBox(
+                            alignment: Alignment.bottomCenter,
+                            heightFactor: maxVal > 0
+                                ? (0.15 + 0.85 * (values[i] / maxVal))
+                                    .clamp(0.15, 1.0)
+                                : 0.15,
+                            child: Container(
+                              margin:
+                                  const EdgeInsets.symmetric(horizontal: 5),
+                              decoration: BoxDecoration(
+                                color: values[i] > 0 ? c.accent : c.track,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                            ),
                           ),
                         ),
                         const SizedBox(height: 6),

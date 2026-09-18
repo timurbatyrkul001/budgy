@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Widget seçicide görünen açıklama. Uygulama içi metinler Dart tarafında
+     (core/l10n.dart) — burada yalnız sistem UI'sinin gösterdikleri var. -->
+<resources>
+    <string name="budgy_widget_description">Today\'s earnings and what\'s left</string>
+</resources>

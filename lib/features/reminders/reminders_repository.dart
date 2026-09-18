@@ -46,6 +46,8 @@ final reminderSchedulerProvider = Provider<void>((ref) {
                 ? tpl(str.dontForgetTpl, {'x': formatMoney(reminder.amount!)})
                 : str.dontForgetPlain,
             day: day,
+            channelName: str.channelPaymentsName,
+            channelDescription: str.channelPaymentsDesc,
           );
         }
       }
@@ -56,6 +58,8 @@ final reminderSchedulerProvider = Provider<void>((ref) {
         title: str.dailyReminderTitle,
         body: str.dailyReminderBody,
         hour: daily.hour,
+        channelName: str.channelDailyName,
+        channelDescription: str.channelDailyDesc,
       );
       // Haftalık özet: Pazar 20:00 — bu haftaki kazanç toplamı.
       final earned = ref.read(allWorkDaysProvider).value ?? const [];
@@ -74,6 +78,8 @@ final reminderSchedulerProvider = Provider<void>((ref) {
         body: tpl(str.weeklySummaryBodyTpl, {'x': formatMoney(weekTotal)}),
         weekday: DateTime.sunday,
         hour: 20,
+        channelName: str.channelWeeklyName,
+        channelDescription: str.channelWeeklyDesc,
       );
     }
   }

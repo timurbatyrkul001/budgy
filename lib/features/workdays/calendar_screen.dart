@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/ex_style.dart';
 import '../../core/formatters.dart';
 import '../../core/l10n.dart';
 import '../../core/tokens.dart';
@@ -63,6 +64,8 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 6, 20, 24),
                 children: [
+                  // Menüden push edildiğinde geri; yoksa gizli.
+                  const BudgyBackButton(),
                   // ── başlık ─────────────────────────────────────────────
                   Text(
                     str.workDaysTitle,
@@ -111,15 +114,22 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                             size: 24, color: c.textMuted),
                         onPressed: () => _shiftMonth(-1),
                       ),
-                      Text(
-                        toBeginningOfSentenceCase(
-                            DateFormat('LLLL yyyy', str.localeCode)
-                                .format(_month)),
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -0.02 * 17,
-                          color: c.text,
+                      // Ay adı esner: dar ekranda uzun aylar ("Ağustos",
+                      // "Сентябрь") iki ok düğmesi arasına sığmıyordu.
+                      Expanded(
+                        child: Text(
+                          toBeginningOfSentenceCase(
+                              DateFormat('LLLL yyyy', str.localeCode)
+                                  .format(_month)),
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.02 * 17,
+                            color: c.text,
+                          ),
                         ),
                       ),
                       IconButton(

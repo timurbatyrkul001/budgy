@@ -95,7 +95,6 @@ class Strings {
     required this.amountTitle,
     required this.dateLabel,
     required this.selectCategory,
-    required this.repeatLabel,
     required this.convertTitle,
     required this.giveLabel,
     required this.getLabel,
@@ -337,18 +336,36 @@ class Strings {
     required this.emailHint,
     required this.passwordLabel,
     required this.passwordHint,
-    required this.rememberMe,
     required this.forgotPassword,
     required this.signInButton,
     required this.signInError,
     required this.signUpApple,
     required this.continueGoogle,
     required this.continueApple,
-    required this.continueFacebook,
+    required this.continueWithoutAccount,
+    required this.withoutAccountNote,
     required this.orSignUpWith,
     required this.loginMyAccount,
     required this.termsNote,
     required this.errorPrefix,
+    required this.errorSaveFailed,
+    required this.errorGeneric,
+    required this.channelPaymentsName,
+    required this.channelPaymentsDesc,
+    required this.channelDailyName,
+    required this.channelDailyDesc,
+    required this.channelWeeklyName,
+    required this.channelWeeklyDesc,
+    required this.confirmPasswordTitle,
+    required this.deleteAccountFailed,
+    required this.deleteAccountReauthFailed,
+    required this.aiAddTitle,
+    required this.aiAddHint,
+    required this.aiInputHint,
+    required this.aiParseAction,
+    required this.aiSaveAllTpl,
+    required this.aiNothingFound,
+    required this.aiVoiceUnavailable,
   });
 
   final String localeCode;
@@ -395,7 +412,6 @@ class Strings {
   final String amountTitle;
   final String dateLabel;
   final String selectCategory;
-  final String repeatLabel;
   final String convertTitle;
   final String giveLabel;
   final String getLabel;
@@ -634,18 +650,48 @@ class Strings {
   final String emailHint;
   final String passwordLabel;
   final String passwordHint;
-  final String rememberMe;
   final String forgotPassword;
   final String signInButton;
   final String signInError;
   final String signUpApple;
   final String continueGoogle;
   final String continueApple;
-  final String continueFacebook;
+  /// Hesap açmadan devam etme bağlantısı + altındaki uyarı.
+  final String continueWithoutAccount;
+  final String withoutAccountNote;
   final String orSignUpWith;
   final String loginMyAccount;
   final String termsNote;
   final String errorPrefix;
+
+  /// Kaydetme sırasında (ağ/Firestore) hata — kullanıcıya SnackBar.
+  final String errorSaveFailed;
+
+  /// Beklenmedik durum: seçilen zarf silinmiş, birimler uyuşmuyor vb.
+  final String errorGeneric;
+
+  /// Android bildirim kanalı adları/açıklamaları. Sistem ayarlarında
+  /// kullanıcıya göründükleri için çevrilir.
+  final String channelPaymentsName;
+  final String channelPaymentsDesc;
+  final String channelDailyName;
+  final String channelDailyDesc;
+  final String channelWeeklyName;
+  final String channelWeeklyDesc;
+
+  /// Hesap silme: yeniden kimlik doğrulama akışı.
+  final String confirmPasswordTitle;
+  final String deleteAccountFailed;
+  final String deleteAccountReauthFailed;
+
+  /// AI hızlı giriş (yaz/söyle → işlemler).
+  final String aiAddTitle;
+  final String aiAddHint;
+  final String aiInputHint;
+  final String aiParseAction;
+  final String aiSaveAllTpl;
+  final String aiNothingFound;
+  final String aiVoiceUnavailable;
 
   static const en = Strings(
     localeCode: 'en',
@@ -688,7 +734,6 @@ class Strings {
     amountTitle: 'Amount',
     dateLabel: 'Date',
     selectCategory: 'Select category',
-    repeatLabel: 'Repeat',
     convertTitle: 'Convert currency',
     giveLabel: 'You give',
     getLabel: 'You get',
@@ -972,7 +1017,6 @@ class Strings {
     emailHint: 'Enter your email',
     passwordLabel: 'Password',
     passwordHint: 'Enter your password',
-    rememberMe: 'Remember me',
     forgotPassword: 'Forgot password',
     signInButton: 'Sign in',
     signInError:
@@ -980,12 +1024,36 @@ class Strings {
     signUpApple: 'Sign up with Apple',
     continueGoogle: 'Continue with Google',
     continueApple: 'Continue with Apple',
-    continueFacebook: 'Continue with Facebook',
+    continueWithoutAccount: 'Continue without an account',
+    withoutAccountNote:
+        'You can start right away, but your data lives only on this '
+        'device until you sign in.',
     orSignUpWith: 'or sign up with',
     loginMyAccount: 'Login with my account',
     termsNote:
         'By signing up you acknowledge and agree to Budgy Terms of Use and Privacy Policy',
     errorPrefix: 'Error',
+    errorSaveFailed: "Couldn't save. Check your connection and try again.",
+    errorGeneric: 'Something went wrong. Please try again.',
+    channelPaymentsName: 'Payment reminders',
+    channelPaymentsDesc: 'Reminders for rent, bills and other regular payments',
+    channelDailyName: 'Daily reminder',
+    channelDailyDesc: 'A nudge to log today\'s spending',
+    channelWeeklyName: 'Weekly summary',
+    channelWeeklyDesc: 'Your earnings for the week',
+    confirmPasswordTitle: 'Confirm your password',
+    deleteAccountFailed:
+        "Your account couldn't be deleted. Please try again.",
+    deleteAccountReauthFailed:
+        'We need to verify it\'s you before deleting the account. '
+        'Sign in again and retry.',
+    aiAddTitle: 'Quick add',
+    aiAddHint: 'Type or speak — amounts and categories are filled in for you.',
+    aiInputHint: 'e.g. "coffee 90, groceries 450"',
+    aiParseAction: 'Parse',
+    aiSaveAllTpl: 'Save {n} transactions',
+    aiNothingFound: "Couldn't find an amount — try rephrasing.",
+    aiVoiceUnavailable: 'Voice input is unavailable on this device.',
   );
 
   static const tr = Strings(
@@ -1029,7 +1097,6 @@ class Strings {
     amountTitle: 'Tutar',
     dateLabel: 'Tarih',
     selectCategory: 'Kategori seç',
-    repeatLabel: 'Tekrarla',
     convertTitle: 'Döviz çevir',
     giveLabel: 'Verdiğin',
     getLabel: 'Aldığın',
@@ -1311,7 +1378,6 @@ class Strings {
     emailHint: 'E-postanı gir',
     passwordLabel: 'Şifre',
     passwordHint: 'Şifreni gir',
-    rememberMe: 'Beni hatırla',
     forgotPassword: 'Şifremi unuttum',
     signInButton: 'Giriş yap',
     signInError:
@@ -1319,12 +1385,35 @@ class Strings {
     signUpApple: 'Apple ile kaydol',
     continueGoogle: 'Google ile devam et',
     continueApple: 'Apple ile devam et',
-    continueFacebook: 'Facebook ile devam et',
+    continueWithoutAccount: 'Hesap açmadan devam et',
+    withoutAccountNote:
+        'Hemen başlayabilirsin, ama giriş yapmazsan verin yalnız bu '
+        'cihazda kalır.',
     orSignUpWith: 'veya şununla kaydol',
     loginMyAccount: 'Hesabımla giriş yap',
     termsNote:
         'Kaydolarak Budgy Kullanım Koşulları ve Gizlilik Politikası\'nı kabul etmiş olursun',
     errorPrefix: 'Hata',
+    errorSaveFailed: 'Kaydedilemedi. Bağlantını kontrol edip tekrar dene.',
+    errorGeneric: 'Bir şeyler ters gitti. Lütfen tekrar dene.',
+    channelPaymentsName: 'Ödeme hatırlatmaları',
+    channelPaymentsDesc: 'Kira, fatura ve diğer düzenli ödemeler için hatırlatma',
+    channelDailyName: 'Günlük hatırlatma',
+    channelDailyDesc: 'Bugünkü harcamalarını girmen için dürtme',
+    channelWeeklyName: 'Haftalık özet',
+    channelWeeklyDesc: 'Bu haftaki kazancın',
+    confirmPasswordTitle: 'Şifreni doğrula',
+    deleteAccountFailed: 'Hesabın silinemedi. Lütfen tekrar dene.',
+    deleteAccountReauthFailed:
+        'Hesabı silmeden önce kimliğini doğrulamamız gerekiyor. '
+        'Tekrar giriş yapıp yeniden dene.',
+    aiAddTitle: 'Hızlı ekle',
+    aiAddHint: 'Yaz ya da söyle — tutar ve kategori senin yerine doldurulur.',
+    aiInputHint: 'örn. "kahve 90, market 450"',
+    aiParseAction: 'Çözümle',
+    aiSaveAllTpl: '{n} işlemi kaydet',
+    aiNothingFound: 'Tutar bulamadım — biraz farklı yazmayı dene.',
+    aiVoiceUnavailable: 'Bu cihazda sesli giriş kullanılamıyor.',
   );
 
   static const ru = Strings(
@@ -1368,7 +1457,6 @@ class Strings {
     amountTitle: 'Сумма',
     dateLabel: 'Дата',
     selectCategory: 'Категория',
-    repeatLabel: 'Повтор',
     convertTitle: 'Обмен валюты',
     giveLabel: 'Отдаёшь',
     getLabel: 'Получаешь',
@@ -1650,7 +1738,6 @@ class Strings {
     emailHint: 'Введи email',
     passwordLabel: 'Пароль',
     passwordHint: 'Введи пароль',
-    rememberMe: 'Запомнить меня',
     forgotPassword: 'Забыл пароль',
     signInButton: 'Войти',
     signInError:
@@ -1658,11 +1745,34 @@ class Strings {
     signUpApple: 'Войти через Apple',
     continueGoogle: 'Войти через Google',
     continueApple: 'Войти через Apple',
-    continueFacebook: 'Войти через Facebook',
+    continueWithoutAccount: 'Продолжить без аккаунта',
+    withoutAccountNote:
+        'Можно начать сразу, но без входа данные останутся только на '
+        'этом устройстве.',
     orSignUpWith: 'или войди через',
     loginMyAccount: 'Войти со своим аккаунтом',
     termsNote:
         'Регистрируясь, ты принимаешь Условия использования и Политику конфиденциальности Budgy',
     errorPrefix: 'Ошибка',
+    errorSaveFailed: 'Не удалось сохранить. Проверьте соединение и повторите.',
+    errorGeneric: 'Что-то пошло не так. Попробуйте ещё раз.',
+    channelPaymentsName: 'Напоминания о платежах',
+    channelPaymentsDesc: 'Напоминания об аренде, счетах и других регулярных платежах',
+    channelDailyName: 'Ежедневное напоминание',
+    channelDailyDesc: 'Напоминание внести траты за день',
+    channelWeeklyName: 'Итоги недели',
+    channelWeeklyDesc: 'Ваш заработок за неделю',
+    confirmPasswordTitle: 'Подтвердите пароль',
+    deleteAccountFailed: 'Не удалось удалить аккаунт. Попробуйте ещё раз.',
+    deleteAccountReauthFailed:
+        'Перед удалением аккаунта нужно подтвердить личность. '
+        'Войдите заново и повторите.',
+    aiAddTitle: 'Быстрая запись',
+    aiAddHint: 'Напиши или скажи — суммы и категории заполнятся сами.',
+    aiInputHint: 'напр. «кофе 90, продукты 450»',
+    aiParseAction: 'Разобрать',
+    aiSaveAllTpl: 'Сохранить {n} операций',
+    aiNothingFound: 'Не нашёл сумму — попробуй сказать иначе.',
+    aiVoiceUnavailable: 'Голосовой ввод недоступен на этом устройстве.',
   );
 }

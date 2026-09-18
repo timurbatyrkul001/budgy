@@ -23,7 +23,6 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   bool _obscure = true;
-  bool _remember = false;
   bool _loading = false;
   bool _error = false;
 
@@ -149,43 +148,11 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
               ),
             ],
             const SizedBox(height: 14),
+            // Firebase oturumu zaten cihazda kalıcı — ayrı bir "beni hatırla"
+            // kutusu hiçbir şey yapmıyordu, kaldırıldı.
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                // Beni hatırla (görsel durum korunuyor).
-                Flexible(
-                  child: GestureDetector(
-                    onTap: () => setState(() => _remember = !_remember),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 22,
-                          height: 22,
-                          decoration: BoxDecoration(
-                            color: _remember ? c.accent : c.surface,
-                            borderRadius: BorderRadius.circular(7),
-                            border: Border.all(
-                              color: _remember ? c.accent : c.borderStrong,
-                              width: 1.5,
-                            ),
-                          ),
-                          child: _remember
-                              ? const Icon(Icons.check,
-                                  size: 14, color: Colors.white)
-                              : null,
-                        ),
-                        const SizedBox(width: 8),
-                        Flexible(
-                          child: Text(str.rememberMe,
-                              style:
-                                  TextStyle(fontSize: 14, color: c.text)),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
                 GestureDetector(
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute(

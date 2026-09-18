@@ -2,9 +2,83 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // ── yardımcılar ────────────────────────────────────────────────────
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    function data() {
+      return request.resource.data;
+    }
+
+    // Tutarlar her zaman pozitif sayı olmalı. Negatif/NaN/metin bir tutar,
+    // bakiyeleri sessizce bozar; kural katmanı son savunma hattı.
+    function validAmount(value) {
+      return value is number && value > 0 && value < 1000000000;
+    }
+
+    // ── kullanıcı verisi ───────────────────────────────────────────────
     // Каждый пользователь читает и пишет только свои данные.
-    match /users/{uid}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+    match /users/{uid} {
+      allow read, write: if isOwner(uid);
+
+      match /envelopes/{envelopeId} {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid)
+          && data().name is string
+          && data().name.size() > 0
+          && data().name.size() <= 60
+          && data().balance is number
+          && (!('targetAmount' in data())
+              || data().targetAmount == null
+              || data().targetAmount is number);
+      }
+
+      match /transactions/{txId} {
+        allow read, delete: if isOwner(uid);
+        allow create: if isOwner(uid)
+          && data().type in ['income', 'expense', 'transfer']
+          && validAmount(data().amount)
+          && data().date is timestamp;
+        // Güncelleme yalnız "dağıtıldı" işaretlemesi için kullanılıyor —
+        // tutar/tür sonradan değiştirilemesin.
+        allow update: if isOwner(uid)
+          && data().type == resource.data.type
+          && data().amount == resource.data.amount;
+      }
+
+      // Çalışma günleri, hatırlatıcılar ve ayarlar: sahiplik kontrolü yeterli.
+      match /workDays/{dayId} {
+        allow read, write: if isOwner(uid);
+      }
+
+      match /reminders/{reminderId} {
+        allow read, write: if isOwner(uid);
+      }
+
+      // Tekrarlayan işlem kuralları: tutar pozitif, tür geçerli.
+      match /recurring/{ruleId} {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid)
+          && data().type in ['income', 'expense']
+          && validAmount(data().amount)
+          && data().nextDate is timestamp;
+      }
+
+      match /settings/{docId} {
+        allow read, write: if isOwner(uid);
+      }
+
+      // Kategori otomasyonu: kullanıcı kuralları (anahtar kelime → zarf).
+      match /rules/{ruleId} {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid)
+          && data().keyword is string
+          && data().keyword.size() > 0
+          && data().keyword.size() <= 60
+          && data().envelopeId is string;
+      }
     }
   }
 }

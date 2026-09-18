@@ -2,329 +2,390 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/category_avatar.dart';
+import '../../core/ex_style.dart';
 import '../../core/formatters.dart';
 import '../../core/l10n.dart';
-import '../../core/palette.dart';
-import '../../core/tokens.dart';
+import '../../core/redesign_l10n.dart';
 import '../envelopes/budget_repository.dart';
+import '../envelopes/envelope.dart';
 import '../envelopes/envelope_l10n.dart';
-import '../insights/analytics.dart';
+import '../insights/analytics_month.dart';
+import '../transactions/journal_screen.dart';
 import '../transactions/tx.dart';
-import 'donut_chart.dart';
 
-/// Операции выбранного месяца. Ключ — '2026-06'.
-final monthTxsProvider =
-    StreamProvider.family<List<Tx>, String>((ref, monthKey) {
-  final start = DateTime.parse('$monthKey-01');
-  final end = DateTime(start.year, start.month + 1);
-  return ref.watch(budgetRepositoryProvider).watchTxsBetween(start, end);
-});
-
-/// Операции за последние 6 месяцев — для сравнения с прошлым месяцем.
-final recentTxsProvider = StreamProvider<List<Tx>>((ref) {
-  final now = DateTime.now();
-  final start = DateTime(now.year, now.month - 5);
-  final end = DateTime(now.year, now.month + 1);
-  return ref.watch(budgetRepositoryProvider).watchTxsBetween(start, end);
-});
-
-/// İstatistik — "Sıcak Defter" stili: tür sekmeleri + kategori donut'u +
-/// zarf kırılımı legend'i + döviz notu. ₺ işlemler; döviz çevirme hariç.
+/// Analiz ("dark emerald"): kategori filtresi, ay seçici (geleceğe yok),
+/// Harcama kartı (toplam + hafta kovaları), kategoriye göre liste, içgörü
+/// kartları. Yalnız gerçek ₺ giderler (çevirme/hedef fonu/döviz hariç).
 class StatsScreen extends ConsumerStatefulWidget {
-  const StatsScreen({super.key});
+  const StatsScreen({super.key, this.initialMonthOffset = 0});
+
+  /// Önizleme: 0 = bu ay, -1 = geçen ay.
+  final int initialMonthOffset;
 
   @override
   ConsumerState<StatsScreen> createState() => _StatsScreenState();
 }
 
 class _StatsScreenState extends ConsumerState<StatsScreen> {
-  TxType _mode = TxType.expense;
+  /// recentTxsProvider son 6 ayı kapsar — geriye en fazla o kadar.
+  static const _maxBack = 5;
+
+  late DateTime _month;
+  String? _categoryId; // null = tümü, '' = kategorisiz
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    _month = DateTime(now.year, now.month + widget.initialMonthOffset.clamp(-_maxBack, 0));
+  }
+
+  DateTime get _current {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month);
+  }
+
+  bool get _canNext => _month.isBefore(_current);
+  bool get _canPrev =>
+      _month.isAfter(DateTime(_current.year, _current.month - _maxBack));
+
+  void _shift(int delta) =>
+      setState(() => _month = DateTime(_month.year, _month.month + delta));
+
+  Future<void> _pickCategory(List<Tx> txs, Map<String, Envelope> envelopes,
+      Strings str, RS rs) async {
+    // Son 6 ayda geçen kategoriler + kategorisiz.
+    final ids = <String?>{};
+    for (final t in txs) {
+      if (t.type == TxType.expense && !t.isConvert && !t.isGoalFund &&
+          t.currency == 'TRY') {
+        ids.add(t.envelopeId);
+      }
+    }
+    final options = <(String?, Widget, String)>[
+      (
+        null,
+        Container(
+          width: 30,
+          height: 30,
+          decoration: BoxDecoration(
+              color: Ex.brand.withValues(alpha: 0.16), shape: BoxShape.circle),
+          child: const Icon(Icons.grid_view_rounded, size: 16, color: Ex.mint),
+        ),
+        rs.allCategories
+      ),
+      for (final id in ids)
+        if (id == null)
+          ('', const CategoryAvatar.none(size: 30), rs.noCategory)
+        else if (envelopes[id] != null)
+          (id, CategoryAvatar(envelope: envelopes[id], size: 30),
+              envelopes[id]!.displayName(str)),
+    ];
+    final picked = await showExSheet<(String?,)>(
+      context,
+      SheetFrame(
+        title: rs.byCategory,
+        child: Column(
+          children: [
+            for (final (id, leading, name) in options)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: ExCard(
+                  onTap: () => Navigator.of(context).pop((id,)),
+                  padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+                  child: Row(
+                    children: [
+                      leading,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: id == _categoryId ? Ex.mint : Ex.text)),
+                      ),
+                      if (id == _categoryId)
+                        const Icon(Icons.check_rounded, size: 20, color: Ex.mint),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (picked != null) setState(() => _categoryId = picked.$1);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final c = context.budgy;
+    final rs = ref.watch(rsProvider);
     final str = ref.watch(strProvider);
-    final now = DateTime.now();
-    final monthKey = DateFormat('yyyy-MM').format(now);
-    final monthTxs = ref.watch(monthTxsProvider(monthKey)).value ?? [];
-    final recent = ref.watch(recentTxsProvider).value ?? [];
-    final envelopes = ref.watch(envelopesProvider).value ?? [];
-    final foreign = ref.watch(foreignTotalsProvider);
-    final deltas = ref.watch(monthComparisonProvider);
-    final emojiOf = {for (final e in envelopes) e.displayName(str): e.emoji};
-
-    // Sadece seçili tür, gerçek ₺ işlemler (döviz çevirme hariç).
-    bool match(Tx t) =>
-        t.type == _mode &&
-        !t.isConvert &&
-        !t.isGoalFund &&
-        t.currency == 'TRY';
-
-    final total =
-        monthTxs.where(match).fold<double>(0, (s, t) => s + t.amount);
-
-    // Son 6 ay — aylık toplamlar (geçen ay karşılaştırması için).
-    final months = [
-      for (var i = 5; i >= 0; i--) DateTime(now.year, now.month - i),
-    ];
-    final byMonth = {for (final m in months) m: 0.0};
-    for (final t in recent.where(match)) {
-      final m = DateTime(t.date.year, t.date.month);
-      if (byMonth.containsKey(m)) byMonth[m] = byMonth[m]! + t.amount;
-    }
-    final monthly = [for (final m in months) byMonth[m]!];
-    // Geçen aya göre değişim (özet içgörüsü).
-    final lastMonth = monthly.length >= 2 ? monthly[monthly.length - 2] : 0.0;
-    final int? pct = lastMonth > 0
-        ? ((total - lastMonth) / lastMonth * 100).round()
-        : null;
-    // Gider için azalma iyi; gelir için artış iyi.
-    final bool good = _mode == TxType.income
-        ? (pct != null && pct > 0)
-        : (pct != null && pct < 0);
-
-    // Bu ay kategori (zarf) kırılımı, azalan.
-    final byEnv = <String, double>{};
-    for (final t in monthTxs.where(match)) {
-      final name = t.envelopeName ?? str.withoutEnvelope;
-      byEnv[name] = (byEnv[name] ?? 0) + t.amount;
-    }
-    final cats = byEnv.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-
-    // Donut'un ortasındaki alt yazı, seçili türe göre.
-    final centerLabel = switch (_mode) {
-      TxType.income => str.incomeTitle,
-      TxType.transfer => str.transferTitle,
-      _ => str.spentThisMonth,
+    final txs = ref.watch(recentTxsProvider).value ?? const <Tx>[];
+    final envelopes = {
+      for (final e in ref.watch(envelopesProvider).value ?? const <Envelope>[])
+        e.id: e,
     };
+    final a = analyzeMonth(
+      txs,
+      _month,
+      categoryId: _categoryId,
+      envelopes: envelopes,
+      nameOf: (e) => e.displayName(str),
+      uncategorizedLabel: rs.noCategory,
+    );
+    final filterLabel = switch (_categoryId) {
+      null => rs.allCategories,
+      '' => rs.noCategory,
+      final id => envelopes[id]?.displayName(str) ?? rs.allCategories,
+    };
+    final filterEmoji = switch (_categoryId) {
+      null => null,
+      '' => '❔',
+      final id => envelopes[id]?.emoji,
+    };
+    final monthLabel = toBeginningOfSentenceCase(
+        DateFormat('LLLL yyyy', str.localeCode).format(_month));
+    final daysInMonth = DateTime(_month.year, _month.month + 1, 0).day;
 
     return Scaffold(
-      backgroundColor: c.bg,
+      backgroundColor: Ex.bg,
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
           children: [
-            // ── başlık + ay çipi ──────────────────────────────────────────
+            // ── başlık ──────────────────────────────────────────────────
             Row(
               children: [
+                if (Navigator.of(context).canPop())
+                  Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: GlassSquareButton(
+                        icon: Icons.arrow_back_rounded,
+                        onTap: () => Navigator.of(context).maybePop()),
+                  ),
                 Expanded(
-                  child: Text(
-                    str.reportTitle,
-                    style: TextStyle(
-                      fontSize: 26,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.03 * 26,
-                      color: c.text,
-                    ),
-                  ),
-                ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: c.surface,
-                    border: Border.all(color: c.border),
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: c.cardShadow,
-                  ),
-                  child: Text(
-                    toBeginningOfSentenceCase(
-                      DateFormat('MMMM', str.localeCode).format(now),
-                    ),
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: c.text,
-                    ),
-                  ),
+                  child: Text(rs.analyticsTitle,
+                      style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.7,
+                          color: Ex.text)),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-
-            // ── tür segmentleri ───────────────────────────────────────────
-            _ModeTabs(
-              mode: _mode,
-              str: str,
-              onChanged: (m) => setState(() => _mode = m),
-            ),
-
-            // ── geçen aya göre içgörü ─────────────────────────────────────
-            if (pct != null) ...[
-              const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 10, vertical: 5),
+            const SizedBox(height: 14),
+            // ── kategori filtresi ───────────────────────────────────────
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Material(
+                color: _categoryId == null
+                    ? Ex.surface
+                    : Ex.brand.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(12),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () => _pickCategory(txs, envelopes, str, rs),
+                  child: Container(
+                    height: 36,
+                    padding: const EdgeInsets.fromLTRB(12, 0, 8, 0),
                     decoration: BoxDecoration(
-                      color: (good ? c.accent : c.amber)
-                          .withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                          color: _categoryId == null ? Ex.border : Ex.glassBorder),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          pct < 0
-                              ? Icons.arrow_downward_rounded
-                              : Icons.arrow_upward_rounded,
-                          size: 13,
-                          color: good ? c.accentStrong : c.amber,
+                        if (filterEmoji != null)
+                          Text(filterEmoji, style: const TextStyle(fontSize: 14))
+                        else
+                          const Icon(Icons.grid_view_rounded,
+                              size: 15, color: Ex.textMuted),
+                        const SizedBox(width: 6),
+                        ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 200),
+                          child: Text(filterLabel,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: _categoryId == null
+                                      ? Ex.textSoft
+                                      : Ex.mint)),
                         ),
-                        const SizedBox(width: 3),
-                        Text(
-                          '${pct.abs()}% ${str.localeCode == 'tr' ? 'geçen aya göre' : (str.localeCode == 'ru' ? 'к прошлому месяцу' : 'vs last month')}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: good ? c.accentStrong : c.amber,
-                          ),
-                        ),
+                        const Icon(Icons.expand_more_rounded,
+                            size: 18, color: Ex.textMuted),
                       ],
                     ),
                   ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+            // ── ay seçici ───────────────────────────────────────────────
+            Row(
+              children: [
+                _NavBtn(
+                    icon: Icons.chevron_left_rounded,
+                    onTap: _canPrev ? () => _shift(-1) : null),
+                Expanded(
+                  child: Text(monthLabel,
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: Ex.text)),
+                ),
+                _NavBtn(
+                    icon: Icons.chevron_right_rounded,
+                    onTap: _canNext ? () => _shift(1) : null),
+              ],
+            ),
+            const SizedBox(height: 14),
+            // ── harcama kartı ───────────────────────────────────────────
+            ExCard(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(rs.spending,
+                      style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Ex.textMuted)),
+                  const SizedBox(height: 4),
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(formatMoney(a.total),
+                        style: const TextStyle(
+                            fontSize: 30,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.8,
+                            color: Ex.text)),
+                  ),
+                  const SizedBox(height: 14),
+                  _WeekBars(
+                    buckets: a.buckets,
+                    current: MonthAnalytics.currentBucket(_month, DateTime.now()),
+                    daysInMonth: daysInMonth,
+                  ),
                 ],
               ),
-            ],
-            const SizedBox(height: 8),
-
-            // ── donut ─────────────────────────────────────────────────────
-            Center(
-              child: DonutChart(
-                values: [for (final e in cats) e.value],
-                colors: [for (var i = 0; i < cats.length; i++) vividAt(i)],
-                centerTitle: formatMoney(total),
-                centerSubtitle: centerLabel,
-              ),
             ),
-            const SizedBox(height: 10),
-
-            // ── legend / kategori listesi ─────────────────────────────────
-            Text(
-              str.allCategoryExpenses,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.02 * 16,
-                color: c.text,
-              ),
-            ),
-            const SizedBox(height: 6),
-            if (cats.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 20),
-                child: Center(
-                  child: Text(
-                    str.noExpensesMonth,
-                    style: TextStyle(fontSize: 13.5, color: c.textMuted),
-                  ),
-                ),
-              )
-            else
-              for (var i = 0; i < cats.length; i++)
-                _LegendRow(
-                  color: vividAt(i),
-                  name: cats[i].key,
-                  amount: cats[i].value,
-                  share: total > 0 ? cats[i].value / total : 0,
-                  onTap: () => _showCategoryDetail(
-                    context,
-                    str,
-                    emojiOf[cats[i].key] ?? '🗂️',
-                    cats[i].key,
-                    cats[i].value,
-                    monthTxs
-                        .where(match)
-                        .where((t) =>
-                            (t.envelopeName ?? str.withoutEnvelope) ==
-                            cats[i].key)
-                        .toList()
-                      ..sort((a, b) => b.date.compareTo(a.date)),
-                  ),
-                ),
-
-            // ── döviz zarfları notu ───────────────────────────────────────
-            if (foreign.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                decoration: BoxDecoration(
-                  color: c.surface2,
-                  border: Border.all(color: c.border),
-                  borderRadius: BorderRadius.circular(BudgyRadii.chip),
-                ),
+            const SizedBox(height: 22),
+            if (a.isEmpty)
+              ExCard(
                 child: Row(
                   children: [
-                    Icon(Icons.currency_exchange_rounded,
-                        size: 18, color: c.textMuted),
-                    const SizedBox(width: 10),
+                    const Icon(Icons.hourglass_empty_rounded,
+                        size: 20, color: Ex.textMuted),
+                    const SizedBox(width: 12),
                     Expanded(
-                      child: Text.rich(
-                        TextSpan(
-                          text: '${str.savingsTitle}: ',
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            height: 1.3,
-                            color: c.textMuted,
-                          ),
-                          children: [
-                            TextSpan(
-                              text: [
-                                for (final e in foreign.entries)
-                                  formatMoneyIn(e.value, e.key),
-                              ].join(' · '),
-                              style: TextStyle(
-                                fontWeight: FontWeight.w700,
-                                color: c.text,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                      child: Text(rs.notEnoughData,
+                          style: const TextStyle(
+                              fontSize: 14, height: 1.4, color: Ex.textSoft)),
                     ),
                   ],
                 ),
-              ),
-            ],
-
-            // ── içgörüler: bu ay vs geçen ay (zarf bazında) ───────────────
-            if (deltas.isNotEmpty) ...[
-              const SizedBox(height: 22),
-              Text(
-                str.insightsTitle,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.02 * 16,
-                  color: c.text,
-                ),
-              ),
+              )
+            else ...[
+              // ── kategoriye göre ─────────────────────────────────────
+              Text(rs.byCategory,
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w800, color: Ex.text)),
               const SizedBox(height: 10),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 6),
-                decoration: BoxDecoration(
-                  color: c.surface,
-                  border: Border.all(color: c.border),
-                  borderRadius: BorderRadius.circular(BudgyRadii.card),
-                  boxShadow: c.cardShadow,
-                ),
+              ExCard(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 child: Column(
                   children: [
-                    for (var i = 0; i < deltas.length && i < 4; i++) ...[
-                      if (i > 0) Divider(height: 1, color: c.border),
-                      _InsightRow(
-                        delta: deltas[i],
-                        tint: c.envTintAt(i),
-                        str: str,
+                    for (final (i, c) in a.byCategory.indexed) ...[
+                      if (i > 0) const Divider(height: 1, color: Ex.border),
+                      _CategoryRow(
+                        stat: c,
+                        envelope: c.envelopeId == null ? null : envelopes[c.envelopeId],
+                        share: a.total <= 0 ? 0 : c.amount / a.total,
+                        countLabel: c.count == 1
+                            ? rs.oneExpense
+                            : tpl(rs.expensesTpl, {'n': '${c.count}'}),
+                        onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) => _CategoryTxsScreen(
+                            month: _month,
+                            categoryId: c.envelopeId ?? '',
+                            title: c.name,
+                            monthLabel: monthLabel,
+                          ),
+                        )),
                       ),
                     ],
                   ],
                 ),
+              ),
+              const SizedBox(height: 22),
+              // ── içgörüler ───────────────────────────────────────────
+              Row(
+                children: [
+                  Expanded(
+                    child: _InsightCard(
+                      label: rs.topCategory,
+                      leading: CategoryAvatar(
+                          envelope: a.topCategory!.envelopeId == null
+                              ? null
+                              : envelopes[a.topCategory!.envelopeId],
+                          size: 36),
+                      value: a.topCategory!.name,
+                      sub: tpl(rs.shareTpl, {
+                        'pct': '${(a.topCategory!.amount / a.total * 100).round()}',
+                      }),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _InsightCard(
+                      label: rs.mostPurchases,
+                      leading: CategoryAvatar(
+                          envelope: a.mostPurchases!.envelopeId == null
+                              ? null
+                              : envelopes[a.mostPurchases!.envelopeId],
+                          size: 36),
+                      value: a.mostPurchases!.name,
+                      sub: a.mostPurchases!.count == 1
+                          ? rs.onePurchase
+                          : tpl(rs.purchasesTpl,
+                              {'n': '${a.mostPurchases!.count}'}),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: _InsightCard(
+                      label: rs.busiestDay,
+                      leading: const CategoryAvatar(emoji: '📅', tintSeed: 'day', size: 36),
+                      value: toBeginningOfSentenceCase(DateFormat('EEEE', str.localeCode)
+                          .format(DateTime(2024, 1, a.busiestWeekday ?? 1))),
+                      sub: formatMoney(a.busiestWeekdayAmount),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _InsightCard(
+                      label: rs.avgPerDay,
+                      leading: const CategoryAvatar(emoji: '⏱️', tintSeed: 'avg', size: 36),
+                      value: formatMoney(a.avgPerDay),
+                      sub: tpl(rs.daysTpl, {'n': '${a.daysCounted}'}),
+                    ),
+                  ),
+                ],
               ),
             ],
           ],
@@ -334,253 +395,162 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
   }
 }
 
-/// İçgörü satırı: emoji tile + zarf adı + bu ay tutarı + değişim rozeti.
-/// Harcamada artış = uyarı (amber), azalış = iyi (yeşil); geçen ay verisi
-/// yoksa "yeni" hapı.
-class _InsightRow extends StatelessWidget {
-  const _InsightRow({
-    required this.delta,
-    required this.tint,
-    required this.str,
-  });
+class _NavBtn extends StatelessWidget {
+  const _NavBtn({required this.icon, required this.onTap});
 
-  final CategoryDelta delta;
-  final Color tint;
-  final Strings str;
+  final IconData icon;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final c = context.budgy;
-    final pct = delta.pctChange;
-
-    Widget trailing;
-    if (pct == null) {
-      // Geçen ay yoktu — bu ay yeni kategori.
-      trailing = Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+    return InkWell(
+      borderRadius: BorderRadius.circular(Ex.iconRadius),
+      onTap: onTap,
+      child: Container(
+        width: 36,
+        height: 36,
         decoration: BoxDecoration(
-          color: c.accent.withValues(alpha: 0.14),
-          borderRadius: BorderRadius.circular(20),
+          color: Ex.surface,
+          borderRadius: BorderRadius.circular(Ex.iconRadius),
+          border: Border.all(color: Ex.border),
         ),
-        child: Text(
-          str.newBadge,
-          style: TextStyle(
-            fontSize: 11.5,
-            fontWeight: FontWeight.w800,
-            color: c.accentStrong,
-          ),
-        ),
-      );
-    } else {
-      // Gider: artış kötü (amber), azalış iyi (yeşil), değişmedi nötr.
-      final color = pct > 0
-          ? c.amber
-          : pct < 0
-              ? c.accentStrong
-              : c.textMuted;
-      final label = pct > 0 ? '▲ +$pct%' : (pct < 0 ? '▼ ${pct.abs()}%' : '0%');
-      trailing = Text(
-        label,
-        style: TextStyle(
-          fontSize: 12.5,
-          fontWeight: FontWeight.w800,
-          color: color,
-          fontFeatures: const [FontFeature.tabularFigures()],
-        ),
-      );
-    }
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: tint,
-              borderRadius: BorderRadius.circular(BudgyRadii.icon),
-            ),
-            child: Text(
-              delta.envelope.emoji,
-              style: const TextStyle(fontSize: 19),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  delta.envelope.displayName(str),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 14.5,
-                    fontWeight: FontWeight.w700,
-                    color: c.text,
-                  ),
-                ),
-                if (pct != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    str.vsLastMonth,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 11.5, color: c.textMuted),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                formatMoney(delta.thisMonth),
-                style: TextStyle(
-                  fontSize: 14.5,
-                  fontWeight: FontWeight.w800,
-                  color: c.text,
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
-              ),
-              const SizedBox(height: 3),
-              trailing,
-            ],
-          ),
-        ],
+        child: Icon(icon, size: 22, color: onTap == null ? Ex.textFaint : Ex.text),
       ),
     );
   }
 }
 
-/// Tür segmentleri: Harcama / Gelir / Transfer — track içinde beyaz hap.
-class _ModeTabs extends StatelessWidget {
-  const _ModeTabs(
-      {required this.mode, required this.str, required this.onChanged});
+/// Hafta kovaları çubuk grafiği: nane çubuklar, geçerli kova yeşil, boş
+/// kovalar düz ama görünür.
+class _WeekBars extends StatelessWidget {
+  const _WeekBars({
+    required this.buckets,
+    required this.current,
+    required this.daysInMonth,
+  });
 
-  final TxType mode;
-  final Strings str;
-  final ValueChanged<TxType> onChanged;
+  final List<double> buckets;
+  final int? current;
+  final int daysInMonth;
 
   @override
   Widget build(BuildContext context) {
-    final c = context.budgy;
-    final items = [
-      (TxType.expense, str.expenseTitle),
-      (TxType.income, str.incomeTitle),
-      (TxType.transfer, str.transferTitle),
-    ];
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: c.track,
-        borderRadius: BorderRadius.circular(13),
-      ),
-      child: Row(
-        children: [
-          for (final (m, label) in items)
-            Expanded(
-              child: GestureDetector(
-                onTap: () => onChanged(m),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(vertical: 9),
-                  decoration: BoxDecoration(
-                    color: m == mode ? c.surface : Colors.transparent,
-                    borderRadius: BorderRadius.circular(10),
-                    boxShadow: m == mode ? c.cardShadow : null,
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    label,
-                    style: TextStyle(
-                      fontSize: 13.5,
-                      fontWeight:
-                          m == mode ? FontWeight.w700 : FontWeight.w600,
-                      color: m == mode ? c.text : c.textMuted,
+    final maxV = buckets.fold<double>(0, (m, v) => v > m ? v : m);
+    const chartH = 96.0;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        for (final (i, v) in buckets.indexed) ...[
+          if (i > 0) const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              children: [
+                SizedBox(
+                  height: chartH,
+                  child: Align(
+                    alignment: Alignment.bottomCenter,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 400),
+                      curve: Curves.easeOutCubic,
+                      height: maxV <= 0 ? 4 : (4 + (chartH - 4) * v / maxV),
+                      decoration: BoxDecoration(
+                        color: v <= 0
+                            ? Ex.surfaceHi
+                            : (i == current ? Ex.brand : Ex.mint.withValues(alpha: 0.55)),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
                     ),
                   ),
                 ),
-              ),
+                const SizedBox(height: 6),
+                Text(
+                  MonthAnalytics.bucketLabel(i, daysInMonth),
+                  maxLines: 1,
+                  style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: i == current ? FontWeight.w800 : FontWeight.w600,
+                      color: i == current ? Ex.mint : Ex.textFaint),
+                ),
+              ],
             ),
+          ),
         ],
-      ),
+      ],
     );
   }
 }
 
-/// Legend satırı: renk noktası + isim + % payı + tutar (tabular).
-class _LegendRow extends StatelessWidget {
-  const _LegendRow({
-    required this.color,
-    required this.name,
-    required this.amount,
+class _CategoryRow extends StatelessWidget {
+  const _CategoryRow({
+    required this.stat,
+    required this.envelope,
     required this.share,
+    required this.countLabel,
     required this.onTap,
   });
 
-  final Color color;
-  final String name;
-  final double amount;
+  final CategoryStat stat;
+  final Envelope? envelope;
   final double share;
+  final String countLabel;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final c = context.budgy;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(12),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 7),
+        padding: const EdgeInsets.symmetric(vertical: 10),
         child: Row(
           children: [
-            Container(
-              width: 11,
-              height: 11,
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: BorderRadius.circular(4),
-              ),
-            ),
-            const SizedBox(width: 11),
+            envelope == null
+                ? const CategoryAvatar.none(size: 38)
+                : CategoryAvatar(envelope: envelope, size: 38),
+            const SizedBox(width: 10),
             Expanded(
-              child: Text(
-                name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 14.5,
-                  fontWeight: FontWeight.w700,
-                  color: c.text,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              '${(share * 100).round()}%',
-              style: TextStyle(
-                fontSize: 12,
-                color: c.textMuted,
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
-            ),
-            const SizedBox(width: 8),
-            ConstrainedBox(
-              constraints: const BoxConstraints(minWidth: 64),
-              child: Text(
-                formatMoney(amount),
-                textAlign: TextAlign.right,
-                style: TextStyle(
-                  fontSize: 14.5,
-                  fontWeight: FontWeight.w800,
-                  color: c.text,
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(stat.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: Ex.text)),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(formatMoney(stat.amount),
+                          style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                              color: Ex.text)),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(2),
+                          child: LinearProgressIndicator(
+                            value: share.clamp(0, 1),
+                            minHeight: 4,
+                            backgroundColor: Ex.surfaceHi,
+                            color: Ex.mint,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(countLabel,
+                          style: const TextStyle(fontSize: 11.5, color: Ex.textMuted)),
+                    ],
+                  ),
+                ],
               ),
             ),
           ],
@@ -590,155 +560,102 @@ class _LegendRow extends StatelessWidget {
   }
 }
 
-/// Legend satırına dokunma → kategorinin bu ayki işlemleri (alt sayfa).
-void _showCategoryDetail(BuildContext context, Strings str, String emoji,
-    String name, double total, List<Tx> txs) {
-  showModalBottomSheet(
-    context: context,
-    isScrollControlled: true,
-    backgroundColor: context.budgy.surface,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-    ),
-    builder: (_) => _CategoryDetailSheet(
-      emoji: emoji,
-      name: name,
-      total: total,
-      txs: txs,
-      str: str,
-    ),
-  );
-}
-
-class _CategoryDetailSheet extends StatelessWidget {
-  const _CategoryDetailSheet({
-    required this.emoji,
-    required this.name,
-    required this.total,
-    required this.txs,
-    required this.str,
+class _InsightCard extends StatelessWidget {
+  const _InsightCard({
+    required this.label,
+    required this.leading,
+    required this.value,
+    required this.sub,
   });
 
-  final String emoji;
-  final String name;
-  final double total;
-  final List<Tx> txs;
-  final Strings str;
+  final String label;
+  final Widget leading;
+  final String value;
+  final String sub;
 
   @override
   Widget build(BuildContext context) {
-    final c = context.budgy;
-    final period =
-        DateFormat('MMMM yyyy', str.localeCode).format(DateTime.now());
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return ExCard(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                  fontSize: 12, fontWeight: FontWeight.w700, color: Ex.textMuted)),
+          const SizedBox(height: 10),
+          leading,
+          const SizedBox(height: 8),
+          Text(value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                  fontSize: 15, fontWeight: FontWeight.w800, color: Ex.text)),
+          const SizedBox(height: 2),
+          Text(sub,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 12, color: Ex.mint)),
+        ],
+      ),
+    );
+  }
+}
+
+/// Bir kategorinin o aydaki işlemleri.
+class _CategoryTxsScreen extends ConsumerWidget {
+  const _CategoryTxsScreen({
+    required this.month,
+    required this.categoryId,
+    required this.title,
+    required this.monthLabel,
+  });
+
+  final DateTime month;
+  final String categoryId; // '' = kategorisiz
+  final String title;
+  final String monthLabel;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final str = ref.watch(strProvider);
+    final txs = (ref.watch(recentTxsProvider).value ?? const <Tx>[])
+        .where((t) =>
+            t.type == TxType.expense &&
+            !t.isConvert &&
+            !t.isGoalFund &&
+            t.currency == 'TRY' &&
+            t.date.year == month.year &&
+            t.date.month == month.month &&
+            (t.envelopeId ?? '') == categoryId)
+        .toList();
+    return Scaffold(
+      backgroundColor: Ex.bg,
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
           children: [
-            Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: c.surface2,
-                    borderRadius: BorderRadius.circular(BudgyRadii.chip),
-                    border: Border.all(color: c.border),
-                  ),
-                  child: Text(emoji, style: const TextStyle(fontSize: 22)),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                          color: c.text,
-                        ),
-                      ),
-                      Text(
-                        period,
-                        style: TextStyle(fontSize: 13, color: c.textMuted),
-                      ),
-                    ],
-                  ),
-                ),
-                Text(
-                  formatMoney(total),
-                  style: TextStyle(
-                    fontSize: 18,
+            const BudgyBackButton(),
+            Text(title,
+                style: const TextStyle(
+                    fontSize: 24,
                     fontWeight: FontWeight.w800,
-                    color: c.text,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Divider(height: 24, color: c.border),
-            Flexible(
-              child: ListView.separated(
-                shrinkWrap: true,
-                itemCount: txs.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 4),
-                itemBuilder: (_, i) {
-                  final t = txs[i];
-                  final title = (t.note != null && t.note!.trim().isNotEmpty)
-                      ? t.note!
-                      : name;
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w600,
-                                  color: c.text,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                DateFormat('d MMMM yyyy', str.localeCode)
-                                    .format(t.date),
-                                style: TextStyle(
-                                    fontSize: 12.5, color: c.textMuted),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          formatMoneyIn(t.amount, t.currency),
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: c.text,
-                            fontFeatures: const [
-                              FontFeature.tabularFigures()
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
+                    letterSpacing: -0.7,
+                    color: Ex.text)),
+            Text(monthLabel,
+                style: const TextStyle(fontSize: 13, color: Ex.textMuted)),
+            const SizedBox(height: 14),
+            ExCard(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              child: Column(
+                children: [
+                  for (final (i, t) in txs.indexed) ...[
+                    if (i > 0) const Divider(height: 1, color: Ex.border),
+                    TxTile(tx: t, str: str),
+                  ],
+                ],
               ),
             ),
           ],

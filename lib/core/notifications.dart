@@ -19,40 +19,59 @@ class Notifications {
     await _plugin.initialize(
       settings: const InitializationSettings(
         iOS: DarwinInitializationSettings(),
-        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+        android: AndroidInitializationSettings('@drawable/ic_notification'),
       ),
     );
     await _plugin
         .resolvePlatformSpecificImplementation<
             IOSFlutterLocalNotificationsPlugin>()
         ?.requestPermissions(alert: true, badge: true, sound: true);
+    // Android 13+ (API 33) bildirim iznini çalışma anında ister. Bu çağrı
+    // olmadan zamanlanan hatırlatmalar hiç görünmez.
+    await _plugin
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.requestNotificationsPermission();
     _ready = true;
   }
 
+  /// Ayın [day]. gününü o ay için geçerli bir güne kırpar:
+  /// 31 istenip ay 30 çekiyorsa 30'a düşer (yoksa bir sonraki aya kayardı).
+  static tz.TZDateTime _monthlyAt(int year, int month, int day, int hour) {
+    // Ayın son günü: bir sonraki ayın 0. günü.
+    final lastDay = DateTime(year, month + 1, 0).day;
+    return tz.TZDateTime(tz.local, year, month, day.clamp(1, lastDay), hour);
+  }
+
   /// Ежемесячное напоминание: каждый [day] день месяца в 10:00.
+  ///
+  /// [channelName]/[channelDescription] Android sistem ayarlarında kullanıcıya
+  /// görünür — bu yüzden uygulamanın dilinden geçirilir.
   static Future<void> scheduleMonthly({
     required int id,
     required String title,
     required String body,
     required int day,
+    required String channelName,
+    required String channelDescription,
   }) async {
     await init();
     final now = tz.TZDateTime.now(tz.local);
-    var when = tz.TZDateTime(tz.local, now.year, now.month, day, 10);
-    if (when.isBefore(now)) {
-      when = tz.TZDateTime(tz.local, now.year, now.month + 1, day, 10);
+    var when = _monthlyAt(now.year, now.month, day, 10);
+    if (!when.isAfter(now)) {
+      when = _monthlyAt(now.year, now.month + 1, day, 10);
     }
     await _plugin.zonedSchedule(
       id: id,
       title: title,
       body: body,
       scheduledDate: when,
-      notificationDetails: const NotificationDetails(
-        iOS: DarwinNotificationDetails(),
+      notificationDetails: NotificationDetails(
+        iOS: const DarwinNotificationDetails(),
         android: AndroidNotificationDetails(
           'reminders',
-          'Напоминания',
-          channelDescription: 'Напоминания о платежах',
+          channelName,
+          channelDescription: channelDescription,
         ),
       ),
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
@@ -67,6 +86,8 @@ class Notifications {
     required String title,
     required String body,
     required int hour,
+    required String channelName,
+    required String channelDescription,
     int minute = 0,
   }) async {
     await init();
@@ -79,12 +100,12 @@ class Notifications {
       title: title,
       body: body,
       scheduledDate: when,
-      notificationDetails: const NotificationDetails(
-        iOS: DarwinNotificationDetails(),
+      notificationDetails: NotificationDetails(
+        iOS: const DarwinNotificationDetails(),
         android: AndroidNotificationDetails(
           'daily',
-          'Günlük hatırlatma',
-          channelDescription: 'Harcama girme hatırlatması',
+          channelName,
+          channelDescription: channelDescription,
         ),
       ),
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
@@ -99,6 +120,8 @@ class Notifications {
     required String body,
     required int weekday,
     required int hour,
+    required String channelName,
+    required String channelDescription,
     int minute = 0,
   }) async {
     await init();
@@ -116,12 +139,12 @@ class Notifications {
       title: title,
       body: body,
       scheduledDate: when,
-      notificationDetails: const NotificationDetails(
-        iOS: DarwinNotificationDetails(),
+      notificationDetails: NotificationDetails(
+        iOS: const DarwinNotificationDetails(),
         android: AndroidNotificationDetails(
           'weekly',
-          'Haftalık özet',
-          channelDescription: 'Haftalık kazanç özeti',
+          channelName,
+          channelDescription: channelDescription,
         ),
       ),
       androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/formatters.dart';
 import '../../core/l10n.dart';
 import '../auth/auth_gate.dart';
+import '../recurring/recurring.dart';
 import '../transactions/tx.dart';
 import 'envelope.dart';
 
@@ -20,13 +21,30 @@ final envelopesProvider = StreamProvider<List<Envelope>>((ref) {
   return ref.watch(budgetRepositoryProvider).watchEnvelopes();
 });
 
-/// Общий баланс по всем конвертам.
-/// Ana ₺ toplam: yalnız TRY zarfları (yabancı para ayrı gösterilir).
-final totalBalanceProvider = Provider<double>((ref) {
-  final envelopes = ref.watch(envelopesProvider).value ?? [];
-  return envelopes
-      .where((e) => e.currency == 'TRY' && !e.archived && !e.isGoal)
-      .fold(0, (total, e) => total + e.balance);
+/// Ana ekranda görünen zarflar: arşivlenmemiş, hedef olmayan.
+final activeEnvelopesProvider = Provider<List<Envelope>>((ref) {
+  final envelopes = ref.watch(envelopesProvider).value ?? const [];
+  return envelopes.where((e) => !e.archived && !e.isGoal).toList();
+});
+
+/// ₺ gelirin dağıtılabileceği zarflar: aktif + para birimi TRY.
+/// Döviz zarfına ₺ yazmak bakiyeyi bozar, hedefler ayrı kumbara.
+final allocatableEnvelopesProvider = Provider<List<Envelope>>((ref) {
+  return ref
+      .watch(activeEnvelopesProvider)
+      .where((e) => e.currency == 'TRY')
+      .toList();
+});
+
+/// Cüzdan bakiyesi — "Cepte kalan"ın TEK kaynağı (accounts/cash).
+final cashBalanceProvider = StreamProvider<double>((ref) {
+  return ref.watch(budgetRepositoryProvider).watchCashBalance();
+});
+
+/// Eski modelden cüzdana tek seferlik göç. RootScreen'e girmeden tamamlanır
+/// ki ana ekran hiç yanlış bakiye göstermesin.
+final walletMigrationProvider = FutureProvider<void>((ref) {
+  return ref.watch(budgetRepositoryProvider).migrateToWallet();
 });
 
 /// Yabancı para birimi bazında toplamlar: {'USD': 120, 'EUR': 30}.
@@ -38,18 +56,6 @@ final foreignTotalsProvider = Provider<Map<String, double>>((ref) {
     totals[e.currency] = (totals[e.currency] ?? 0) + e.balance;
   }
   return totals;
-});
-
-/// Свободные расходы («из кармана»), не учтённые в распределении.
-final unallocatedFreeExpensesProvider =
-    StreamProvider<List<({String id, double amount})>>((ref) {
-  return ref.watch(budgetRepositoryProvider).watchUnallocatedFreeExpenses();
-});
-
-/// Свободные доходы («в котле»), ещё не разложенные по конвертам.
-final unallocatedFreeIncomeProvider =
-    StreamProvider<List<({String id, double amount})>>((ref) {
-  return ref.watch(budgetRepositoryProvider).watchUnallocatedFreeIncome();
 });
 
 /// Показан ли онбординг (выбор стартовых конвертов).
@@ -98,9 +104,53 @@ final biometricEnabledProvider = Provider<bool>((ref) {
   return ref.watch(profileProvider).value?['biometric'] == true;
 });
 
-/// Журнал: последние операции, новые сверху.
+/// Журнал: последние операции, новые сверху. Ana ekrandaki "son işlemler"
+/// için — kısa liste. Hesaplamalarda KULLANMA: [limit] yüzünden eksik olur,
+/// bunun yerine tarih aralıklı [recentTxsProvider] / [monthTxsProvider].
 final journalProvider = StreamProvider<List<Tx>>((ref) {
   return ref.watch(budgetRepositoryProvider).watchTransactions();
+});
+
+/// Tekrarlayan işlem kuralları (yönetim ekranı).
+final recurringRulesProvider = StreamProvider<List<RecurringRule>>((ref) {
+  return ref.watch(budgetRepositoryProvider).watchRecurringRules();
+});
+
+/// Açılışta vadesi gelen tekrarları işler — RootScreen bir kez izler.
+final recurringMaterializerProvider = FutureProvider<int>((ref) {
+  return ref.watch(budgetRepositoryProvider).materializeRecurring();
+});
+
+/// Geçmiş ekranı (arama + filtre) için daha geniş pencere.
+final journalFullProvider = StreamProvider<List<Tx>>((ref) {
+  return ref.watch(budgetRepositoryProvider).watchTransactions(limit: 1000);
+});
+
+/// Belirli bir ayın işlemleri. Anahtar '2026-06' biçiminde.
+final monthTxsProvider =
+    StreamProvider.family<List<Tx>, String>((ref, monthKey) {
+  final start = DateTime.parse('$monthKey-01');
+  final end = DateTime(start.year, start.month + 1);
+  return ref.watch(budgetRepositoryProvider).watchTxsBetween(start, end);
+});
+
+/// Son 6 ayın işlemleri — tüm ay bazlı hesapların TEK kaynağı.
+/// Adet limiti yok: tarih aralığıyla sınırlı, bu yüzden "bu ay harcanan"
+/// gibi toplamlar işlem sayısı arttıkça sessizce yanlışlanmaz.
+final recentTxsProvider = StreamProvider<List<Tx>>((ref) {
+  final now = DateTime.now();
+  final start = DateTime(now.year, now.month - 5);
+  final end = DateTime(now.year, now.month + 1);
+  return ref.watch(budgetRepositoryProvider).watchTxsBetween(start, end);
+});
+
+/// Bu ayın işlemleri — [recentTxsProvider]'dan türer (ekstra dinleyici yok).
+final currentMonthTxsProvider = Provider<List<Tx>>((ref) {
+  final txs = ref.watch(recentTxsProvider).value ?? const [];
+  final now = DateTime.now();
+  return txs
+      .where((t) => t.date.year == now.year && t.date.month == now.month)
+      .toList();
 });
 
 /// Операции одного конверта.
@@ -111,15 +161,15 @@ final envelopeTxsProvider =
       .watchTransactions(envelopeId: envelopeId);
 });
 
-/// Bu ayki zarf-bazlı harcama: envelopeId -> toplam (gider, çevrim hariç).
-/// "Kategori" görünümü için: zarf kartı "bu ay harcanan"ı gösterir.
+/// Bu ayki zarf-bazlı ₺ harcama: envelopeId -> toplam.
+/// Döviz çevrimi, hedefe para ayırma ve TRY-dışı işlemler hariç — zarf kartı
+/// "bu ay harcanan"ı ve bütçe/tempo hesapları bunun üstünde çalışır.
 final monthlySpentByEnvelopeProvider = Provider<Map<String, double>>((ref) {
-  final txs = ref.watch(journalProvider).value ?? [];
-  final now = DateTime.now();
+  final txs = ref.watch(currentMonthTxsProvider);
   final map = <String, double>{};
   for (final t in txs) {
-    if (t.type != TxType.expense || t.isConvert) continue;
-    if (t.date.year != now.year || t.date.month != now.month) continue;
+    if (t.type != TxType.expense || t.isConvert || t.isGoalFund) continue;
+    if (t.currency != 'TRY') continue;
     final id = t.envelopeId;
     if (id == null) continue;
     map[id] = (map[id] ?? 0) + t.amount;
@@ -128,14 +178,89 @@ final monthlySpentByEnvelopeProvider = Provider<Map<String, double>>((ref) {
 });
 
 /// Все данные лежат под users/{uid}/... — у каждого пользователя свой кошелёк.
+///
+/// **Cüzdan modeli (2026-09 pivotu):** para tek bir kasada — `accounts/cash`
+/// belgesinde saklanan gerçek bakiye — yaşar. Gelir doğrudan cüzdana girer,
+/// gider cüzdandan çıkar; zarflar artık para TUTMAZ, harcama anında seçilen
+/// kategori + aylık bütçe limitidir. İstisnalar bakiye tutmaya devam eder:
+/// birikim hedefleri (goal) ve döviz zarfları — onlar kumbara.
 class BudgetRepository {
   BudgetRepository(this._db, this._uid);
 
   final FirebaseFirestore _db;
   final String _uid;
 
+  /// Uzantılar (ör. kategori otomasyonu) için: aynı kullanıcı ağacı.
+  FirebaseFirestore get db => _db;
+  String get uid => _uid;
+
   CollectionReference<Map<String, dynamic>> get _envelopes =>
       _db.collection('users').doc(_uid).collection('envelopes');
+
+  /// Cüzdan: kullanıcının nakit kasası. Tek hesap — ileride banka/kart gibi
+  /// hesaplar eklenirse bu koleksiyon genişler.
+  DocumentReference<Map<String, dynamic>> get _cash =>
+      _db.collection('users').doc(_uid).collection('accounts').doc('cash');
+
+  /// Cüzdan bakiyesini [batch] içinde değiştirir. `set+merge`: belge henüz
+  /// yoksa da çalışır (increment eksik belgede alanı delta ile başlatır).
+  void _cashDelta(WriteBatch batch, double delta) {
+    if (delta == 0) return;
+    batch.set(_cash, {'balance': FieldValue.increment(delta)},
+        SetOptions(merge: true));
+  }
+
+  Stream<double> watchCashBalance() => _cash.snapshots().map(
+      (doc) => (doc.data()?['balance'] as num?)?.toDouble() ?? 0);
+
+  /// Eski "türetilmiş cep" modelinden cüzdan modeline TEK SEFERLİK geçiş.
+  ///
+  /// `accounts/cash` yoksa eski formülle hesaplar ve yazar:
+  /// ₺ zarf bakiyeleri + dağıtılmamış gün kazançları + dağıtılmamış serbest
+  /// gelir − dağıtılmamış serbest gider. Serbest kayıtlar `allocated:true`
+  /// işaretlenir ki bir daha sayılmasınlar. Çalışma günleri işaretlenmez:
+  /// yeni kural (bkz. WorkDaysRepository.setDay) her günün mevcut tutarını
+  /// "zaten sayılmış" kabul edip yalnız FARKI uygular — bu, göç öncesi ve
+  /// sonrası günler için aynı şekilde doğrudur.
+  Future<void> migrateToWallet() async {
+    final cashSnap = await _cash.get();
+    if (cashSnap.exists) return;
+
+    var balance = 0.0;
+
+    final envs = await _envelopes.get();
+    for (final doc in envs.docs) {
+      final d = doc.data();
+      if ((d['currency'] as String? ?? 'TRY') != 'TRY') continue;
+      if (d['goal'] == true) continue;
+      balance += (d['balance'] as num?)?.toDouble() ?? 0;
+    }
+
+    final workDays =
+        await _db.collection('users').doc(_uid).collection('workDays').get();
+    for (final doc in workDays.docs) {
+      if (doc.data()['allocated'] == true) continue;
+      balance += (doc.data()['amount'] as num?)?.toDouble() ?? 0;
+    }
+
+    final batch = _db.batch();
+    final freeTxs = await _txs.where('free', isEqualTo: true).get();
+    for (final doc in freeTxs.docs) {
+      final d = doc.data();
+      if (d['allocated'] == true) continue;
+      final amount = (d['amount'] as num?)?.toDouble() ?? 0;
+      balance += d['type'] == TxType.income.name ? amount : -amount;
+      batch.update(doc.reference, {'allocated': true});
+    }
+
+    batch.set(_cash, {
+      'name': 'wallet',
+      'currency': 'TRY',
+      'balance': balance,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+    await batch.commit();
+  }
 
   CollectionReference<Map<String, dynamic>> get _txs =>
       _db.collection('users').doc(_uid).collection('transactions');
@@ -213,17 +338,16 @@ class BudgetRepository {
 
   Stream<List<Tx>> watchTransactions({String? envelopeId, int limit = 200}) {
     if (envelopeId != null) {
-      // arrayContains + orderBy → Firestore composite index ister.
-      // Index gerektirmesin diye: filtre sunucuda, sıralama client'ta.
+      // Sıralama SUNUCUDA: limit'li sorguda istemci tarafında sıralamak
+      // "en yeni [limit] işlem" garantisi vermez — sunucu rastgele bir
+      // alt küme döndürüp sonra sıralanırdı. Bileşik indeks için bkz.
+      // firestore.indexes.json (envelopeIds + date DESC).
       return _txs
           .where('envelopeIds', arrayContains: envelopeId)
+          .orderBy('date', descending: true)
           .limit(limit)
           .snapshots()
-          .map((snap) {
-        final list = snap.docs.map(Tx.fromDoc).toList();
-        list.sort((a, b) => b.date.compareTo(a.date));
-        return list;
-      });
+          .map((snap) => snap.docs.map(Tx.fromDoc).toList());
     }
     return _txs
         .orderBy('date', descending: true)
@@ -232,29 +356,43 @@ class BudgetRepository {
         .map((snap) => snap.docs.map(Tx.fromDoc).toList());
   }
 
-  Future<void> addEnvelope(String name, String emoji, int sortOrder,
-      {String currency = 'TRY'}) {
+  Future<void> addEnvelope(
+    String name,
+    String emoji,
+    int sortOrder, {
+    String currency = 'TRY',
+    String? section,
+    int? colorIndex,
+  }) {
     return _envelopes.add({
       'name': name,
       'emoji': emoji,
       'balance': 0,
       'sortOrder': sortOrder,
       'currency': currency,
+      'section': section,
+      'color': colorIndex,
       'createdAt': FieldValue.serverTimestamp(),
     });
   }
 
-  /// Правка имени делает конверт «своим» — снимаем preset,
-  /// чтобы смена языка не перетёрла имя пользователя.
-  Future<void> updateEnvelope(String id,
-      {required String name,
-      required String emoji,
-      String currency = 'TRY'}) {
+  /// Ad/emoji/renk/bölüm düzenleme. Para birimine DOKUNMAZ (döviz
+  /// cüzdanları da buradan düzenlenir). [dropPreset]: ad değiştiyse zarf
+  /// "kendi" olur — dil değişince kullanıcının adı ezilmesin.
+  Future<void> updateEnvelope(
+    String id, {
+    required String name,
+    required String emoji,
+    String? section,
+    int? colorIndex,
+    bool dropPreset = false,
+  }) {
     return _envelopes.doc(id).update({
       'name': name,
       'emoji': emoji,
-      'currency': currency,
-      'preset': FieldValue.delete(),
+      'section': section,
+      'color': colorIndex,
+      if (dropPreset) 'preset': FieldValue.delete(),
     });
   }
 
@@ -283,8 +421,8 @@ class BudgetRepository {
     });
   }
 
-  /// Hedefe para ayır: Money left'ten düşer (serbest gider, goalFund), hedef
-  /// bakiyesi artar. Geçmiş/donut'a "harcama" olarak girmez.
+  /// Hedefe para ayır: cüzdandan düşer, hedef bakiyesi artar.
+  /// Geçmiş/donut'a "harcama" olarak girmez (goalFund işareti).
   Future<void> fundGoal({
     required String goalId,
     required String goalName,
@@ -297,18 +435,19 @@ class BudgetRepository {
       'date': Timestamp.fromDate(DateTime.now()),
       'note': goalName,
       'envelopeIds': <String>[],
-      'free': true,
-      'allocated': false,
       'currency': 'TRY',
       'goalFund': true,
+      // Kayıt silinirse hedef bakiyesi de geri alınabilsin diye.
+      'goalId': goalId,
     });
+    _cashDelta(batch, -amount);
     batch.update(_envelopes.doc(goalId),
         {'balance': FieldValue.increment(amount)});
     return batch.commit();
   }
 
-  /// Hedefi sil: biriken parayı Money left'e geri ver (serbest gelir), sonra
-  /// hedefi sil. (Ayırılan para kaybolmasın.)
+  /// Hedefi sil: biriken para cüzdana geri döner, sonra hedef silinir.
+  /// (Ayırılan para kaybolmasın.)
   Future<void> deleteGoal(String goalId, double balance) async {
     final batch = _db.batch();
     if (balance > 0) {
@@ -318,11 +457,10 @@ class BudgetRepository {
         'date': Timestamp.fromDate(DateTime.now()),
         'note': null,
         'envelopeIds': <String>[],
-        'free': true,
-        'allocated': false,
         'currency': 'TRY',
         'goalFund': true,
       });
+      _cashDelta(batch, balance);
     }
     batch.delete(_envelopes.doc(goalId));
     await batch.commit();
@@ -337,7 +475,17 @@ class BudgetRepository {
   /// Auth hesabı çağıran tarafta silinir.
   Future<void> deleteAccountData() async {
     final user = _db.collection('users').doc(_uid);
-    for (final coll in ['envelopes', 'transactions', 'workDays']) {
+    // Kullanıcının TÜM alt koleksiyonları — biri unutulursa "hesabımı sil"
+    // dendikten sonra o veri Firestore'da kalır (mağaza kuralı ihlali).
+    for (final coll in [
+      'envelopes',
+      'transactions',
+      'workDays',
+      'reminders',
+      'accounts',
+      'recurring',
+      'rules',
+    ]) {
       final snap = await user.collection(coll).get();
       for (var i = 0; i < snap.docs.length; i += 400) {
         final batch = _db.batch();
@@ -347,42 +495,17 @@ class BudgetRepository {
         await batch.commit();
       }
     }
-    await _settings.delete();
+    // settings/main + settings/automation (otomasyon kapatmaları).
+    final settingsDocs = await user.collection('settings').get();
+    for (final doc in settingsDocs.docs) {
+      await doc.reference.delete();
+    }
   }
 
-  /// Доход в конкретный конверт (подарок, продажа) — не из календаря.
-  Future<void> addIncomeToEnvelope({
-    required String envelopeId,
-    required String envelopeName,
-    required double amount,
-    String currency = 'TRY',
-    String? note,
-    DateTime? date,
-  }) {
-    final batch = _db.batch();
-    batch.set(_txs.doc(), {
-      'type': TxType.income.name,
-      'amount': amount,
-      'date': Timestamp.fromDate(date ?? DateTime.now()),
-      'note': note,
-      'envelopeId': envelopeId,
-      'envelopeName': envelopeName,
-      'envelopeIds': [envelopeId],
-      'currency': currency,
-    });
-    batch.update(_envelopes.doc(envelopeId), {
-      'balance': FieldValue.increment(amount),
-    });
-    return batch.commit();
-  }
-
-  /// Döviz çevirme: verilen ₺ kasadan/zarftan düşer, alınan döviz hedef
-  /// zarfa eklenir. Farklı para birimleri olduğu için iki ayrı tutar.
-  /// [fromId] null → kasadan (serbest gider).
+  /// Döviz çevirme: ₺ cüzdandan düşer, alınan döviz hedef kumbaraya girer.
+  /// İki bacak tek `groupId` altında — biri silinirse ikisi birlikte
+  /// silinir, bakiyeler bozulmaz. convert:true → gerçek harcama sayılmaz.
   Future<void> convert({
-    String? fromId,
-    String? fromName,
-    double? fromBalance, // zarf bakiyesi; yetmezse aşan kısım Kasa'dan
     required double sentAmount,
     required String toId,
     required String toName,
@@ -394,49 +517,20 @@ class BudgetRepository {
     final batch = _db.batch();
     final d = date ?? DateTime.now();
     final n = note ?? 'Döviz';
-    // ₺ tarafı: çıkış. convert:true → gerçek harcama sayılmaz.
-    // Kasa çıkışı = serbest gider (allocated:false), "dağıtılacak"dan düşer.
-    void writeKasaOut(double amount) {
-      batch.set(_txs.doc(), {
-        'type': TxType.expense.name,
-        'amount': amount,
-        'date': Timestamp.fromDate(d),
-        'note': n,
-        'envelopeIds': <String>[],
-        'free': true,
-        'allocated': false,
-        'currency': 'TRY',
-        'convert': true,
-      });
-    }
+    final groupId = _txs.doc().id;
 
-    // Zarf çıkışı = zarf bakiyesinden düşer.
-    void writeEnvOut(double amount) {
-      batch.set(_txs.doc(), {
-        'type': TxType.expense.name,
-        'amount': amount,
-        'date': Timestamp.fromDate(d),
-        'note': n,
-        'envelopeId': fromId,
-        'envelopeName': fromName,
-        'envelopeIds': [fromId!],
-        'currency': 'TRY',
-        'convert': true,
-      });
-      batch.update(_envelopes.doc(fromId),
-          {'balance': FieldValue.increment(-amount)});
-    }
+    batch.set(_txs.doc(), {
+      'type': TxType.expense.name,
+      'amount': sentAmount,
+      'date': Timestamp.fromDate(d),
+      'note': n,
+      'envelopeIds': <String>[],
+      'currency': 'TRY',
+      'convert': true,
+      'groupId': groupId,
+    });
+    _cashDelta(batch, -sentAmount);
 
-    if (fromId == null) {
-      writeKasaOut(sentAmount);
-    } else {
-      // Zarfta olan kadarını zarftan al, aşan kısmı Kasa'dan.
-      final fromEnv = (fromBalance ?? sentAmount).clamp(0.0, sentAmount);
-      if (fromEnv > 0) writeEnvOut(fromEnv);
-      final overflow = sentAmount - fromEnv;
-      if (overflow > 0) writeKasaOut(overflow);
-    }
-    // Döviz tarafı: hedef zarfa gelir (hedefin para biriminde).
     batch.set(_txs.doc(), {
       'type': TxType.income.name,
       'amount': receivedAmount,
@@ -447,74 +541,110 @@ class BudgetRepository {
       'envelopeIds': [toId],
       'currency': toCurrency,
       'convert': true,
+      'groupId': groupId,
     });
     batch.update(_envelopes.doc(toId),
         {'balance': FieldValue.increment(receivedAmount)});
     return batch.commit();
   }
 
-  /// Перевод между конвертами: из одного вычитаем, в другой добавляем.
-  Future<void> transfer({
-    required String fromId,
-    required String fromName,
-    required String toId,
-    required String toName,
-    required double amount,
-    String? note,
-    DateTime? date,
-  }) {
-    final batch = _db.batch();
-    batch.set(_txs.doc(), {
-      'type': TxType.transfer.name,
-      'amount': amount,
-      'date': Timestamp.fromDate(date ?? DateTime.now()),
-      'note': note,
-      'fromName': fromName,
-      'envelopeName': toName,
-      'envelopeIds': [fromId, toId],
+  /// Katalogdan kategori: preset anahtarıyla yaratılır ki dil değişince
+  /// adı çevrilsin ve aynı madde ikinci kez oluşmasın. Id döndürür.
+  Future<String> addPresetEnvelope({
+    required String key,
+    required String name,
+    required String emoji,
+    required int sortOrder,
+  }) async {
+    final doc = _envelopes.doc();
+    await doc.set({
+      'name': name,
+      'emoji': emoji,
+      'preset': key,
+      'balance': 0,
+      'sortOrder': sortOrder,
+      'currency': 'TRY',
+      'createdAt': FieldValue.serverTimestamp(),
     });
-    batch.update(_envelopes.doc(fromId),
-        {'balance': FieldValue.increment(-amount)});
-    batch.update(_envelopes.doc(toId),
-        {'balance': FieldValue.increment(amount)});
-    return batch.commit();
+    return doc.id;
   }
 
-  /// Расход без конверта — «из кармана»: пишется в журнал и уменьшает
-  /// нераспределённый заработок, балансы конвертов не трогает.
-  Future<void> addFreeExpense({
+  /// Döviz cüzdanı (USD/EUR... kumbara zarfı) oluştur — TEK batch: zarf
+  /// belgesi + [amount] > 0 ise başlangıç bakiyesi gelir işlemi olarak
+  /// (aynı alanlar [addEnvelopeIncome] ile). Onboarding ve Hesaplar'daki
+  /// "+ Döviz cüzdanı ekle" buradan geçer. Yeni zarfın id'sini döndürür.
+  Future<String> addCurrencyWallet({
+    required String code,
+    required String name,
+    required String emoji,
     required double amount,
+    required int sortOrder,
     String? note,
-    DateTime? date,
-  }) {
-    return _txs.add({
-      'type': TxType.expense.name,
-      'amount': amount,
-      'date': Timestamp.fromDate(date ?? DateTime.now()),
-      'note': note,
-      'envelopeIds': <String>[],
-      'free': true,
-      // false, пока заработок этих денег не «разложен» через баннер.
-      'allocated': false,
+  }) async {
+    final batch = _db.batch();
+    final doc = _envelopes.doc();
+    batch.set(doc, {
+      'name': name,
+      'emoji': emoji,
+      'balance': amount > 0 ? amount : 0,
+      'sortOrder': sortOrder,
+      'currency': code,
+      'createdAt': FieldValue.serverTimestamp(),
     });
+    if (amount > 0) {
+      batch.set(_txs.doc(), {
+        'type': TxType.income.name,
+        'amount': amount,
+        'date': Timestamp.fromDate(DateTime.now()),
+        'note': note,
+        'envelopeId': doc.id,
+        'envelopeName': name,
+        'envelopeIds': [doc.id],
+        'currency': code,
+      });
+    }
+    await batch.commit();
+    return doc.id;
   }
 
   /// Zarfa doğrudan para ekle (gelir): bakiyeyi artırır. Birikim zarflarına
   /// ($ vb.) önceki birikimi/yeni parayı eklemek için. convert YOK — gerçek
   /// gelir; birikim ekranında aylık döküme sayılır.
-  Future<void> addEnvelopeIncome({
+  Future<String> addEnvelopeIncome({
     required String envelopeId,
     required String envelopeName,
     required double amount,
     required String currency,
     String? note,
     DateTime? date,
-  }) {
+  }) async {
     final batch = _db.batch();
-    batch.set(_txs.doc(), {
+    final doc = _txs.doc();
+    _writeEnvelopeIncome(batch, doc,
+        envelopeId: envelopeId,
+        envelopeName: envelopeName,
+        amount: amount,
+        currency: currency,
+        note: note,
+        date: date ?? DateTime.now());
+    await batch.commit();
+    return doc.id;
+  }
+
+  void _writeEnvelopeIncome(
+    WriteBatch batch,
+    DocumentReference<Map<String, dynamic>> doc, {
+    required String envelopeId,
+    required String envelopeName,
+    required double amount,
+    required String currency,
+    required DateTime date,
+    String? note,
+  }) {
+    batch.set(doc, {
       'type': TxType.income.name,
       'amount': amount,
-      'date': Timestamp.fromDate(date ?? DateTime.now()),
+      'date': Timestamp.fromDate(date),
       'note': note,
       'envelopeId': envelopeId,
       'envelopeName': envelopeName,
@@ -523,115 +653,81 @@ class BudgetRepository {
     });
     batch.update(_envelopes.doc(envelopeId),
         {'balance': FieldValue.increment(amount)});
-    return batch.commit();
   }
 
-  /// Доход в общий котёл (не в конкретный конверт): увеличивает
-  /// нераспределённую сумму, потом раскладывается по конвертам.
-  Future<void> addFreeIncome({
-    required double amount,
-    String? note,
-    DateTime? date,
-  }) {
-    return _txs.add({
-      'type': TxType.income.name,
-      'amount': amount,
-      'date': Timestamp.fromDate(date ?? DateTime.now()),
-      'note': note,
-      'envelopeIds': <String>[],
-      'free': true,
-      'allocated': false,
-    });
-  }
-
-  /// Нераспределённые свободные доходы («в котле»).
-  Stream<List<({String id, double amount})>> watchUnallocatedFreeIncome() {
-    return _txs
-        .where('free', isEqualTo: true)
-        .where('type', isEqualTo: TxType.income.name)
-        .where('allocated', isEqualTo: false)
-        .snapshots()
-        .map((snap) => [
-              for (final doc in snap.docs)
-                (
-                  id: doc.id,
-                  amount: (doc.data()['amount'] as num).toDouble(),
-                ),
-            ]);
-  }
-
-  /// Свободные расходы, ещё не вычтенные из баннера распределения.
-  Stream<List<({String id, double amount})>> watchUnallocatedFreeExpenses() {
-    return _txs
-        .where('free', isEqualTo: true)
-        .where('type', isEqualTo: TxType.expense.name)
-        .where('allocated', isEqualTo: false)
-        .snapshots()
-        .map((snap) => [
-              for (final doc in snap.docs)
-                (
-                  id: doc.id,
-                  amount: (doc.data()['amount'] as num).toDouble(),
-                ),
-            ]);
-  }
-
-  /// İşlemi sil ve bakiye etkisini geri al. Silinmiş zarflar atlanır.
-  /// Gider → zarfa geri ekle; gelir → zarftan düş; transfer → ikisini ters
-  /// çevir. Serbest (Kasa) işlemlerde bakiye türetildiği için sadece silinir.
+  /// İşlemi sil ve para etkisini geri al.
+  ///
+  /// Cüzdan modeli kuralları (işlemin `currency` alanına göre):
+  /// * ₺ gider → cüzdana geri ekle; ₺ gelir → cüzdandan düş. Bu kural eski
+  ///   (göç öncesi) işlemler için de doğrudur: onların etkisi zarf
+  ///   bakiyeleri üzerinden göç toplamına, yani bugünkü cüzdana aktı.
+  /// * Döviz işlemi → ilgili kumbara zarfının bakiyesini geri al.
+  /// * `goalFund` → hedef bakiyesini de ters çevir (goalId üzerinden).
+  /// * `convert` → aynı `groupId`'li TÜM bacaklar birlikte silinir,
+  ///   yoksa tek bacak kalır ve bakiyeler kalıcı bozulur.
   Future<void> deleteTx(String txId) async {
     final ref = _txs.doc(txId);
     final snap = await ref.get();
     if (!snap.exists) return;
-    final d = snap.data()!;
-    final type = d['type'] as String?;
-    final amount = (d['amount'] as num?)?.toDouble() ?? 0;
-    final free = d['free'] == true;
 
-    // Geri alınacak zarf bakiyeleri: id -> delta.
-    final deltas = <String, double>{};
-    void add(String? id, double delta) {
-      if (id == null || delta == 0) return;
-      deltas[id] = (deltas[id] ?? 0) + delta;
+    // Aynı gruba ait tüm belgeleri topla (çevrimin tüm bacakları).
+    final groupId = snap.data()?['groupId'] as String?;
+    final docs = <DocumentSnapshot<Map<String, dynamic>>>[snap];
+    if (groupId != null) {
+      final siblings = await _txs.where('groupId', isEqualTo: groupId).get();
+      docs
+        ..clear()
+        ..addAll(siblings.docs);
+      if (docs.every((doc) => doc.id != txId)) docs.add(snap);
     }
 
-    if (type == TxType.expense.name) {
-      if (!free) add(d['envelopeId'] as String?, amount); // gideri geri ekle
-    } else if (type == TxType.income.name) {
-      final alloc = d['allocations'] as Map<String, dynamic>?;
-      if (alloc != null && alloc.isNotEmpty) {
-        alloc.forEach((k, v) => add(k, -(v as num).toDouble()));
-      } else if (!free) {
-        add(d['envelopeId'] as String?, -amount); // geliri geri al
+    var cashDelta = 0.0;
+    final envDeltas = <String, double>{};
+    void env(String? id, double delta) {
+      if (id == null || delta == 0) return;
+      envDeltas[id] = (envDeltas[id] ?? 0) + delta;
+    }
+
+    for (final doc in docs) {
+      final d = doc.data()!;
+      final type = d['type'] as String?;
+      final amount = (d['amount'] as num?)?.toDouble() ?? 0;
+      final currency = d['currency'] as String? ?? 'TRY';
+      final sign = type == TxType.expense.name
+          ? 1.0
+          : type == TxType.income.name
+              ? -1.0
+              : 0.0; // eski transfer kayıtları: cüzdanı etkilemez
+
+      if (sign == 0) continue;
+      if (currency == 'TRY') {
+        cashDelta += sign * amount;
+      } else {
+        // Döviz: kumbara bakiyesi cüzdanla AYNI işaret kuralına uyar —
+        // gider silinince para kumbaraya geri döner (+), gelir silinince
+        // eklenen tutar geri alınır (−).
+        env(d['envelopeId'] as String?, sign * amount);
       }
-    } else if (type == TxType.transfer.name) {
-      final ids = (d['envelopeIds'] as List?)?.cast<String>() ?? const [];
-      if (ids.length == 2) {
-        add(ids[0], amount); // kaynağa geri
-        add(ids[1], -amount); // hedeften geri al
+      // Hedef fonu: hedef bakiyesi cüzdanın tersine hareket etmişti.
+      final goalId = d['goalId'] as String?;
+      if (d['goalFund'] == true && goalId != null) {
+        env(goalId, -sign * amount);
       }
     }
 
     final batch = _db.batch();
-    for (final entry in deltas.entries) {
+    _cashDelta(batch, cashDelta);
+    for (final entry in envDeltas.entries) {
       final envSnap = await _envelopes.doc(entry.key).get();
       if (envSnap.exists) {
         batch.update(_envelopes.doc(entry.key),
             {'balance': FieldValue.increment(entry.value)});
       }
     }
-    batch.delete(ref);
-    await batch.commit();
-  }
-
-  /// Пометить свободные операции (доходы/расходы) учтёнными после
-  /// распределения по конвертам.
-  Future<void> markFreeTxsAllocated(List<String> ids) {
-    final batch = _db.batch();
-    for (final id in ids) {
-      batch.update(_txs.doc(id), {'allocated': true});
+    for (final doc in docs) {
+      batch.delete(doc.reference);
     }
-    return batch.commit();
+    await batch.commit();
   }
 
   /// История операций остаётся в журнале (имя конверта денормализовано).
@@ -639,87 +735,214 @@ class BudgetRepository {
     return _envelopes.doc(id).delete();
   }
 
-  /// Чистка дублей конвертов (артефакт повторного онбординга при отладке):
-  /// группируем по preset-ключу либо имени+эмодзи, оставляем «лучший»
-  /// (с балансом / целью / меньшим sortOrder), удаляем ПУСТЫЕ копии.
-  /// Возвращает число удалённых.
-  Future<int> dedupeEnvelopes(List<Envelope> all) async {
-    final byKey = <String, List<Envelope>>{};
-    for (final e in all) {
-      final key = e.presetKey ?? '${e.name}|${e.emoji}';
-      byKey.putIfAbsent(key, () => []).add(e);
-    }
-    var deleted = 0;
-    final batch = _db.batch();
-    for (final group in byKey.values) {
-      if (group.length < 2) continue;
-      group.sort((a, b) {
-        final byBal = b.balance.compareTo(a.balance);
-        if (byBal != 0) return byBal;
-        final byTarget = (b.targetAmount ?? 0).compareTo(a.targetAmount ?? 0);
-        if (byTarget != 0) return byTarget;
-        return a.sortOrder.compareTo(b.sortOrder);
-      });
-      // Оставляем первый (лучший), пустые дубли — на удаление.
-      for (final e in group.skip(1)) {
-        if (e.balance == 0 && e.targetAmount == null) {
-          batch.delete(_envelopes.doc(e.id));
-          deleted++;
-        }
-      }
-    }
-    if (deleted > 0) await batch.commit();
-    return deleted;
-  }
-
-  /// Доход: одна запись в журнале + инкремент баланса каждого конверта.
-  /// Batch — чтобы балансы и журнал не разъехались.
-  Future<void> addIncome({
-    required double amount,
-    required Map<String, double> allocations,
-    String? note,
-    DateTime? date,
-  }) {
-    final batch = _db.batch();
-    batch.set(_txs.doc(), {
-      'type': TxType.income.name,
-      'amount': amount,
-      'date': Timestamp.fromDate(date ?? DateTime.now()),
-      'note': note,
-      'allocations': allocations,
-      'envelopeIds': allocations.keys.toList(),
-    });
-    allocations.forEach((envelopeId, value) {
-      batch.update(_envelopes.doc(envelopeId), {
-        'balance': FieldValue.increment(value),
-      });
-    });
-    return batch.commit();
-  }
-
-  /// Расход: запись в журнале + декремент баланса конверта.
-  Future<void> addExpense({
-    required String envelopeId,
-    required String envelopeName,
+  /// Расход. ₺ — из кошелька, конверт лишь помечает категорию (бюджеты и
+  /// статистика читают эту метку из транзакций). Döviz-конверт — кумбара:
+  /// трата в валюте уменьшает её баланс, кошелёк не трогается.
+  Future<String> addExpense({
+    String? envelopeId,
+    String? envelopeName,
     required double amount,
     String currency = 'TRY',
     String? note,
     DateTime? date,
-  }) {
+  }) async {
     final batch = _db.batch();
-    batch.set(_txs.doc(), {
+    final doc = _txs.doc();
+    _writeExpense(batch, doc,
+        envelopeId: envelopeId,
+        envelopeName: envelopeName,
+        amount: amount,
+        currency: currency,
+        note: note,
+        date: date ?? DateTime.now());
+    await batch.commit();
+    return doc.id;
+  }
+
+  void _writeExpense(
+    WriteBatch batch,
+    DocumentReference<Map<String, dynamic>> doc, {
+    required double amount,
+    required String currency,
+    required DateTime date,
+    String? envelopeId,
+    String? envelopeName,
+    String? note,
+  }) {
+    batch.set(doc, {
       'type': TxType.expense.name,
       'amount': amount,
-      'date': Timestamp.fromDate(date ?? DateTime.now()),
+      'date': Timestamp.fromDate(date),
       'note': note,
+      'envelopeId': ?envelopeId,
+      'envelopeName': ?envelopeName,
+      'envelopeIds': [?envelopeId],
+      'currency': currency,
+    });
+    if (currency == 'TRY') {
+      _cashDelta(batch, -amount);
+    } else if (envelopeId != null) {
+      batch.update(_envelopes.doc(envelopeId), {
+        'balance': FieldValue.increment(-amount),
+      });
+    }
+  }
+
+  /// Доход в кошелёк — единственный путь для ₺-дохода в новой модели.
+  Future<String> addCashIncome({
+    required double amount,
+    String? note,
+    DateTime? date,
+  }) async {
+    final batch = _db.batch();
+    final doc = _txs.doc();
+    _writeCashIncome(batch, doc,
+        amount: amount, note: note, date: date ?? DateTime.now());
+    await batch.commit();
+    return doc.id;
+  }
+
+  void _writeCashIncome(
+    WriteBatch batch,
+    DocumentReference<Map<String, dynamic>> doc, {
+    required double amount,
+    required DateTime date,
+    String? note,
+  }) {
+    batch.set(doc, {
+      'type': TxType.income.name,
+      'amount': amount,
+      'date': Timestamp.fromDate(date),
+      'note': note,
+      'envelopeIds': <String>[],
+      'currency': 'TRY',
+    });
+    _cashDelta(batch, amount);
+  }
+
+  /// Kategorisiz (ya da yanlış kategorili) ₺ giderin kategorisini değiştir.
+  /// Yalnız etiket alanları değişir — tutar/tür sabit (kural katmanı da
+  /// bunu zorlar); cüzdan bakiyesi etkilenmez.
+  Future<void> setTxCategory(
+    String txId, {
+    required String envelopeId,
+    required String envelopeName,
+  }) {
+    return _txs.doc(txId).update({
       'envelopeId': envelopeId,
       'envelopeName': envelopeName,
       'envelopeIds': [envelopeId],
+    });
+  }
+
+  // ── tekrarlayan işlemler ──────────────────────────────────────────────
+
+  CollectionReference<Map<String, dynamic>> get _recurring =>
+      _db.collection('users').doc(_uid).collection('recurring');
+
+  Stream<List<RecurringRule>> watchRecurringRules() => _recurring
+      .orderBy('nextDate')
+      .snapshots()
+      .map((snap) => snap.docs.map(RecurringRule.fromDoc).toList());
+
+  Future<void> deleteRecurringRule(String id) => _recurring.doc(id).delete();
+
+  /// Kural yaz: ilk işlem normal yoldan kaydedildikten SONRA çağrılır;
+  /// [nextDate] ilk tekrar (bkz. [nextOccurrence]).
+  Future<String> addRecurringRule({
+    required double amount,
+    required String type,
+    required String currency,
+    required Recurrence freq,
+    required DateTime firstDate,
+    String? envelopeId,
+    String? envelopeName,
+    String? note,
+  }) async {
+    final doc = _recurring.doc();
+    await doc.set({
+      'amount': amount,
+      'type': type,
       'currency': currency,
+      'freq': freq.name,
+      'nextDate': Timestamp.fromDate(
+          nextOccurrence(firstDate, freq, anchorDay: firstDate.day)),
+      'anchorDay': firstDate.day,
+      'envelopeId': ?envelopeId,
+      'envelopeName': ?envelopeName,
+      'note': ?note,
+      'createdAt': FieldValue.serverTimestamp(),
     });
-    batch.update(_envelopes.doc(envelopeId), {
-      'balance': FieldValue.increment(-amount),
-    });
-    return batch.commit();
+    return doc.id;
+  }
+
+  /// Vadesi gelen tekrarları bugüne kadar işler (yetişme). Her tekrar TEK
+  /// batch: işlem + bakiye + kuralın nextDate'i — yarıda kalsa da aynı
+  /// tekrar iki kez yazılmaz. İşlenen tekrar sayısını döndürür.
+  Future<int> materializeRecurring({DateTime? now}) async {
+    final today = now ?? DateTime.now();
+    final endOfToday = DateTime(today.year, today.month, today.day, 23, 59, 59);
+    final snap = await _recurring
+        .where('nextDate', isLessThanOrEqualTo: Timestamp.fromDate(endOfToday))
+        .get();
+    var posted = 0;
+    for (final doc in snap.docs) {
+      var rule = RecurringRule.fromDoc(doc);
+      var next = rule.nextDate;
+      // Güvenlik sınırı: çok eski bir kural yüzlerce işlem üretmesin.
+      var guard = 0;
+      while (!next.isAfter(endOfToday) && guard++ < 400) {
+        final batch = _db.batch();
+        final txDoc = _txs.doc();
+        _writeRule(batch, txDoc, rule, next);
+        final after = nextOccurrence(next, rule.freq, anchorDay: rule.anchorDay);
+        batch.update(doc.reference, {'nextDate': Timestamp.fromDate(after)});
+        await batch.commit();
+        posted++;
+        next = after;
+        rule = RecurringRule(
+          id: rule.id,
+          amount: rule.amount,
+          type: rule.type,
+          currency: rule.currency,
+          freq: rule.freq,
+          nextDate: after,
+          anchorDay: rule.anchorDay,
+          envelopeId: rule.envelopeId,
+          envelopeName: rule.envelopeName,
+          note: rule.note,
+        );
+      }
+    }
+    return posted;
+  }
+
+  /// Kuralı, hızlı girişle aynı yazma yollarından işleme çevirir.
+  void _writeRule(
+    WriteBatch batch,
+    DocumentReference<Map<String, dynamic>> doc,
+    RecurringRule rule,
+    DateTime date,
+  ) {
+    if (rule.isExpense) {
+      _writeExpense(batch, doc,
+          envelopeId: rule.envelopeId,
+          envelopeName: rule.envelopeName,
+          amount: rule.amount,
+          currency: rule.currency,
+          note: rule.note,
+          date: date);
+    } else if (rule.currency == 'TRY' || rule.envelopeId == null) {
+      _writeCashIncome(batch, doc,
+          amount: rule.amount, note: rule.note, date: date);
+    } else {
+      _writeEnvelopeIncome(batch, doc,
+          envelopeId: rule.envelopeId!,
+          envelopeName: rule.envelopeName ?? rule.currency,
+          amount: rule.amount,
+          currency: rule.currency,
+          note: rule.note,
+          date: date);
+    }
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../budget/budget_period.dart';
 import '../envelopes/budget_repository.dart';
 import '../envelopes/envelope.dart';
 import '../transactions/tx.dart';
@@ -57,12 +58,12 @@ class EnvelopePace {
   });
 
   final Envelope envelope;
-  final double spent; // bu ay şu ana dek harcanan
-  final double budget; // aylık limit
-  final double projected; // ay sonu tahmini (mevcut hızla)
-  final int daysLeft; // ay sonuna kalan gün
+  final double spent; // bu dönemde şu ana dek harcanan
+  final double budget; // dönem limiti (haftalık/aylık, bkz. BudgetSettings)
+  final double projected; // dönem sonu tahmini (mevcut hızla)
+  final int daysLeft; // dönem sonuna kalan gün
 
-  /// Ay sonunda bütçeyi aşması bekleniyor mu?
+  /// Dönem sonunda bütçeyi aşması bekleniyor mu?
   bool get willExceed => projected > budget;
 
   /// Zaten aşmış mı?
@@ -76,13 +77,15 @@ class EnvelopePace {
 }
 
 /// Bütçeli (harcama) zarflar için tempo listesi — en riskliden başa doğru.
+/// Dönem, genel bütçe ayarından gelir (haftalık/aylık); ayar yoksa ay.
 final paceProvider = Provider<List<EnvelopePace>>((ref) {
   final envelopes = ref.watch(envelopesProvider).value ?? const [];
-  final spentByEnv = ref.watch(monthlySpentByEnvelopeProvider);
+  final spentByEnv = ref.watch(periodSpentByEnvelopeProvider);
+  final window = ref.watch(budgetWindowProvider);
 
   final now = DateTime.now();
-  final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
-  final dayOfMonth = now.day;
+  final daysInMonth = window.totalDays;
+  final dayOfMonth = window.daysElapsed(now);
   final daysLeft = daysInMonth - dayOfMonth;
 
   final result = <EnvelopePace>[];
@@ -137,7 +140,7 @@ class CategoryDelta {
 /// Zarf bazında bu ay vs geçen ay gider karşılaştırması (mutlak farka göre
 /// büyükten küçüğe). Döviz çevrimi, hedef-fonu ve TRY-dışı hariç.
 final monthComparisonProvider = Provider<List<CategoryDelta>>((ref) {
-  final txs = ref.watch(journalProvider).value ?? const [];
+  final txs = ref.watch(recentTxsProvider).value ?? const [];
   final envelopes = ref.watch(envelopesProvider).value ?? const [];
   final byId = {for (final e in envelopes) e.id: e};
 

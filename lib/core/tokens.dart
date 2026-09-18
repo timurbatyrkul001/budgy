@@ -91,57 +91,30 @@ class BudgyColors extends ThemeExtension<BudgyColors> {
         BoxShadow(color: shadowColor, blurRadius: 20, offset: const Offset(0, 6)),
       ];
 
-  // ── Açık tema ──────────────────────────────────────────────────────────
-  static const light = BudgyColors(
-    bg: Color(0xFFEEF2EC),
-    surface: Color(0xFFFFFFFF),
-    surface2: Color(0xFFF4F8F2),
-    text: Color(0xFF18211B),
-    textMuted: Color(0xFF66756B),
-    textFaint: Color(0xFF9AA79E),
-    accent: Color(0xFF0F9E6C),
-    accentStrong: Color(0xFF0A6E4B),
-    accentInk: Color(0xFF0A6E4B),
-    amber: Color(0xFFC67A17),
-    amberBg: Color(0xFFFBF0DE),
-    border: Color(0x12142D20), // rgba(20,45,32,0.07)
-    borderStrong: Color(0x24142D20), // rgba(20,45,32,0.14)
-    track: Color(0xFFE7ECE6),
-    tabbar: Color(0xE6FFFFFF), // rgba(255,255,255,0.9)
-    shadowColor: Color(0x0F143223), // rgba(20,50,35,0.06)
-    heat0: Color(0xFFE8EEE7),
-    heat1: Color(0x290F9E6C), // accent %16
-    heat2: Color(0x570F9E6C), // accent %34
-    heat3: Color(0x990F9E6C), // accent %60
-    heat4: Color(0xFF0F9E6C),
-    envKira: Color(0xFFDEE9F5),
-    envMarket: Color(0xFFDCEEDD),
-    envUlasim: Color(0xFFF5E9D3),
-    envKeyif: Color(0xFFF6DEE7),
-    envFatura: Color(0xFFE7E0F4),
-    envTatil: Color(0xFFD6ECE6),
-    envAraba: Color(0xFFE3E7EC),
-  );
+  // ── "Dark emerald" (2026-09) ───────────────────────────────────────────
+  // Uygulama artık yalnız koyu: [light] ve [dark] aynı palete işaret eder,
+  // böylece `context.budgy` kullanan eski ekranlar tek tip görünür.
+  static const light = dark;
 
-  // ── Koyu tema ──────────────────────────────────────────────────────────
   static const dark = BudgyColors(
-    bg: Color(0xFF0E1512),
-    surface: Color(0xFF17201B),
-    surface2: Color(0xFF1E2A23),
-    text: Color(0xFFEAF1EC),
-    textMuted: Color(0xFF93A79A),
-    textFaint: Color(0xFF63756B),
+    bg: Color(0xFF070A09),
+    surface: Color(0xFF151918),
+    surface2: Color(0xFF1F2422),
+    text: Color(0xFFFFFFFF),
+    textMuted: Color(0xFF8A918E),
+    textFaint: Color(0xFF5B625F),
     accent: Color(0xFF25BE86),
-    accentStrong: Color(0xFF1C8F65),
+    // Koyu zeminde vurgu metni olarak kullanılıyor — nane tonu okunur.
+    accentStrong: Color(0xFF7FE3B8),
     accentInk: Color(0xFF8FE9C4),
     amber: Color(0xFFE3A94F),
     amberBg: Color(0xFF2C2113),
-    border: Color(0x14FFFFFF), // rgba(255,255,255,0.08)
-    borderStrong: Color(0x29FFFFFF), // rgba(255,255,255,0.16)
-    track: Color(0xFF243029),
-    tabbar: Color(0xE617201B), // rgba(23,32,27,0.9)
+    border: Color(0xFF252B29),
+    borderStrong: Color(0xFF343B38),
+    track: Color(0xFF1F2422),
+    tabbar: Color(0xE6151918),
     shadowColor: Color(0x66000000), // rgba(0,0,0,0.4)
-    heat0: Color(0xFF1A231D),
+    heat0: Color(0xFF151918),
     heat1: Color(0x3325BE86), // accent %20
     heat2: Color(0x6625BE86), // accent %40
     heat3: Color(0xA825BE86), // accent %66

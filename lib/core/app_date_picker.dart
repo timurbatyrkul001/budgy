@@ -1,29 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import 'palette.dart';
+import 'ex_style.dart';
 
-/// Uygulama temasına uygun (indigo, minimal) tarih seçici — HAFTA PAZARTESİ.
-/// Material showDatePicker yerine kullanılır.
+/// Budgy tarih seçici (koyu, HAFTA PAZARTESİ). Material showDatePicker
+/// yerine kullanılır. Başlıkta "bugün" kısayolu ([todayLabel]) — hızlı
+/// girişte tarihi anında bugüne almak için.
 Future<DateTime?> showAppDatePicker({
   required BuildContext context,
   required DateTime initial,
   required DateTime first,
   required DateTime last,
   required String localeCode,
+  String? title,
+  String? todayLabel,
 }) {
-  return showModalBottomSheet<DateTime>(
-    context: context,
-    backgroundColor: Colors.white,
-    isScrollControlled: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-    ),
-    builder: (_) => _AppDatePicker(
+  return showExSheet<DateTime>(
+    context,
+    _AppDatePicker(
       initial: initial,
       first: first,
       last: last,
       localeCode: localeCode,
+      title: title,
+      todayLabel: todayLabel,
     ),
   );
 }
@@ -34,12 +34,16 @@ class _AppDatePicker extends StatefulWidget {
     required this.first,
     required this.last,
     required this.localeCode,
+    this.title,
+    this.todayLabel,
   });
 
   final DateTime initial;
   final DateTime first;
   final DateTime last;
   final String localeCode;
+  final String? title;
+  final String? todayLabel;
 
   @override
   State<_AppDatePicker> createState() => _AppDatePickerState();
@@ -59,14 +63,13 @@ class _AppDatePickerState extends State<_AppDatePicker> {
   DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
 
   bool _enabled(DateTime d) =>
-      !d.isBefore(_dateOnly(widget.first)) && !d.isAfter(_dateOnly(widget.last));
+      !d.isBefore(_dateOnly(widget.first)) &&
+      !d.isAfter(_dateOnly(widget.last));
 
-  bool get _canPrev =>
-      DateTime(_visible.year, _visible.month, 1)
-          .isAfter(DateTime(widget.first.year, widget.first.month, 1));
-  bool get _canNext =>
-      DateTime(_visible.year, _visible.month, 1)
-          .isBefore(DateTime(widget.last.year, widget.last.month, 1));
+  bool get _canPrev => DateTime(_visible.year, _visible.month, 1)
+      .isAfter(DateTime(widget.first.year, widget.first.month, 1));
+  bool get _canNext => DateTime(_visible.year, _visible.month, 1)
+      .isBefore(DateTime(widget.last.year, widget.last.month, 1));
 
   @override
   Widget build(BuildContext context) {
@@ -74,8 +77,7 @@ class _AppDatePickerState extends State<_AppDatePicker> {
     final monday = DateTime(2024, 1, 1); // Pazartesi
     final dow = [
       for (var i = 0; i < 7; i++)
-        DateFormat('E', widget.localeCode)
-            .format(monday.add(Duration(days: i)))
+        DateFormat('E', widget.localeCode).format(monday.add(Duration(days: i)))
     ];
 
     final firstOfMonth = DateTime(_visible.year, _visible.month, 1);
@@ -87,111 +89,100 @@ class _AppDatePickerState extends State<_AppDatePicker> {
         DateTime(_visible.year, _visible.month, d),
     ];
 
-    final now = DateTime.now();
-    final today = _dateOnly(now);
+    final today = _dateOnly(DateTime.now());
+    final monthLabel = toBeginningOfSentenceCase(
+        DateFormat('LLLL yyyy', widget.localeCode).format(_visible));
 
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Başlık: ay yıl + ‹ ›
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    DateFormat('MMMM yyyy', widget.localeCode).format(_visible),
-                    style: const TextStyle(
-                        fontSize: 17, fontWeight: FontWeight.w700),
-                  ),
+    return SheetFrame(
+      title: widget.title ?? monthLabel,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Ay gezinme + "bugün" kısayolu.
+          Row(
+            children: [
+              _NavBtn(
+                icon: Icons.chevron_left_rounded,
+                onTap: _canPrev
+                    ? () => setState(() =>
+                        _visible = DateTime(_visible.year, _visible.month - 1))
+                    : null,
+              ),
+              Expanded(
+                child: Text(
+                  monthLabel,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: Ex.text),
                 ),
-                _NavBtn(
-                  icon: Icons.chevron_left_rounded,
-                  onTap: _canPrev
-                      ? () => setState(() => _visible =
-                          DateTime(_visible.year, _visible.month - 1))
-                      : null,
-                ),
-                const SizedBox(width: 8),
-                _NavBtn(
-                  icon: Icons.chevron_right_rounded,
-                  onTap: _canNext
-                      ? () => setState(() => _visible =
-                          DateTime(_visible.year, _visible.month + 1))
-                      : null,
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            // Gün başlıkları
-            Row(
-              children: [
-                for (final name in dow)
-                  Expanded(
-                    child: Center(
-                      child: Text(
-                        name.toUpperCase(),
-                        style: TextStyle(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.grey.shade500),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            // Gün ızgarası
-            GridView.count(
-              crossAxisCount: 7,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              children: [
-                for (final day in cells)
-                  if (day == null)
-                    const SizedBox()
-                  else
-                    _DayCell(
-                      day: day,
-                      selected: day == _selected,
-                      isToday: day == today,
-                      enabled: _enabled(day),
-                      onTap: () => setState(() => _selected = day),
-                    ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(52),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(28))),
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: Text(MaterialLocalizations.of(context)
-                        .cancelButtonLabel),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: FilledButton(
-                    style: FilledButton.styleFrom(
-                        backgroundColor: accent,
-                        minimumSize: const Size.fromHeight(52),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(28))),
-                    onPressed: () => Navigator.of(context).pop(_selected),
-                    child: Text(
-                        MaterialLocalizations.of(context).okButtonLabel),
-                  ),
-                ),
-              ],
+              ),
+              _NavBtn(
+                icon: Icons.chevron_right_rounded,
+                onTap: _canNext
+                    ? () => setState(() =>
+                        _visible = DateTime(_visible.year, _visible.month + 1))
+                    : null,
+              ),
+            ],
+          ),
+          if (widget.todayLabel != null && _enabled(today)) ...[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TintChipButton(
+                label: widget.todayLabel!,
+                onTap: () => Navigator.of(context).pop(today),
+              ),
             ),
           ],
-        ),
+          const SizedBox(height: 12),
+          // Gün başlıkları
+          Row(
+            children: [
+              for (final name in dow)
+                Expanded(
+                  child: Center(
+                    child: Text(
+                      name.toUpperCase(),
+                      style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: Ex.textFaint),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          // Gün ızgarası
+          GridView.count(
+            crossAxisCount: 7,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            children: [
+              for (final day in cells)
+                if (day == null)
+                  const SizedBox()
+                else
+                  _DayCell(
+                    day: day,
+                    selected: day == _selected,
+                    isToday: day == today,
+                    enabled: _enabled(day),
+                    onTap: () => setState(() => _selected = day),
+                  ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          PrimaryButton(
+            label: MaterialLocalizations.of(context).okButtonLabel,
+            onTap: () => Navigator.of(context).pop(_selected),
+          ),
+        ],
       ),
     );
   }
@@ -214,35 +205,31 @@ class _DayCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Color textColor;
-    if (!enabled) {
-      textColor = Colors.grey.shade300;
-    } else if (selected) {
-      textColor = Colors.white;
-    } else {
-      textColor = ink;
-    }
-
+    final textColor = !enabled
+        ? Ex.textFaint
+        : selected
+            ? Ex.onBrand
+            : Ex.text;
     return GestureDetector(
       onTap: enabled ? onTap : null,
       behavior: HitTestBehavior.opaque,
       child: Center(
         child: Container(
-          width: 40,
-          height: 40,
+          width: 38,
+          height: 38,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: selected ? accent : Colors.transparent,
-            shape: BoxShape.circle,
+            color: selected ? Ex.brand : Colors.transparent,
+            borderRadius: Ex.squircle(38),
             border: isToday && !selected
-                ? Border.all(color: accent, width: 1.5)
+                ? Border.all(color: Ex.mint, width: 1.5)
                 : null,
           ),
           child: Text(
             '${day.day}',
             style: TextStyle(
               fontSize: 15,
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
               color: textColor,
             ),
           ),
@@ -260,15 +247,17 @@ class _NavBtn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(Ex.iconRadius),
       onTap: onTap,
       child: Container(
-        width: 38,
-        height: 38,
-        decoration: const BoxDecoration(
-            color: Color(0xFFF1F2F5), shape: BoxShape.circle),
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: Ex.surfaceHi,
+          borderRadius: BorderRadius.circular(Ex.iconRadius),
+        ),
         child: Icon(icon,
-            size: 22, color: onTap == null ? Colors.grey.shade300 : inkMuted),
+            size: 22, color: onTap == null ? Ex.textFaint : Ex.text),
       ),
     );
   }

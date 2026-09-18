@@ -48,3 +48,8 @@ app.*.map.json
 lib/firebase_options.dart
 android/app/google-services.json
 ios/Runner/GoogleService-Info.plist
+
+# Firebase emulator
+firestore-debug.log
+firebase-debug.log
+ui-debug.log

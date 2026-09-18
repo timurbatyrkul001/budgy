@@ -1,0 +1,24 @@
+{
+  "indexes": [
+    {
+      "//": "Dağıtılmayı bekleyen serbest gelir/gider (Ana ekrandaki amber kart). Yalnız eşitlik filtreleri olduğu için Firestore tek alanlı indeksleri birleştirerek de çalıştırabilir; bileşik indeks bunu tek taramaya indirir.",
+      "collectionGroup": "transactions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "free", "order": "ASCENDING" },
+        { "fieldPath": "type", "order": "ASCENDING" },
+        { "fieldPath": "allocated", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "//": "Bir zarfın işlem geçmişi, yeniden eskiye. Sunucuda sıralamak, istemcideki sıralamayı ve limit kaynaklı eksikliği ortadan kaldırır.",
+      "collectionGroup": "transactions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "envelopeIds", "arrayConfig": "CONTAINS" },
+        { "fieldPath": "date", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

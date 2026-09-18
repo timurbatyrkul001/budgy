@@ -10,8 +10,12 @@ import '../envelopes/add_envelope_sheet.dart';
 import '../envelopes/budget_repository.dart';
 import '../envelopes/envelope.dart';
 import '../envelopes/envelope_l10n.dart';
+import '../../core/feedback.dart';
 
-enum TxMode { expense, income, transfer }
+/// Cüzdan modeli: Gider (kategorili) ve Gelir (cüzdana). Transfer kalktı —
+/// zarflar artık para tutmadığı için aralarında taşınacak bir şey yok;
+/// döviz "Çevir", hedef "Para ayır" akışlarında.
+enum TxMode { expense, income }
 
 /// Единый экран добавления операции: Расход / Доход / Перевод.
 /// Открывается «плюсом» с главной, либо из конверта с предвыбором.
@@ -52,11 +56,9 @@ class _NewTransactionSheetState
   late TxMode _mode;
   final _amountController = TextEditingController();
   final _noteController = TextEditingController();
-  String? _envelopeId; // конверт / получатель (перевод) / источник (расход,доход)
-  String? _toEnvelopeId; // получатель перевода
+  String? _envelopeId; // kategori (gider); gelirde kullanılmaz
   late DateTime _date;
   bool _saving = false;
-  bool _repeat = false; // Cashly «Repeat» — şimdilik görsel.
 
   // Пульс-анимация суммы при вводе.
   late final AnimationController _pop;
@@ -94,7 +96,6 @@ class _NewTransactionSheetState
   Color get _glow => switch (_mode) {
         TxMode.expense => context.budgy.text,
         TxMode.income => context.budgy.accent,
-        TxMode.transfer => context.budgy.accentStrong,
       };
 
   @override
@@ -109,13 +110,8 @@ class _NewTransactionSheetState
 
   bool get _canSave {
     if (_amount == null || _saving) return false;
-    return switch (_mode) {
-      TxMode.expense => _envelopeId != null,
-      TxMode.income => _envelopeId != null,
-      TxMode.transfer => _envelopeId != null &&
-          _toEnvelopeId != null &&
-          _envelopeId != _toEnvelopeId,
-    };
+    // Gider: kategori (ya da "kasadan") seçili olmalı. Gelir: tutar yeter.
+    return _mode == TxMode.income || _envelopeId != null;
   }
 
   Future<void> _save() async {
@@ -123,12 +119,20 @@ class _NewTransactionSheetState
     if (amount == null) return;
     final str = ref.read(strProvider);
     final repo = ref.read(budgetRepositoryProvider);
-    final envelopes = ref.read(envelopesProvider).value ?? [];
-    String nameOf(String id) => envelopes
-        .firstWhere((e) => e.id == id)
-        .displayName(str);
-    String currencyOf(String id) =>
-        envelopes.firstWhere((e) => e.id == id).currency;
+    final envelopes = ref.read(activeEnvelopesProvider);
+    // Zarf ekran açıkken silinmiş/arşivlenmiş olabilir — patlamak yerine
+    // kaydı iptal edip kullanıcıyı bilgilendiriyoruz.
+    Envelope? envOf(String id) =>
+        envelopes.where((e) => e.id == id).firstOrNull;
+
+    final needsEnvelope =
+        _mode == TxMode.expense && _envelopeId != null && _envelopeId != _pocketId;
+    final env = needsEnvelope ? envOf(_envelopeId!) : null;
+    if (needsEnvelope && env == null) {
+      _showError(str.errorGeneric);
+      return;
+    }
+
     final note = _noteController.text.trim().isEmpty
         ? null
         : _noteController.text.trim();
@@ -143,63 +147,42 @@ class _NewTransactionSheetState
     try {
       switch (_mode) {
         case TxMode.expense:
-          if (_envelopeId == _pocketId) {
-            await repo.addFreeExpense(
-                amount: amount, note: note, date: date);
-          } else {
-            await repo.addExpense(
-              envelopeId: _envelopeId!,
-              envelopeName: nameOf(_envelopeId!),
-              amount: amount,
-              currency: currencyOf(_envelopeId!),
-              note: note,
-              date: date,
-            );
-          }
-        case TxMode.income:
-          if (_envelopeId == _pocketId) {
-            // Доход в общий котёл — потом разложишь по конвертам.
-            await repo.addFreeIncome(
-                amount: amount, note: note, date: date);
-          } else {
-            await repo.addIncomeToEnvelope(
-              envelopeId: _envelopeId!,
-              envelopeName: nameOf(_envelopeId!),
-              amount: amount,
-              currency: currencyOf(_envelopeId!),
-              note: note,
-              date: date,
-            );
-          }
-        case TxMode.transfer:
-          await repo.transfer(
-            fromId: _envelopeId!,
-            fromName: nameOf(_envelopeId!),
-            toId: _toEnvelopeId!,
-            toName: nameOf(_toEnvelopeId!),
+          // Kategorisiz ("kasadan") gider de cüzdandan düşer — sadece
+          // istatistikte "Diğer" kalır.
+          await repo.addExpense(
+            envelopeId: env?.id,
+            envelopeName: env?.displayName(str),
             amount: amount,
+            currency: env?.currency ?? 'TRY',
             note: note,
             date: date,
           );
+        case TxMode.income:
+          await repo.addCashIncome(amount: amount, note: note, date: date);
       }
       if (mounted) Navigator.of(context).pop();
+    } catch (_) {
+      _showError(str.errorSaveFailed);
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  void _showError(String message) {
+    if (mounted) showErrorSnack(context, message);
   }
 
   @override
   Widget build(BuildContext context) {
     final str = ref.watch(strProvider);
     final c = context.budgy;
-    final envelopes = ref.watch(envelopesProvider).value ?? [];
+    // Arşivlenmiş zarflar ve hedefler işlem hedefi olamaz.
+    final envelopes = ref.watch(activeEnvelopesProvider);
 
     // Seçili zarfın para birimi → tutar simgesi ($ / ₺...).
-    final activeCode = _mode == TxMode.transfer
-        ? envelopes.where((e) => e.id == _toEnvelopeId).firstOrNull?.currency
-        : (_envelopeId != null && _envelopeId != _pocketId
-            ? envelopes.where((e) => e.id == _envelopeId).firstOrNull?.currency
-            : null);
+    final activeCode = _envelopeId != null && _envelopeId != _pocketId
+        ? envelopes.where((e) => e.id == _envelopeId).firstOrNull?.currency
+        : null;
     final amountSymbol = kCurrencies[activeCode ?? 'TRY'] ?? currencySymbol;
 
     return Scaffold(
@@ -234,8 +217,6 @@ class _NewTransactionSheetState
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    _NavCircle(icon: Icons.more_horiz, onTap: () {}),
                   ],
                 ),
               ),
@@ -244,14 +225,13 @@ class _NewTransactionSheetState
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 20, 15, 16),
                 children: [
-                  // Tip sekmeleri (Expense / Income / Transfer)
+                  // Tip sekmeleri (Gider / Gelir)
                   _ModeSegmented(
                     mode: _mode,
                     str: str,
                     onChanged: (m) => setState(() {
                       _mode = m;
                       _envelopeId = m == TxMode.expense ? _pocketId : null;
-                      _toEnvelopeId = null;
                     }),
                   ),
                   const SizedBox(height: 20),
@@ -330,27 +310,8 @@ class _NewTransactionSheetState
                     onChanged: (d) => setState(() => _date = d),
                   ),
                   const SizedBox(height: 12),
-                  // Kategori / Transfer kaynak-hedef
-                  if (_mode == TxMode.transfer) ...[
-                    _PickerRow(
-                      label: str.fromLabel,
-                      value: _envelopeId,
-                      envelopes: envelopes,
-                      str: str,
-                      allowPocket: false,
-                      onPick: (id) => setState(() => _envelopeId = id),
-                    ),
-                    const SizedBox(height: 12),
-                    _PickerRow(
-                      label: str.toLabel,
-                      value: _toEnvelopeId,
-                      envelopes: envelopes,
-                      str: str,
-                      allowPocket: false,
-                      exclude: _envelopeId,
-                      onPick: (id) => setState(() => _toEnvelopeId = id),
-                    ),
-                  ] else
+                  // Kategori (yalnız gider — gelir doğrudan cüzdana).
+                  if (_mode == TxMode.expense)
                     _PickerRow(
                       label: str.envelopeLabel,
                       value: _envelopeId,
@@ -376,40 +337,6 @@ class _NewTransactionSheetState
                         hintText: str.noteHint,
                         border: InputBorder.none,
                       ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  // Repeat kartı (görsel)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: c.surface,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: c.border),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                              color: c.surface2, shape: BoxShape.circle),
-                          child: Icon(Icons.history_rounded,
-                              size: 20, color: c.textMuted),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(str.repeatLabel,
-                              style: const TextStyle(
-                                  fontSize: 15, fontWeight: FontWeight.w600)),
-                        ),
-                        Switch(
-                          value: _repeat,
-                          activeThumbColor: c.accent,
-                          onChanged: (v) => setState(() => _repeat = v),
-                        ),
-                      ],
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -456,32 +383,40 @@ class _ModeSegmented extends StatelessWidget {
     final items = [
       (TxMode.expense, str.expenseTitle),
       (TxMode.income, str.incomeTitle),
-      (TxMode.transfer, str.transferTitle),
     ];
+    // Segmentler kalan genişliği eşit paylaşır. Sabit genişlikte bırakılırsa
+    // dar ekranlarda (360dp — iPhone SE ve birçok Android) uzun etiketlerle
+    // satır taşıyor ve sağdaki sekme görünmez oluyordu.
     return Row(
       children: [
-        for (final (m, label) in items) ...[
-          GestureDetector(
-            onTap: () => onChanged(m),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-              decoration: BoxDecoration(
-                color: m == mode ? c.accent : c.surface2,
-                borderRadius: BorderRadius.circular(24),
-              ),
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: m == mode ? FontWeight.w700 : FontWeight.w500,
-                  color: m == mode ? Colors.white : c.textMuted,
+        for (final (index, (m, label)) in items.indexed) ...[
+          if (index > 0) const SizedBox(width: 8),
+          Expanded(
+            child: GestureDetector(
+              onTap: () => onChanged(m),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 10, vertical: 10),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: m == mode ? c.accent : c.surface2,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: m == mode ? FontWeight.w700 : FontWeight.w500,
+                    color: m == mode ? Colors.white : c.textMuted,
+                  ),
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 8),
         ],
       ],
     );
@@ -497,7 +432,6 @@ class _PickerRow extends StatelessWidget {
     required this.str,
     required this.allowPocket,
     required this.onPick,
-    this.exclude,
   });
 
   final String label;
@@ -505,7 +439,6 @@ class _PickerRow extends StatelessWidget {
   final List<Envelope> envelopes;
   final Strings str;
   final bool allowPocket;
-  final String? exclude;
   final ValueChanged<String> onPick;
 
   @override
@@ -530,10 +463,7 @@ class _PickerRow extends StatelessWidget {
           shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
-          builder: (_) => EnvelopePickerGrid(
-            allowPocket: allowPocket,
-            exclude: exclude,
-          ),
+          builder: (_) => EnvelopePickerGrid(allowPocket: allowPocket),
         );
         if (picked != null) onPick(picked);
       },
@@ -589,10 +519,15 @@ class EnvelopePickerGrid extends ConsumerStatefulWidget {
     super.key,
     this.allowPocket = false,
     this.exclude,
+    this.onlyCurrency,
   });
 
   final bool allowPocket;
   final String? exclude;
+
+  /// Doluysa yalnız bu para birimindeki zarflar listelenir (transferde
+  /// kaynakla hedefin birimi aynı olmak zorunda).
+  final String? onlyCurrency;
 
   @override
   ConsumerState<EnvelopePickerGrid> createState() =>
@@ -606,11 +541,14 @@ class _EnvelopePickerGridState extends ConsumerState<EnvelopePickerGrid> {
   Widget build(BuildContext context) {
     final str = ref.watch(strProvider);
     final c = context.budgy;
-    final all = ref.watch(envelopesProvider).value ?? [];
+    // Arşivlenmiş zarflar ve birikim hedefleri işlem hedefi olamaz.
+    final all = ref.watch(activeEnvelopesProvider);
     final q = _query.trim().toLowerCase();
     final envelopes = [
       for (final e in all)
         if (e.id != widget.exclude &&
+            (widget.onlyCurrency == null ||
+                e.currency == widget.onlyCurrency) &&
             (q.isEmpty || e.displayName(str).toLowerCase().contains(q)))
           e,
     ];

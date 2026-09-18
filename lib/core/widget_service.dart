@@ -50,21 +50,13 @@ class BudgyWidget {
 /// Widget'ı ilgili veriler değiştikçe güncel tutar. Kök ekranda bir kez
 /// izlenmesi yeterli (root_screen).
 final widgetSyncProvider = Provider<void>((ref) {
-  final inEnvelopes = ref.watch(totalBalanceProvider);
-  final days = ref.watch(unallocatedWorkDaysProvider).value ?? const [];
-  final freeInc = ref.watch(unallocatedFreeIncomeProvider).value ?? const [];
-  final freeExp = ref.watch(unallocatedFreeExpensesProvider).value ?? const [];
+  // Cüzdan modeli: "cepte kalan" doğrudan saklanan bakiye.
+  final moneyLeft = ref.watch(cashBalanceProvider).value ?? 0;
   final earned = ref.watch(allWorkDaysProvider).value ?? const [];
   final streak = ref.watch(earningStreakProvider);
   final str = ref.watch(strProvider);
   // Para birimi sembolü değişince de yeniden yazsın.
   ref.watch(currencySymbolProvider);
-
-  final toDistribute = days.fold<double>(0, (a, d) => a + (d.amount ?? 0)) +
-      freeInc.fold<double>(0, (a, e) => a + e.amount);
-  final moneyLeft = inEnvelopes +
-      toDistribute -
-      freeExp.fold<double>(0, (a, e) => a + e.amount);
 
   final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day);

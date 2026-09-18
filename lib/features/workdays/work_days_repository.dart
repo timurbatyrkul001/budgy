@@ -17,11 +17,6 @@ final monthWorkDaysProvider =
   return ref.watch(workDaysRepositoryProvider).watchMonth(monthKey);
 });
 
-/// Отработанные, но ещё не распределённые по конвертам дни (до сегодня).
-final unallocatedWorkDaysProvider = StreamProvider<List<WorkDay>>((ref) {
-  return ref.watch(workDaysRepositoryProvider).watchUnallocated();
-});
-
 /// Tüm kazançlı çalışma günleri (Geçmiş'te gelir olarak göstermek için).
 final allWorkDaysProvider = StreamProvider<List<WorkDay>>((ref) {
   return ref.watch(workDaysRepositoryProvider).watchAllEarned();
@@ -41,7 +36,15 @@ class WorkDay {
 }
 
 /// Отметки рабочих дней: users/{uid}/workDays/{yyyy-MM-dd}.
-/// Ставка лежит в users/{uid}/settings/main.
+///
+/// **Cüzdan modeli:** gün işaretlenip tutar girildiği AN para cüzdana girer —
+/// eski "dağıtılmayı bekleyen" ara durumu yok. Düzenleme yalnız FARKI
+/// uygular, silme tutarı geri çeker. Bu fark-kuralı göç öncesi günler için
+/// de doğrudur: onların tutarı göç toplamına zaten girmişti.
+///
+/// Günler için ayrı işlem (tx) belgesi YAZILMAZ — geçmiş ekranı günleri
+/// sentetik gelir satırı olarak zaten gösteriyor; ikinci bir kayıt aynı
+/// parayı istatistikte iki kez saydırırdı.
 class WorkDaysRepository {
   WorkDaysRepository(this._db, this._uid);
 
@@ -50,6 +53,9 @@ class WorkDaysRepository {
 
   CollectionReference<Map<String, dynamic>> get _workDays =>
       _db.collection('users').doc(_uid).collection('workDays');
+
+  DocumentReference<Map<String, dynamic>> get _cash =>
+      _db.collection('users').doc(_uid).collection('accounts').doc('cash');
 
   Stream<Map<DateTime, double?>> watchMonth(String monthKey) {
     return _workDays.where('month', isEqualTo: monthKey).snapshots().map(
@@ -61,35 +67,39 @@ class WorkDaysRepository {
         );
   }
 
-  /// Отметить день рабочим с заработком за этот день.
-  /// merge — чтобы не сбросить флаг allocated при правке суммы.
-  Future<void> setDay(DateTime day, {double? amount}) {
-    return _workDays.doc(_dayId(day)).set({
+  /// Отметить день с заработком. Кошелёк двигается на разницу со старой
+  /// суммой — правка дня не удваивает деньги.
+  Future<void> setDay(DateTime day, {double? amount}) async {
+    final ref = _workDays.doc(_dayId(day));
+    final prev =
+        ((await ref.get()).data()?['amount'] as num?)?.toDouble() ?? 0;
+    final next = amount ?? 0;
+
+    final batch = _db.batch();
+    batch.set(ref, {
       'month': monthKeyOf(day),
       'amount': amount,
     }, SetOptions(merge: true));
+    if (next != prev) {
+      batch.set(_cash, {'balance': FieldValue.increment(next - prev)},
+          SetOptions(merge: true));
+    }
+    await batch.commit();
   }
 
-  Future<void> removeDay(DateTime day) {
-    return _workDays.doc(_dayId(day)).delete();
-  }
+  /// Снять отметку дня; его заработок возвращается из кошелька.
+  Future<void> removeDay(DateTime day) async {
+    final ref = _workDays.doc(_dayId(day));
+    final prev =
+        ((await ref.get()).data()?['amount'] as num?)?.toDouble() ?? 0;
 
-  /// Дни до сегодня включительно, ещё не внесённые как доход.
-  Stream<List<WorkDay>> watchUnallocated() {
-    return _workDays.snapshots().map((snap) {
-      final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
-      return snap.docs
-          .where((doc) => doc.data()['allocated'] != true)
-          .map((doc) => WorkDay(
-                id: doc.id,
-                date: DateTime.parse(doc.id),
-                amount: (doc.data()['amount'] as num?)?.toDouble(),
-              ))
-          .where((day) => !day.date.isAfter(today))
-          .toList()
-        ..sort((a, b) => a.date.compareTo(b.date));
-    });
+    final batch = _db.batch();
+    batch.delete(ref);
+    if (prev != 0) {
+      batch.set(_cash, {'balance': FieldValue.increment(-prev)},
+          SetOptions(merge: true));
+    }
+    await batch.commit();
   }
 
   /// Kazancı girilmiş tüm günler (amount>0) — Geçmiş'te gelir olarak.
@@ -103,14 +113,5 @@ class WorkDaysRepository {
         .where((d) => d.amount != null && d.amount! > 0)
         .toList()
       ..sort((a, b) => b.date.compareTo(a.date)));
-  }
-
-  /// Пометить дни распределёнными (после сохранения дохода).
-  Future<void> markAllocated(List<String> dayIds) {
-    final batch = _db.batch();
-    for (final id in dayIds) {
-      batch.update(_workDays.doc(id), {'allocated': true});
-    }
-    return batch.commit();
   }
 }

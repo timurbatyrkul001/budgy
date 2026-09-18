@@ -1,4 +1,15 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Hatırlatma bildirimleri (Android 13+ çalışma anında da sorulur). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- Zamanlanmış hatırlatmalar cihaz yeniden başlayınca yeniden kurulur. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <!-- Face ID / parmak izi ile uygulama kilidi. -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
+    <!-- Döviz kuru sorgusu (open.er-api.com) + AI parser. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Sesle harcama ekleme (speech_to_text). -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+
     <application
         android:label="Budgy"
         android:name="${applicationName}"
@@ -30,6 +41,36 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+
+        <!-- flutter_local_notifications: cihaz yeniden başlayınca
+             zamanlanmış hatırlatmaları geri yükler. -->
+        <receiver
+            android:exported="false"
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+                <action android:name="android.intent.action.QUICKBOOT_POWERON"/>
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:exported="false"
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
+
+        <!-- Ana ekran widget'ı: bugünkü kazanç + cepte kalan. Veriyi
+             Flutter tarafı (home_widget) SharedPreferences'a yazar. -->
+        <receiver
+            android:name=".BudgyWidgetProvider"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="es.antonborri.home_widget.action.WIDGET_CLICK" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/budgy_widget_info" />
+        </receiver>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and
@@ -40,6 +81,10 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- speech_to_text: sistemin konuşma tanıma servisine erişim. -->
+        <intent>
+            <action android:name="android.speech.RecognitionService"/>
         </intent>
     </queries>
 </manifest>

@@ -13,6 +13,8 @@ class Envelope {
     this.targetAmount,
     this.presetKey,
     this.isGoal = false,
+    this.section,
+    this.colorIndex,
   });
 
   final String id;
@@ -32,12 +34,23 @@ class Envelope {
   final String? presetKey;
 
   /// Целевая сумма. Hedef (isGoal) için: birikim hedefi. Harcama kategorisi
-  /// için: aylık bütçe limiti.
+  /// için: kategori bütçe limiti — dönemi settings/main'deki genel bütçe
+  /// belirler (haftalık bütçede haftalık limit, aylıkta aylık; bkz.
+  /// BudgetSettings). Tempo/analiz aynı dönem penceresiyle karşılaştırır.
   final double? targetAmount;
 
   /// Birikim hedefi mi? (Trip, araba...) — harcama kategorisi değil, ayrı bir
   /// kumbara. Money left'ten hariç, Goals sekmesinde gösterilir.
   final bool isGoal;
+
+  /// Kategori bölümü (katalog bölüm anahtarı; null = bölümsüz). Eski
+  /// belgelerde yok → katalog/preset anahtarından türetilir
+  /// (bkz. envelopeSection). Yalnız kullanıcı düzenleyince yazılır.
+  final String? section;
+
+  /// CategoryPalette indeksi (null = türetilmiş renk: katalog rengi ya da
+  /// id'den hash). Yalnız kullanıcı düzenleyince yazılır.
+  final int? colorIndex;
 
   double get progress => targetAmount == null || targetAmount! <= 0
       ? 0
@@ -60,6 +73,8 @@ class Envelope {
       targetAmount: (data['targetAmount'] as num?)?.toDouble(),
       presetKey: data['preset'] as String?,
       isGoal: data['goal'] == true,
+      section: data['section'] as String?,
+      colorIndex: (data['color'] as num?)?.toInt(),
     );
   }
 }

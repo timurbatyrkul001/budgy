@@ -72,7 +72,8 @@ ThemeData _build(BudgyColors c, Brightness brightness) {
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
         backgroundColor: c.accent,
-        foregroundColor: Colors.white,
+        // Yeşil üstünde koyu metin — beyaz, parlak yeşilde okunmuyordu.
+        foregroundColor: const Color(0xFF04140D),
         minimumSize: const Size.fromHeight(52),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
@@ -111,8 +112,8 @@ ThemeData _build(BudgyColors c, Brightness brightness) {
   );
 }
 
-/// Açık tema — "Sıcak Defter".
-ThemeData buildTheme() => _build(BudgyColors.light, Brightness.light);
+/// Tek tema — "dark emerald". Uygulama yalnız koyu; [buildDarkTheme] geri
+/// uyumluluk için aynı temayı döndürür.
+ThemeData buildTheme() => _build(BudgyColors.dark, Brightness.dark);
 
-/// Koyu tema — derin yeşil-siyah, parlak yeşil vurgu korunur.
-ThemeData buildDarkTheme() => _build(BudgyColors.dark, Brightness.dark);
+ThemeData buildDarkTheme() => buildTheme();
