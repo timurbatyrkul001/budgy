@@ -3,5 +3,5 @@ flutter_launcher_icons:
   ios: true
   remove_alpha_ios: true
   android: "launcher_icon"
-  adaptive_icon_background: "#0F9E6C"
+  adaptive_icon_background: "#07090A"
   adaptive_icon_foreground: "assets/icon/budgy_icon_fg.png"

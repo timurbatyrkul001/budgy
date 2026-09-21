@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,6 +7,7 @@ import '../../core/category_avatar.dart';
 import '../../core/category_catalog.dart';
 import '../../core/category_visual.dart';
 import '../../core/ex_style.dart';
+import '../../core/motion.dart';
 import '../../core/feedback.dart';
 import '../../core/l10n.dart';
 import '../../core/redesign_l10n.dart';
@@ -133,6 +136,7 @@ class _CategorySheetState extends ConsumerState<_CategorySheet> {
                 children: [
                   if (mineFiltered.isNotEmpty)
                     _Section(
+                      index: 0,
                       title: rs.yourCategories,
                       children: [
                         for (final e in mineFiltered)
@@ -145,9 +149,10 @@ class _CategorySheetState extends ConsumerState<_CategorySheet> {
                           ),
                       ],
                     ),
-                  for (final section in kCategoryCatalog)
+                  for (final (i, section) in kCategoryCatalog.indexed)
                     ..._section(section, ownedKeys, mine,
-                        grouped[section.key] ?? const [], str),
+                        grouped[section.key] ?? const [], str,
+                        index: mineFiltered.isEmpty ? i : i + 1),
                   const SizedBox(height: 4),
                   GhostButton(
                     label: rs.newCategory,
@@ -164,7 +169,8 @@ class _CategorySheetState extends ConsumerState<_CategorySheet> {
   }
 
   List<Widget> _section(CatalogSection section, Set<String?> ownedKeys,
-      List<Envelope> mine, List<Envelope> own, Strings str) {
+      List<Envelope> mine, List<Envelope> own, Strings str,
+      {required int index}) {
     final ownFiltered = own.where((e) => _matches(e.displayName(str))).toList();
     final items = section.items
         .where((i) => !ownedKeys.contains(i.key))
@@ -173,6 +179,7 @@ class _CategorySheetState extends ConsumerState<_CategorySheet> {
     if (items.isEmpty && ownFiltered.isEmpty) return const [];
     return [
       _Section(
+        index: index,
         title: section.title(str.localeCode),
         children: [
           for (final e in ownFiltered)
@@ -196,15 +203,20 @@ class _CategorySheetState extends ConsumerState<_CategorySheet> {
   }
 }
 
-/// Başlık kartın dışında; kart içinde 3'lü ızgara.
+/// Başlık kartın dışında; kart içinde 3'lü ızgara. Kart [index] sırasına
+/// göre solarak gelir; karolar içinde kısa sırayla 0.92'den büyür.
 class _Section extends StatelessWidget {
-  const _Section({required this.title, required this.children});
+  const _Section(
+      {required this.index, required this.title, required this.children});
 
+  final int index;
   final String title;
   final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
+    // Bölüm gecikmesi en çok 4 adım (140 ms); karolar 3 adım (60 ms) ekler.
+    final base = kEnterStep * math.min(index, 4);
     return Padding(
       padding: const EdgeInsets.only(top: 14),
       // Kart her zaman tam genişlik — satır dolu olmasa da.
@@ -225,7 +237,10 @@ class _Section extends StatelessWidget {
                 return Wrap(
                   runSpacing: 6,
                   children: [
-                    for (final c in children) SizedBox(width: w, child: c),
+                    for (final (j, c) in children.indexed)
+                      SizedBox(
+                          width: w,
+                          child: c.enterPop(context, index: j, baseDelay: base)),
                   ],
                 );
               },
@@ -233,7 +248,7 @@ class _Section extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ).enterUp(context, index: math.min(index, 4), dy: 8);
   }
 }
 

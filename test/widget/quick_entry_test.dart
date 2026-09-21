@@ -113,9 +113,7 @@ void main() {
     final db = FakeFirebaseFirestore();
     await pumpBudgyScreen(tester, const QuickEntryScreen(),
         db: db, language: AppLanguage.en);
-    // Gider/gelir seçimi "…" menüsünde.
-    await tester.tap(find.byIcon(Icons.more_horiz_rounded));
-    await tester.pumpAndSettle();
+    // Gider/gelir anahtarı panelin üstünde, tek dokunuş.
     await tester.tap(find.text(RS.en.income));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(InkWell, '5').last);

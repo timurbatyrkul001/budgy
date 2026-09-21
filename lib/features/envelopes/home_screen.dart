@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import '../../core/category_avatar.dart';
 import '../../core/currency_catalog.dart';
 import '../../core/ex_style.dart';
+import '../../core/motion.dart';
 import '../../core/feedback.dart';
 import '../../core/formatters.dart';
 import '../../core/l10n.dart';
@@ -131,20 +132,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               bottom: false,
               child: ListView(
                 padding: EdgeInsets.fromLTRB(16, 8, 16, 120 + bottom),
-                children: const [
-                  _Header(),
-                  SizedBox(height: 34),
-                  _Hero(),
-                  SizedBox(height: 14),
-                  _SpendSparkline(),
-                  SizedBox(height: 22),
-                  _BudgetCard(),
-                  _ReviewRow(),
-                  SizedBox(height: 26),
-                  _AccountsSection(),
-                  SizedBox(height: 26),
-                  _RecentSection(),
-                  _NotificationsCard(),
+                // Bölümler ilk gösterimde 35 ms arayla solup yukarı kayarak
+                // gelir; başlık sabit kalır. Yeniden kurulum tekrar oynatmaz.
+                children: [
+                  const _Header(),
+                  const SizedBox(height: 34),
+                  const _Hero().enterUp(context, index: 0),
+                  const SizedBox(height: 14),
+                  const _SpendSparkline().enterUp(context, index: 1),
+                  const SizedBox(height: 22),
+                  const _BudgetCard().enterUp(context, index: 2),
+                  const _ReviewRow().enterUp(context, index: 3),
+                  const SizedBox(height: 26),
+                  const _AccountsSection().enterUp(context, index: 4),
+                  const SizedBox(height: 26),
+                  const _RecentSection().enterUp(context, index: 5),
+                  const _NotificationsCard().enterUp(context, index: 6),
                 ],
               ),
             ),
@@ -161,17 +164,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               bottom: bottom + 96,
               child: IgnorePointer(
                 ignoring: _undoTxId == null,
-                child: AnimatedOpacity(
-                  duration: const Duration(milliseconds: 220),
-                  opacity: _undoTxId == null ? 0 : 1,
-                  child: Center(
-                    child: _UndoChip(
-                      saved: rs.saved,
-                      undo: rs.undo,
-                      onUndo: _undo,
-                    ),
+                child: Center(
+                  child: _UndoChip(
+                    saved: rs.saved,
+                    undo: rs.undo,
+                    onUndo: _undo,
                   ),
-                ),
+                ).reveal(context, visible: _undoTxId != null),
               ),
             ),
           ],
@@ -1227,17 +1226,14 @@ class _DockButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
+    // Basılıyken 0.94'e küçülür (parmağı izler).
+    return PressScale(
       color: color,
-      shape: const CircleBorder(),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: SizedBox(
-          width: size,
-          height: size,
-          child: Center(child: child),
-        ),
+      onTap: onTap,
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: Center(child: child),
       ),
     );
   }

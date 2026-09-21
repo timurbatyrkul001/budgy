@@ -28,6 +28,7 @@ dependencies:
   firebase_crashlytics: ^5.2.7
   firebase_app_check: ^0.4.6
   speech_to_text: ^7.4.0
+  flutter_animate: ^4.5.2
 
 dev_dependencies:
   flutter_test:
@@ -48,12 +49,14 @@ flutter:
 
 # Budgy app ikonu config'i flutter_launcher_icons.yaml dosyasında.
 
-# Budgy açılış (splash) ekranı — yeşil zemin + beyaz monoline zarf.
+# Budgy açılış (splash) ekranı — siyah zemin + beyaz monoline zarf.
+# Zemin uygulamanın kendi siyahıyla (Ex.bg #07090A) aynı: açılıştan ana
+# ekrana geçerken renk sıçraması olmuyor.
 flutter_native_splash:
-  color: "#0F9E6C"
+  color: "#07090A"
   image: assets/icon/budgy_splash.png
   android_12:
-    color: "#0F9E6C"
+    color: "#07090A"
     image: assets/icon/budgy_splash.png
   ios: true
   android: true

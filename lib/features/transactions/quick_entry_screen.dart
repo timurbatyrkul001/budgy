@@ -8,6 +8,7 @@ import '../../core/calc.dart';
 import '../../core/category_avatar.dart';
 import '../../core/currency_info.dart';
 import '../../core/ex_style.dart';
+import '../../core/motion.dart';
 import '../../core/feedback.dart';
 import '../../core/formatters.dart';
 import '../../core/l10n.dart';
@@ -214,60 +215,33 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
     });
   }
 
-  /// "…" menüsü: gider/gelir + hesap makinesi / çoklu giriş.
-  /// Gider-gelir seçimi üst satırdan buraya taşındı (tasarım sadeleşti),
-  /// ama özellik duruyor.
+  /// "…" menüsü: hesap makinesi / çoklu giriş.
+  /// Gider-gelir seçimi artık panelin üstünde görünür anahtar.
   Future<void> _menu() async {
     final rs = ref.read(rsProvider);
-    final picked = await showExSheet<String>(
+    final picked = await showExSheet<bool>(
       context,
       SheetFrame(
         title: rs.quickEntryTitle,
         child: Column(
           children: [
             _OptionRow(
-              icon: Icons.arrow_upward_rounded,
-              label: rs.expense,
-              selected: _mode == QuickMode.expense,
-              onTap: () => Navigator.of(context).pop('expense'),
-            ),
-            _OptionRow(
-              icon: Icons.arrow_downward_rounded,
-              label: rs.income,
-              selected: _mode == QuickMode.income,
-              onTap: () => Navigator.of(context).pop('income'),
-            ),
-            const Divider(height: 24, color: Ex.border),
-            _OptionRow(
               icon: Icons.calculate_outlined,
               label: rs.calculatorMode,
               selected: !_multi,
-              onTap: () => Navigator.of(context).pop('calc'),
+              onTap: () => Navigator.of(context).pop(false),
             ),
             _OptionRow(
               icon: Icons.playlist_add_rounded,
               label: rs.multiMode,
               selected: _multi,
-              onTap: () => Navigator.of(context).pop('multi'),
+              onTap: () => Navigator.of(context).pop(true),
             ),
           ],
         ),
       ),
     );
-    if (picked == null) return;
-    setState(() {
-      switch (picked) {
-        case 'expense':
-          _mode = QuickMode.expense;
-        case 'income':
-          _mode = QuickMode.income;
-        case 'calc':
-          _multi = false;
-        case 'multi':
-          _multi = true;
-      }
-      if (!_categoryApplies) _category = null;
-    });
+    if (picked != null) setState(() => _multi = picked);
   }
 
   // ── kayıt ─────────────────────────────────────────────────────────────
@@ -445,6 +419,20 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
                       ),
                       child: Column(
                         children: [
+                          // Gider / Gelir görünür anahtar: gelir girmek tek
+                          // dokunuş olsun diye menüde saklı değil.
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+                            child: _ModeSwitch(
+                              mode: _mode,
+                              expense: rs.expense,
+                              income: rs.income,
+                              onChanged: (m) => setState(() {
+                                _mode = m;
+                                if (!_categoryApplies) _category = null;
+                              }),
+                            ),
+                          ),
                           // Tutar panelin ortasında durur.
                           Expanded(
                             child: Padding(
@@ -461,20 +449,6 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
                                       onTap: () {},
                                     ),
                                     const SizedBox(height: 12),
-                                  ],
-                                  // Gider/gelir üst satırdan menüye taşındı;
-                                  // gelir modunda burada görünür kalsın.
-                                  if (_mode == QuickMode.income) ...[
-                                    Text(
-                                      rs.income,
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w700,
-                                        letterSpacing: 0.4,
-                                        color: Ex.mint,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
                                   ],
                                   _AmountDisplay(
                                     expr: _expr,
@@ -498,6 +472,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
                           ),
 
                           // Tarih solda; tekrar yanında, not en sağda.
+                          // Açılışta solup yukarı kayar (tuş takımı değil).
                           Padding(
                             padding:
                                 const EdgeInsets.fromLTRB(12, 0, 12, 10),
@@ -530,7 +505,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
                                 ),
                               ],
                             ),
-                          ),
+                          ).enterUp(context, index: 0, dy: 8),
 
                           _Keypad(
                             decimal: _decimalFor(str.localeCode),
@@ -563,7 +538,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
                               onClear: _category == null
                                   ? null
                                   : () => setState(() => _category = null),
-                            ),
+                            ).enterUp(context, index: 1, dy: 8),
                           ),
                         )
                       else
@@ -606,6 +581,80 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
 
 /// Panelin alt satırındaki yuvarlak ikon butonu (tekrar, not).
 /// Etkinse yeşil tint — bir değer seçilmiş olduğu oradan anlaşılır.
+/// Gider / Gelir anahtarı — panelin üstünde, tam genişlikte iki parça.
+/// Seçili taraf gelirde nane, giderde açık yüzey; gelir girmek tek dokunuş.
+class _ModeSwitch extends StatelessWidget {
+  const _ModeSwitch({
+    required this.mode,
+    required this.expense,
+    required this.income,
+    required this.onChanged,
+  });
+
+  final QuickMode mode;
+  final String expense;
+  final String income;
+  final ValueChanged<QuickMode> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget seg(QuickMode m, String label, IconData icon) {
+      final on = m == mode;
+      final fill = m == QuickMode.income ? Ex.brand : Ex.surfaceHi;
+      final ink = m == QuickMode.income ? Ex.onBrand : Ex.text;
+      return Expanded(
+        child: GestureDetector(
+          onTap: () => onChanged(m),
+          behavior: HitTestBehavior.opaque,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            height: 40,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: on ? fill : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 16, color: on ? ink : Ex.textMuted),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: on ? ink : Ex.textMuted,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Ex.bg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Ex.border),
+      ),
+      child: Row(
+        children: [
+          seg(QuickMode.expense, expense, Icons.arrow_upward_rounded),
+          seg(QuickMode.income, income, Icons.arrow_downward_rounded),
+        ],
+      ),
+    );
+  }
+}
+
 class _RoundIconButton extends StatelessWidget {
   const _RoundIconButton({
     required this.icon,

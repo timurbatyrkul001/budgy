@@ -18,6 +18,7 @@ import '../space/space.dart';
 import '../stats/stats_screen.dart';
 import '../tags/tags_screen.dart';
 import '../transactions/quick_entry_screen.dart';
+import '../workdays/calendar_screen.dart';
 
 /// Kök ekran: alt sekme çubuğu yok — Takvim/Hedefler/İstatistik artık ana
 /// ekranın menüsünden push edilen rotalar. Burada yalnız ana ekran ve
@@ -65,6 +66,7 @@ class _RootScreenState extends ConsumerState<RootScreen> {
           'automation' => const AutomationScreen(),
           'automationCat' => const RuleKeywordsScreen(
               title: 'Groceries', catalogKey: 'groceries'),
+          'calendar' => const CalendarScreen(),
           'tags' => const TagsScreen(),
           'data' => const DataManagementScreen(),
           'newCategory' => const EnvelopeEditorScreen(sortOrder: 0),
