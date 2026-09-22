@@ -35,6 +35,21 @@ extension BudgyMotion on Widget {
             curve: kEnterCurve);
   }
 
+  /// Giriş: yukarıdan düşerek belirir, gecikmeyi çağıran verir.
+  ///
+  /// [enterUp] listeler için tasarlandı: adımı 35 ms ve en çok 7 adım, yani
+  /// bir ekranın tamamı çeyrek saniyede yerleşir. Sahne anlatan yerlerde
+  /// (intro karşılama kartları) kartların tek tek, göz takip edecek kadar
+  /// yavaş gelmesi gerekir — oradaki gecikme yüzlerce milisaniyedir.
+  Widget dropIn(BuildContext context, Duration delay, {double dy = -14}) {
+    if (reduceMotion(context)) return this;
+    const d = Duration(milliseconds: 420);
+    return animate(delay: delay)
+        .fadeIn(duration: d, curve: kEnterCurve)
+        .move(begin: Offset(0, dy), end: Offset.zero, duration: d, curve: kEnterCurve)
+        .scaleXY(begin: 0.97, end: 1, duration: d, curve: kEnterCurve);
+  }
+
   /// Giriş: solma + 0.92'den büyüme (seçici karoları). [index] karo sırası,
   /// [baseDelay] kapsayan bölümün gecikmesi; karo adımı 20 ms, en çok 3 adım.
   Widget enterPop(BuildContext context,

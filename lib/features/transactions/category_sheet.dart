@@ -42,16 +42,22 @@ class CategoryPick {
 /// Arama referanstaki gibi altta değil: alt sayfada klavye açılınca alttaki
 /// alan klavyenin altında kalıyor / sayfayı zıplatıyor; üstte sabit alan
 /// klavyeyle çakışmıyor.
+/// [income]: yalnız gelir kaynakları (maaş, hediye…) — gider kataloğu ve
+/// gider kategorileri görünmez; tersi de doğru.
 Future<CategoryPick?> showCategorySheet(BuildContext context,
-        {String? selectedId, double initialScroll = 0}) =>
+        {String? selectedId, double initialScroll = 0, bool income = false}) =>
     showExSheet<CategoryPick>(
-        context, _CategorySheet(selectedId: selectedId, initialScroll: initialScroll));
+        context,
+        _CategorySheet(
+            selectedId: selectedId, initialScroll: initialScroll, income: income));
 
 class _CategorySheet extends ConsumerStatefulWidget {
-  const _CategorySheet({this.selectedId, this.initialScroll = 0});
+  const _CategorySheet(
+      {this.selectedId, this.initialScroll = 0, this.income = false});
 
   final String? selectedId;
   final double initialScroll;
+  final bool income;
 
   @override
   ConsumerState<_CategorySheet> createState() => _CategorySheetState();
@@ -104,8 +110,13 @@ class _CategorySheetState extends ConsumerState<_CategorySheet> {
   Widget build(BuildContext context) {
     final rs = ref.watch(rsProvider);
     final str = ref.watch(strProvider);
-    // Kullanıcının kategorileri: aktif, hedef olmayan ₺ zarflar.
-    final mine = ref.watch(allocatableEnvelopesProvider);
+    // Kullanıcının kategorileri: aktif, hedef olmayan ₺ zarflar —
+    // gider ya da gelir kümesi, moda göre.
+    final mine = ref.watch(
+        widget.income ? incomeCategoriesProvider : allocatableEnvelopesProvider);
+    final sections = kCategoryCatalog
+        .where((s) => (s.key == kIncomeSection) == widget.income)
+        .toList();
     // Bölümü olan kullanıcı kategorileri o bölümün kartına girer (katalog
     // maddelerinden önce); bölümsüzler "Kendi kategorilerin"de kalır.
     final grouped = groupBySection(mine);
@@ -116,7 +127,7 @@ class _CategorySheetState extends ConsumerState<_CategorySheet> {
     return SizedBox(
       height: MediaQuery.sizeOf(context).height * 0.88,
       child: SheetFrame(
-        title: rs.pickCategory,
+        title: widget.income ? rs.pickIncomeSource : rs.pickCategory,
         scroll: false,
         child: Column(
           children: [
@@ -149,7 +160,7 @@ class _CategorySheetState extends ConsumerState<_CategorySheet> {
                           ),
                       ],
                     ),
-                  for (final (i, section) in kCategoryCatalog.indexed)
+                  for (final (i, section) in sections.indexed)
                     ..._section(section, ownedKeys, mine,
                         grouped[section.key] ?? const [], str,
                         index: mineFiltered.isEmpty ? i : i + 1),
@@ -157,7 +168,8 @@ class _CategorySheetState extends ConsumerState<_CategorySheet> {
                   GhostButton(
                     label: rs.newCategory,
                     onTap: () => showAddEnvelopeSheet(
-                        context, ref.read(envelopesProvider).value?.length ?? 0),
+                        context, ref.read(envelopesProvider).value?.length ?? 0,
+                        initialSection: widget.income ? kIncomeSection : null),
                   ),
                 ],
               ),

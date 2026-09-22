@@ -23,6 +23,7 @@ import '../recurring/recurring_screen.dart';
 import '../settings/app_settings.dart';
 import '../settings/category_resolver.dart';
 import 'category_sheet.dart';
+import 'tx.dart';
 
 /// Hızlı giriş sonucu: son kaydedilen işlem (geri almak için) + adet.
 class QuickEntryResult {
@@ -56,15 +57,31 @@ Future<QuickEntryResult?> showQuickEntry(
   );
 }
 
+/// Var olan işlemi düzenle: ekran tutar/tür/hesap/kategori/tarih/notla
+/// dolu açılır, Kaydet AYNI belgeyi günceller (yeni kayıt yok). Tekrar
+/// kuralı buradan düzenlenmez. Kaydedildiyse true döner.
+Future<bool?> showQuickEntryEdit(BuildContext context, Tx tx) {
+  return Navigator.of(context).push<bool>(
+    MaterialPageRoute(
+      fullscreenDialog: true,
+      builder: (_) => QuickEntryScreen(editing: tx),
+    ),
+  );
+}
+
 class QuickEntryScreen extends ConsumerStatefulWidget {
   const QuickEntryScreen({
     super.key,
     this.initialExpression = '',
     this.autoSheet,
+    this.editing,
   });
 
   final String initialExpression;
   final String? autoSheet;
+
+  /// Düzenlenen işlem (null = yeni kayıt).
+  final Tx? editing;
 
   @override
   ConsumerState<QuickEntryScreen> createState() => _QuickEntryScreenState();
@@ -88,15 +105,61 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
     return DateTime(n.year, n.month, n.day);
   }
 
+  bool get _isEditing => widget.editing != null;
+
+  /// Tutarı klavye ifadesine çevir: 450 → "450", 12.5 → "12.5".
+  static String _exprFor(double amount) {
+    if (amount == amount.roundToDouble()) return amount.toInt().toString();
+    var s = amount.toStringAsFixed(2);
+    while (s.endsWith('0')) {
+      s = s.substring(0, s.length - 1);
+    }
+    return s;
+  }
+
   @override
   void initState() {
     super.initState();
+    final tx = widget.editing;
+    if (tx != null) {
+      // Ön doldurma: hesap (döviz cüzdanı) ve kategori mevcut zarflardan.
+      final all = ref.read(envelopesProvider).value ?? const <Envelope>[];
+      final env = all.where((e) => e.id == tx.envelopeId).firstOrNull;
+      final str = ref.read(strProvider);
+      _mode = tx.type == TxType.income ? QuickMode.income : QuickMode.expense;
+      _expr = _exprFor(tx.amount);
+      _date = DateTime(tx.date.year, tx.date.month, tx.date.day);
+      _note = tx.note ?? '';
+      // Zarf akışı henüz gelmediyse işlemdeki denormalize ad yeter.
+      if (tx.currency != 'TRY') {
+        _wallet = env ??
+            (tx.envelopeId == null
+                ? null
+                : Envelope(
+                    id: tx.envelopeId!,
+                    name: tx.envelopeName ?? tx.currency,
+                    emoji: '',
+                    balance: 0,
+                    sortOrder: 0,
+                    currency: tx.currency));
+      } else if (tx.envelopeId != null) {
+        _category = CategoryPick(
+            id: tx.envelopeId!,
+            name: env?.displayName(str) ?? tx.envelopeName ?? '',
+            emoji: env?.emoji ?? '',
+            catalogKey: env?.presetKey);
+      }
+    }
     final sheet = widget.autoSheet;
     if (sheet != null) {
       WidgetsBinding.instance.addPostFrameCallback(
         (_) => switch (sheet) {
           'category' => _pickCategory(),
           'categoryScrolled' => _pickCategory(initialScroll: 900),
+          'incomeCategory' => () {
+              setState(() => _mode = QuickMode.income);
+              _pickCategory();
+            }(),
           'recurrence' => _pickRecurrence(),
           'date' => _pickDate(),
           _ => null,
@@ -107,8 +170,9 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
 
   double get _amount => evalExpression(_expr);
 
-  /// Kategori yalnız nakit giderde anlamlı: gelir cüzdana, döviz cüzdana.
-  bool get _categoryApplies => _wallet == null && _mode == QuickMode.expense;
+  /// Kategori yalnız nakit hesapta anlamlı: giderde harcama kategorisi,
+  /// gelirde kaynak (maaş, hediye…). Döviz cüzdanında hedef cüzdanın kendisi.
+  bool get _categoryApplies => _wallet == null;
 
   // ── tuşlar ────────────────────────────────────────────────────────────
 
@@ -177,7 +241,9 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
 
   Future<void> _pickCategory({double initialScroll = 0}) async {
     final pick = await showCategorySheet(context,
-        selectedId: _category?.id, initialScroll: initialScroll);
+        selectedId: _category?.id,
+        initialScroll: initialScroll,
+        income: _mode == QuickMode.income);
     if (pick != null) setState(() => _category = pick);
   }
 
@@ -260,9 +326,9 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
     final wallet = _wallet;
     final isExpense = _mode == QuickMode.expense;
     final currency = wallet?.currency ?? 'TRY';
-    var envelopeId = wallet?.id ?? (isExpense ? _category?.id : null);
-    var envelopeName =
-        wallet?.displayName(str) ?? (isExpense ? _category?.name : null);
+    // Kategori: giderde harcama kategorisi, gelirde kaynak etiketi.
+    var envelopeId = wallet?.id ?? _category?.id;
+    var envelopeName = wallet?.displayName(str) ?? _category?.name;
     // Kategori seçilmediyse nottaki anahtar kelimeler seçsin (otomasyon);
     // kullanıcının seçtiği kategori asla ezilmez.
     if (isExpense && wallet == null && envelopeId == null && note != null) {
@@ -272,6 +338,31 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
         envelopeName = auto.name;
       }
       if (!mounted) return;
+    }
+
+    final editing = widget.editing;
+    if (editing != null) {
+      // Yerinde güncelle: eski etki geri alınır, yenisi uygulanır (tek parti).
+      final ok = await guardWrite(context, str, () async {
+        await repo.updateTx(
+          editing.id,
+          type: isExpense ? TxType.expense : TxType.income,
+          amount: amount,
+          currency: currency,
+          date: date,
+          envelopeId: envelopeId,
+          envelopeName: envelopeName,
+          note: note,
+        );
+      }, reason: 'editTx');
+      if (!mounted) return;
+      if (!ok) {
+        setState(() => _saving = false);
+        return;
+      }
+      HapticFeedback.lightImpact();
+      Navigator.of(context).pop(true);
+      return;
     }
 
     String? id;
@@ -286,7 +377,12 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
           date: date,
         );
       } else if (wallet == null) {
-        id = await repo.addCashIncome(amount: amount, note: note, date: date);
+        id = await repo.addCashIncome(
+            amount: amount,
+            note: note,
+            date: date,
+            envelopeId: envelopeId,
+            envelopeName: envelopeName);
       } else {
         id = await repo.addEnvelopeIncome(
           envelopeId: wallet.id,
@@ -332,6 +428,10 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
   }
 
   void _close() {
+    if (_isEditing) {
+      Navigator.of(context).pop(null);
+      return;
+    }
     final last = _lastTxId;
     Navigator.of(context).pop(
       last == null
@@ -399,10 +499,21 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      GlassSquareButton(
-                        icon: Icons.more_horiz_rounded,
-                        onTap: _menu,
-                      ),
+                      if (_isEditing)
+                        GlassChip(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          onTap: () {},
+                          child: Text(rs.editingLabel,
+                              style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: Ex.mint)),
+                        )
+                      else
+                        GlassSquareButton(
+                          icon: Icons.more_horiz_rounded,
+                          onTap: _menu,
+                        ),
                     ],
                   ),
                 ),
@@ -428,8 +539,9 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
                               expense: rs.expense,
                               income: rs.income,
                               onChanged: (m) => setState(() {
+                                // Gider ve gelir kümeleri ayrı: seçim sıfırlanır.
+                                if (m != _mode) _category = null;
                                 _mode = m;
-                                if (!_categoryApplies) _category = null;
                               }),
                             ),
                           ),
@@ -492,7 +604,10 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
                                   ),
                                 ),
                                 const SizedBox(width: 8),
-                                _RoundIconButton(
+                                // Tekrar kuralı düzenlemede yok (kural bu ekrandan değişmez).
+                                if (!_isEditing)
+
+                                  _RoundIconButton(
                                   icon: Icons.repeat_rounded,
                                   active: _recurrence != Recurrence.none,
                                   onTap: _pickRecurrence,

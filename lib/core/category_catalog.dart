@@ -104,7 +104,24 @@ const kCategoryCatalog = <CatalogSection>[
     CatalogItem('otherSubs', '🔁', 'Other subscriptions', 'Diğer abonelikler',
         'Другие подписки'),
   ]),
+  // Gelir kaynakları — kendi bölümü; gider seçicisinde/bütçede görünmez.
+  CatalogSection(kIncomeSection, 'Income', 'Gelir', 'Доход', [
+    CatalogItem('salary', '💼', 'Salary', 'Maaş', 'Зарплата'),
+    CatalogItem('freelance', '🧑‍💻', 'Freelance', 'Serbest iş', 'Фриланс'),
+    CatalogItem('giftIncome', '🎁', 'Gift', 'Hediye', 'Подарок'),
+    CatalogItem('refund', '↩️', 'Refund', 'İade', 'Возврат'),
+    CatalogItem('sale', '🏷️', 'Sale', 'Satış', 'Продажа'),
+    CatalogItem('otherIncome', '💰', 'Other income', 'Diğer gelir',
+        'Другой доход'),
+  ]),
 ];
+
+/// Gelir bölümünün anahtarı.
+const kIncomeSection = 'income';
+
+/// Anahtar gelir kataloğunda mı?
+bool isIncomeCatalogKey(String? key) =>
+    key != null && kCategoryCatalog.last.items.any((i) => i.key == key);
 
 /// Anahtar → katalog maddesi (yoksa null).
 CatalogItem? catalogItem(String key) {

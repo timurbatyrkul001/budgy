@@ -77,6 +77,10 @@ int builtinRuleCount() =>
     kBuiltinRules.values.fold<int>(0, (s, l) => s + l.length);
 
 /// Kullanıcı kuralı: users/{uid}/rules — anahtar kelime → zarf.
+/// Yerleşik anahtar kelime sayısı (tanıtım metni gerçek sayıyı söyler).
+final int kBuiltinRuleCount =
+    kBuiltinRules.values.fold(0, (n, list) => n + list.length);
+
 class UserRule {
   const UserRule({
     required this.id,

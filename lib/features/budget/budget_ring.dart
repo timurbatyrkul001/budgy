@@ -16,6 +16,7 @@ class BudgetRing extends StatelessWidget {
     required this.value,
     required this.over,
     this.size = 84,
+    this.animate = true,
   });
 
   /// Harcanan / bütçe. 1'in üstü aşım demektir (halka dolu kalır).
@@ -23,14 +24,17 @@ class BudgetRing extends StatelessWidget {
   final bool over;
   final double size;
 
+  /// false: halka anında yerleşik durumda çizilir (hareket azaltma).
+  final bool animate;
+
   @override
   Widget build(BuildContext context) {
     final target = value.isFinite && value > 0 ? value : 0.0;
     final color = over ? Ex.red : Ex.brand;
 
     return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: target),
-      duration: const Duration(milliseconds: 900),
+      tween: Tween(begin: animate ? 0 : target, end: target),
+      duration: animate ? const Duration(milliseconds: 900) : Duration.zero,
       curve: Curves.easeOutCubic,
       builder: (context, v, _) => SizedBox.square(
         dimension: size,

@@ -41,11 +41,30 @@ service cloud.firestore {
           && data().type in ['income', 'expense', 'transfer']
           && validAmount(data().amount)
           && data().date is timestamp;
-        // Güncelleme yalnız "dağıtıldı" işaretlemesi için kullanılıyor —
-        // tutar/tür sonradan değiştirilemesin.
+        // Düzenleme (updateTx): tür/tutar/tarih/kategori değişebilir;
+        // yeni değerler de oluşturma kurallarına uymalı.
         allow update: if isOwner(uid)
-          && data().type == resource.data.type
-          && data().amount == resource.data.amount;
+          && data().type in ['income', 'expense', 'transfer']
+          && validAmount(data().amount)
+          && data().date is timestamp;
+      }
+
+      // Cüzdan hesapları: users/{uid}/accounts/{accountId} — şimdilik tek
+      // belge (`cash`), ileride banka/kart hesapları aynı bloğa girer.
+      //
+      // DİKKAT: üstteki `match /users/{uid}` izni alt koleksiyonlara İNMEZ;
+      // her alt koleksiyonun kendi bloğu olmak zorunda. Bu blok eksikken
+      // cüzdana yazan HER İŞLEM sessizce reddediliyordu — gün kaydetme,
+      // harcama, gelir, hepsi (batch atomik olduğu için gün belgesi de
+      // beraberinde geri alınıyordu).
+      //
+      // Bakiye NEGATİF olabilir (eksiye düşen kasa), o yüzden validAmount
+      // değil düz sayı kontrolü. Silme açık: "hesabımı sil" akışı
+      // (deleteAccountData) bu belgeleri de temizlemek zorunda.
+      match /accounts/{accountId} {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid)
+          && data().balance is number;
       }
 
       // Çalışma günleri, hatırlatıcılar ve ayarlar: sahiplik kontrolü yeterli.

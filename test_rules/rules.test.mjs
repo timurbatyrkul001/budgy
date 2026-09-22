@@ -136,11 +136,53 @@ await setDoc(freeTx, {
 await check('allocated işaretleme geçer', assertSucceeds(
   updateDoc(freeTx, { allocated: true })));
 
-await check('kayıtlı işlemin tutarı sonradan değiştirilemez', assertFails(
-  updateDoc(freeTx, { amount: 99999 })));
+// İşlem düzenleme (updateTx) geldiğinden beri tutar değiştirilebilir —
+// eskiden işlemler değiştirilemezdi. Koruma kalktı değil, yer değiştirdi:
+// yeni değerler de oluşturma kurallarının aynısından geçiyor.
+await check('işlem düzenleme geçer (updateTx)', assertSucceeds(
+  updateDoc(freeTx, {
+    type: 'income', amount: 750, date: Timestamp.now(),
+  })));
+
+await check('düzenlemede negatif tutar reddedilir', assertFails(
+  updateDoc(freeTx, {
+    type: 'income', amount: -5, date: Timestamp.now(),
+  })));
+
+await check('düzenlemede bilinmeyen tür reddedilir', assertFails(
+  updateDoc(freeTx, {
+    type: 'hack', amount: 10, date: Timestamp.now(),
+  })));
 
 await check('işlem silme geçer (deleteTx)', assertSucceeds(
   deleteDoc(freeTx)));
+
+// ── cüzdan hesapları (accounts) ──────────────────────────────────────
+// Bu blok kural dosyasında yokken çalışma günü kaydetmek, harcama ve
+// gelir girmek sessizce başarısız oluyordu: batch atomik olduğu için
+// cüzdan yazması reddedilince gün/işlem belgesi de geri alınıyordu.
+await check('cüzdan bakiyesi yazma (_cashDelta)', assertSucceeds(
+  setDoc(doc(me, `users/${ME}/accounts/cash`), { balance: 6995 })));
+
+await check('cüzdan bakiyesi okuma (watchCashBalance)', assertSucceeds(
+  getDoc(doc(me, `users/${ME}/accounts/cash`))));
+
+// Kasa eksiye düşebilir — validAmount kullanılamaz.
+await check('negatif bakiye geçer', assertSucceeds(
+  setDoc(doc(me, `users/${ME}/accounts/cash`), { balance: -250 })));
+
+await check('bakiyesi metin olan hesap reddedilir', assertFails(
+  setDoc(doc(me, `users/${ME}/accounts/cash`), { balance: 'çok' })));
+
+// "Hesabımı sil" (deleteAccountData) bu belgeleri de temizliyor.
+await check('cüzdan silme geçer (deleteAccountData)', assertSucceeds(
+  deleteDoc(doc(me, `users/${ME}/accounts/cash`))));
+
+await check('başkasının cüzdanı okunamaz', assertFails(
+  getDoc(doc(other, `users/${ME}/accounts/cash`))));
+
+await check('başkasının cüzdanına yazılamaz', assertFails(
+  setDoc(doc(other, `users/${ME}/accounts/cash`), { balance: 999999 })));
 
 // ── diğer koleksiyonlar ──────────────────────────────────────────────
 await check('çalışma günü yazma', assertSucceeds(
@@ -154,6 +196,100 @@ await check('hatırlatıcı yazma (reminders kuralda var mı?)', assertSucceeds(
 await check('ayarlar yazma', assertSucceeds(
   setDoc(doc(me, `users/${ME}/settings/main`),
     { currency: 'TRY', language: 'tr', onboardingDone: true })));
+
+// ── tekrarlayan işlem kuralları (recurring) ──────────────────────────
+// Kural yayınlanmadığı sürece uygulamada "tekrar" seçip kaydetmek hata
+// verir; bu testler koleksiyonun kural dosyasında kalmasını garanti eder.
+const recurring = collection(me, `users/${ME}/recurring`);
+
+await check('tekrar kuralı yazma (addRecurringRule)', assertSucceeds(
+  addDoc(recurring, {
+    amount: 15000, type: 'expense', currency: 'TRY',
+    freq: 'monthly', nextDate: Timestamp.now(), anchorDay: 5,
+    envelopeId: 'e1', envelopeName: 'Kira', createdAt: Timestamp.now(),
+  })));
+
+await check('gelir tipinde tekrar kuralı yazma', assertSucceeds(
+  addDoc(recurring, {
+    amount: 44000, type: 'income', currency: 'TRY',
+    freq: 'monthly', nextDate: Timestamp.now(), anchorDay: 1,
+  })));
+
+await check('geçersiz tipte tekrar kuralı reddedilir', assertFails(
+  addDoc(recurring, {
+    amount: 100, type: 'transfer', currency: 'TRY',
+    freq: 'monthly', nextDate: Timestamp.now(),
+  })));
+
+await check('negatif tutarlı tekrar kuralı reddedilir', assertFails(
+  addDoc(recurring, {
+    amount: -50, type: 'expense', currency: 'TRY',
+    freq: 'monthly', nextDate: Timestamp.now(),
+  })));
+
+await check('nextDate zaman damgası değilse reddedilir', assertFails(
+  addDoc(recurring, {
+    amount: 100, type: 'expense', currency: 'TRY',
+    freq: 'monthly', nextDate: '2026-10-01',
+  })));
+
+const myRule = doc(me, `users/${ME}/recurring/r1`);
+await setDoc(myRule, {
+  amount: 200, type: 'expense', currency: 'TRY',
+  freq: 'weekly', nextDate: Timestamp.now(),
+});
+
+await check('tekrar kuralı ilerletme (materializeRecurring)', assertSucceeds(
+  updateDoc(myRule, { nextDate: Timestamp.now(), amount: 200,
+    type: 'expense' })));
+
+await check('tekrar kuralı silme', assertSucceeds(deleteDoc(myRule)));
+
+await check('başkasının tekrar kuralı okunamaz', assertFails(
+  getDoc(doc(other, `users/${ME}/recurring/r1`))));
+
+await check('başkasının tekrar kuralına yazılamaz', assertFails(
+  setDoc(doc(other, `users/${ME}/recurring/hack`), {
+    amount: 1, type: 'expense', currency: 'TRY',
+    freq: 'daily', nextDate: Timestamp.now(),
+  })));
+
+// ── kategori otomasyonu kuralları (rules) ────────────────────────────
+const userRules = collection(me, `users/${ME}/rules`);
+
+await check('otomasyon kuralı yazma (addUserRule)', assertSucceeds(
+  addDoc(userRules, {
+    keyword: 'migros', envelopeId: 'e1', createdAt: Timestamp.now(),
+  })));
+
+await check('boş anahtar kelime reddedilir', assertFails(
+  addDoc(userRules, { keyword: '', envelopeId: 'e1' })));
+
+await check('60 karakteri aşan anahtar kelime reddedilir', assertFails(
+  addDoc(userRules, { keyword: 'x'.repeat(61), envelopeId: 'e1' })));
+
+await check('envelopeId metin değilse reddedilir', assertFails(
+  addDoc(userRules, { keyword: 'shell', envelopeId: 42 })));
+
+const myKeyword = doc(me, `users/${ME}/rules/k1`);
+await setDoc(myKeyword, { keyword: 'bim', envelopeId: 'e1' });
+
+await check('otomasyon kuralı güncelleme', assertSucceeds(
+  updateDoc(myKeyword, { keyword: 'bim market', envelopeId: 'e1' })));
+
+await check('otomasyon kuralı silme', assertSucceeds(deleteDoc(myKeyword)));
+
+await check('başkasının otomasyon kuralı okunamaz', assertFails(
+  getDoc(doc(other, `users/${ME}/rules/k1`))));
+
+await check('başkasının otomasyon kuralına yazılamaz', assertFails(
+  setDoc(doc(other, `users/${ME}/rules/hack`),
+    { keyword: 'hack', envelopeId: 'e1' })));
+
+// Kapalı yerleşik kurallar settings/automation içinde tutuluyor.
+await check('kapalı yerleşik kurallar yazma', assertSucceeds(
+  setDoc(doc(me, `users/${ME}/settings/automation`),
+    { disabled: ['groceries:a101', 'fuel:shell'] })));
 
 await testEnv.cleanup();
 

@@ -329,6 +329,31 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
                 ),
               ),
               const SizedBox(height: 22),
+              // ── gelir kaynakları (gider dökümünden ayrı) ──────────
+              if (a.incomeBySource.isNotEmpty) ...[
+                Text(rs.incomeBySource,
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w800, color: Ex.text)),
+                const SizedBox(height: 10),
+                ExCard(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  child: Column(
+                    children: [
+                      for (final (i, c) in a.incomeBySource.indexed) ...[
+                        if (i > 0) const Divider(height: 1, color: Ex.border),
+                        _CategoryRow(
+                          stat: c,
+                          envelope: c.envelopeId == null ? null : envelopes[c.envelopeId],
+                          share: a.incomeTotal <= 0 ? 0 : c.amount / a.incomeTotal,
+                          countLabel: tpl(rs.entriesTpl, {'n': '${c.count}'}),
+                          onTap: null,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 22),
+              ],
               // ── içgörüler ───────────────────────────────────────────
               Row(
                 children: [
@@ -493,7 +518,7 @@ class _CategoryRow extends StatelessWidget {
   final Envelope? envelope;
   final double share;
   final String countLabel;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {

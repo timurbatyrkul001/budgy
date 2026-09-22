@@ -21,6 +21,8 @@ void main() {
   final envelopes = {
     'm': const Envelope(id: 'm', name: 'Market', emoji: '🛒', balance: 0, sortOrder: 0),
     'u': const Envelope(id: 'u', name: 'Ulaşım', emoji: '🚌', balance: 0, sortOrder: 1),
+    's': const Envelope(id: 's', name: 'Maaş', emoji: '💼', balance: 0, sortOrder: 2,
+        presetKey: 'salary'),
   };
 
   MonthAnalytics run(List<Tx> txs, {String? categoryId, DateTime? now}) =>
@@ -98,5 +100,22 @@ void main() {
     expect(MonthAnalytics.bucketLabel(4, 29), '29');
     expect(MonthAnalytics.currentBucket(DateTime(2026, 9), DateTime(2026, 9, 17)), 2);
     expect(MonthAnalytics.currentBucket(DateTime(2026, 8), DateTime(2026, 9, 17)), isNull);
+  });
+
+  test('gelirler kaynağa göre ayrı kovada; gider dökümüne karışmaz', () {
+    final a = run([
+      tx('1', 1, 100, env: 'm'),
+      tx('s1', 2, 4400, env: 's', type: TxType.income),
+      tx('s2', 20, 600, env: 's', type: TxType.income),
+      tx('g1', 21, 250, type: TxType.income), // kaynaksız
+      tx('u1', 22, 50, type: TxType.income, cur: 'USD'), // döviz sayılmaz
+    ]);
+    expect(a.total, 100);
+    expect(a.byCategory.map((c) => c.envelopeId), ['m']);
+    expect(a.incomeTotal, 5250);
+    expect(a.incomeBySource.map((c) => c.envelopeId), ['s', null]);
+    expect(a.incomeBySource.first.amount, 5000);
+    expect(a.incomeBySource.first.count, 2);
+    expect(a.incomeBySource.last.name, 'Kategorisiz');
   });
 }

@@ -86,6 +86,13 @@ const _visuals = <String, CategoryVisual>{
   'games': CategoryVisual(Icons.sports_esports_rounded, CategoryPalette.violet),
   'software': CategoryVisual(Icons.extension_rounded, CategoryPalette.sky),
   'otherSubs': CategoryVisual(Icons.autorenew_rounded, CategoryPalette.slate),
+  // Gelir kaynakları
+  'salary': CategoryVisual(Icons.work_rounded, CategoryPalette.lime),
+  'freelance': CategoryVisual(Icons.laptop_mac_rounded, CategoryPalette.teal),
+  'giftIncome': CategoryVisual(Icons.redeem_rounded, CategoryPalette.magenta),
+  'refund': CategoryVisual(Icons.replay_rounded, CategoryPalette.sky),
+  'sale': CategoryVisual(Icons.sell_rounded, CategoryPalette.amber),
+  'otherIncome': CategoryVisual(Icons.payments_rounded, CategoryPalette.slate),
   // Eski onboarding preset'leri (katalog dışı anahtarlar)
   'food': CategoryVisual(Icons.lunch_dining_rounded, CategoryPalette.orange),
   'transport': CategoryVisual(Icons.commute_rounded, CategoryPalette.indigo),
@@ -125,6 +132,10 @@ Color envelopeColor(Envelope e) {
 /// Zarfın bölümü — kayıtlı `section` varsa o, yoksa katalogdan türetilir;
 /// katalog dışıysa null (bölümsüz).
 String? envelopeSection(Envelope e) => e.section ?? sectionOfCatalogKey(e.presetKey);
+
+/// Gelir kategorisi mi? (Kayıtlı bölüm ya da katalog bölümü "income".)
+/// Gider seçicisi, bütçe ve harcama dökümleri bunları dışarıda tutar.
+bool isIncomeEnvelope(Envelope e) => envelopeSection(e) == kIncomeSection;
 
 /// Katalog anahtarının bölümü (eski preset'ler: food→everyday,
 /// transport→transport, health→health, savings→finance).

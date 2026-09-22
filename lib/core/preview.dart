@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 /// Debug önizleme anahtarları — ekran görüntüsü / tasarım kontrolü için,
 /// veriye dokunmadan. Hepsi `--dart-define` ile ve yalnız debug'da.
 ///
-/// * PREVIEW_ONBOARDING=true [PREVIEW_STEP=0..2] — onboarding.
+/// * PREVIEW_ONBOARDING=true [PREVIEW_STEP=0..5] — onboarding.
 /// * PREVIEW_HOME=true — ana ekran, örnek veriyle (bkz. preview_home.dart).
 /// * PREVIEW_QUICK_ENTRY=true — ana ekran açılınca "+" ekranı otomatik
 ///   açılır; PREVIEW_QUICK_ENTRY_AMOUNT="2000" tutarı yazar,
@@ -30,6 +30,10 @@ const kPreviewAnalyticsOffset =
 /// PREVIEW_SETTINGS=hub|categories|automation|automationCat|tags|data
 /// |newCategory|newCategoryFilled|sectionPicker.
 const kPreviewSettings = String.fromEnvironment('PREVIEW_SETTINGS');
+
+/// PREVIEW_TX=detail|edit — örnek işlemin detay sayfası / düzenleme ekranı
+/// (PREVIEW_HOME ile birlikte; örnek işlem preview_home'daki 't3').
+const kPreviewTx = String.fromEnvironment('PREVIEW_TX');
 
 /// PREVIEW_CONVERTER=two|four|picker|pickerScrolled; PREVIEW_STARRED=true
 /// örnek profile yıldızlı EUR ekler.

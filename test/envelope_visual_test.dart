@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kopilka_app/core/category_catalog.dart';
 import 'package:kopilka_app/core/category_visual.dart';
 import 'package:kopilka_app/features/envelopes/envelope.dart';
 
@@ -59,5 +60,15 @@ void main() {
     expect(g[null]!.map((e) => e.id), ['x']);
     expect(g['everyday']!.map((e) => e.id), ['y', 'w']);
     expect(g['transport']!.map((e) => e.id), ['z']);
+  });
+
+  test('isIncomeEnvelope: katalog gelir anahtarı ya da kayıtlı "income" bölümü', () {
+    expect(isIncomeEnvelope(env('a', preset: 'salary')), isTrue);
+    expect(isIncomeEnvelope(env('b', preset: 'groceries')), isFalse);
+    expect(isIncomeEnvelope(env('c', section: 'income')), isTrue);
+    expect(isIncomeEnvelope(env('d')), isFalse);
+    expect(envelopeSection(env('e', preset: 'refund')), 'income');
+    expect(isIncomeCatalogKey('freelance'), isTrue);
+    expect(isIncomeCatalogKey('coffee'), isFalse);
   });
 }

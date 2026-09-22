@@ -4,18 +4,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/brand.dart';
+import '../../core/category_avatar.dart';
+import '../../core/category_catalog.dart';
+import '../../core/category_rules.dart';
 import '../../core/currency_info.dart';
 import '../../core/ex_style.dart';
 import '../../core/feedback.dart';
 import '../../core/formatters.dart';
 import '../../core/l10n.dart';
+import '../../core/motion.dart';
 import '../../core/redesign_l10n.dart';
 import '../auth/sign_in_screen.dart';
 import '../envelopes/budget_repository.dart';
 import '../space/currency_wallet_sheet.dart';
 import '../space/space.dart';
+import 'intro_mockups.dart';
 
-/// 3 adımlı onboarding: karşılama → para birimi → cüzdan adı.
+/// 6 sayfalı onboarding: karşılama → hızlı giriş → kurallar → bütçe
+/// (tanıtım) → para birimi → cüzdan (kurulum).
 /// Sonunda para birimi + cüzdan + hazır kategoriler yazılır ve
 /// `onboardingDone` işaretlenir; auth kapısı ana ekrana geçer.
 ///
@@ -26,7 +32,7 @@ class OnboardingFlow extends ConsumerStatefulWidget {
 
   final bool preview;
 
-  /// Başlangıç adımı (0-2) — önizlemede belirli bir adımı açmak için.
+  /// Başlangıç adımı (0-5) — önizlemede belirli bir adımı açmak için.
   final int initialStep;
 
   @override
@@ -34,7 +40,7 @@ class OnboardingFlow extends ConsumerStatefulWidget {
 }
 
 class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
-  late int _page = widget.initialStep.clamp(0, 2);
+  late int _page = widget.initialStep.clamp(0, 5);
   bool _forward = true;
   bool _saving = false;
   late String _currency;
@@ -52,7 +58,7 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
         currencyForRegion(PlatformDispatcher.instance.locale.countryCode);
     // Önizleme doğrudan cüzdan adımında açılırsa dolu hâlini göster
     // (ekran görüntüsü için); veri yazılmaz.
-    if (widget.preview && widget.initialStep == 2) {
+    if (widget.preview && widget.initialStep == 5) {
       _mainAmount.text = '12500';
       _extras.addAll(const [
         CurrencyWalletDraft(code: 'USD', amount: 500),
@@ -176,13 +182,44 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
   @override
   Widget build(BuildContext context) {
     final rs = ref.watch(rsProvider);
+    final locale = ref.watch(strProvider).localeCode;
     final pages = [
-      _WelcomePage(rs: rs, onNext: () => _go(1), onSignIn: _signIn),
+      _WelcomePage(
+        rs: rs,
+        locale: locale,
+        currency: _currency,
+        onNext: () => _go(1),
+        onSignIn: _signIn,
+      ),
+      // Tanıtım sayfaları: maket üstte, ortalı başlık + alt başlık, Devam.
+      _IntroPage(
+        title: rs.introFastTitle,
+        subtitle: rs.introFastSubtitle,
+        buttonLabel: rs.continueLabel,
+        onNext: () => _go(2),
+        mockup: FastEntryMock(currency: _currency),
+      ),
+      _IntroPage(
+        title: rs.introRulesTitle,
+        subtitle: tpl(rs.introRulesSubtitleTpl,
+            {'n': '${kBuiltinRuleCount ~/ 10 * 10}'}),
+        buttonLabel: rs.continueLabel,
+        onNext: () => _go(3),
+        mockup: RulesMock(locale: locale),
+      ),
+      _IntroPage(
+        title: rs.introBudgetTitle,
+        subtitle: rs.introBudgetSubtitle,
+        buttonLabel: rs.continueLabel,
+        onNext: () => _go(4),
+        mockup: BudgetMock(
+            currency: _currency, locale: locale, title: rs.monthlyBudget),
+      ),
       _CurrencyPage(
         rs: rs,
         code: _currency,
         onChange: _changeCurrency,
-        onUse: () => _go(2),
+        onUse: () => _go(5),
       ),
       _WalletPage(
         rs: rs,
@@ -220,7 +257,7 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
                               )
                             : const SizedBox.shrink(key: ValueKey('none')),
                       ),
-                      Expanded(child: StepBar(count: 3, index: _page)),
+                      Expanded(child: StepBar(count: 6, index: _page)),
                     ],
                   ),
                 ),
@@ -284,11 +321,10 @@ class _FillScroll extends StatelessWidget {
 
 /// Sola yaslı başlık + alt başlık.
 class _Title extends StatelessWidget {
-  const _Title(this.title, this.subtitle, {this.big = false});
+  const _Title(this.title, this.subtitle);
 
   final String title;
   final String subtitle;
-  final bool big;
 
   @override
   Widget build(BuildContext context) {
@@ -298,10 +334,10 @@ class _Title extends StatelessWidget {
         Text(
           title,
           style: TextStyle(
-            fontSize: big ? 36 : 28,
+            fontSize: 28,
             height: 1.08,
             fontWeight: FontWeight.w800,
-            letterSpacing: big ? -1.2 : -0.7,
+            letterSpacing: -0.7,
             color: Ex.text,
           ),
         ),
@@ -318,56 +354,91 @@ class _Title extends StatelessWidget {
 
 // ── 1) Karşılama ─────────────────────────────────────────────────────────
 
+/// Tanıtım kartlarının örnek tutarları — bölge para birimine göre yuvarlak
+/// ve makul (kahve / market / taksi). Kullanıcının verisi değil, örnek.
+List<double> sampleIntroAmounts(String currencyCode) => switch (currencyCode) {
+      'TRY' => const [90, 450, 120],
+      'RUB' => const [250, 1800, 450],
+      'KZT' => const [1200, 8500, 1500],
+      _ => const [4, 60, 15], // USD / EUR / GBP ve diğerleri
+    };
+
+const _introKeys = ['coffee', 'groceries', 'taxi'];
+
 class _WelcomePage extends StatelessWidget {
   const _WelcomePage({
     required this.rs,
+    required this.locale,
+    required this.currency,
     required this.onNext,
     required this.onSignIn,
   });
 
   final RS rs;
+  final String locale;
+  final String currency;
   final VoidCallback onNext;
   final VoidCallback onSignIn;
 
   @override
   Widget build(BuildContext context) {
+    final amounts = sampleIntroAmounts(currency);
     return _FillScroll(
       children: [
-        const SizedBox(height: 28),
-        const Align(
-          alignment: Alignment.centerLeft,
-          child: BudgyIcon(size: 56, radiusFactor: 0.3),
-        ),
-        const SizedBox(height: 24),
-        _Title(rs.onbTitle, rs.onbSubtitle, big: true),
+        const SizedBox(height: 22),
+        // Üç örnek işlem kartı — uygulamanın gerçek dili (CategoryAvatar).
+        // Sahne sırası bilinçli: marka ve yazı sayfayla birlikte durur,
+        // kartlar SONRA ve tek tek (~450 ms arayla) yukarıdan düşer; göz
+        // her birini ayrı ayrı görsün diye. fadeIn yerini korur, bu yüzden
+        // kartlar belirirken düzen zıplamaz.
+        for (final (i, key) in _introKeys.indexed) ...[
+          if (i > 0) const SizedBox(height: 8),
+          _SampleTx(
+            catalogKey: key,
+            label: catalogItem(key)!.name(locale),
+            amount: formatMoneyIn(amounts[i], currency),
+          ).dropIn(context, Duration(milliseconds: 400 + i * 450)),
+        ],
         const Spacer(),
         const SizedBox(height: 28),
-        ExCard(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(
-            children: [
-              _Feature(
-                  icon: Icons.mic_rounded, color: Ex.mint, text: rs.featVoice),
-              const Divider(height: 1, color: Ex.border),
-              _Feature(
-                  icon: Icons.currency_exchange_rounded,
-                  color: const Color(0xFF6FB6FF),
-                  text: rs.featCurrency),
-              const Divider(height: 1, color: Ex.border),
-              _Feature(
-                  icon: Icons.cloud_done_rounded,
-                  color: Ex.amber,
-                  text: rs.featCloud),
-              const Divider(height: 1, color: Ex.border),
-              _Feature(
-                  icon: Icons.bolt_rounded,
-                  color: const Color(0xFFC79BFF),
-                  text: rs.featNoSignup),
-            ],
-          ),
+        Column(
+          children: [
+            // Markanın arkasında yumuşak ışık.
+            SizedBox(
+              height: 76,
+              child: Stack(
+                alignment: Alignment.center,
+                clipBehavior: Clip.none,
+                children: const [
+                  IntroGlow(color: Ex.brand, size: 240, alpha: 0.3),
+                  BudgyIcon(size: 76, radiusFactor: 0.28),
+                ],
+              ),
+            ),
+            const SizedBox(height: 22),
+            Text(
+              rs.onbTitle,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 30,
+                height: 1.1,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.9,
+                color: Ex.text,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              rs.onbSubtitle,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                  fontSize: 16, height: 1.4, color: Ex.onGlowMuted),
+            ),
+          ],
         ),
-        const SizedBox(height: 20),
-        PrimaryButton(label: rs.next, onTap: onNext),
+        const Spacer(),
+        const SizedBox(height: 28),
+        PrimaryButton(label: rs.getStarted, onTap: onNext),
         const SizedBox(height: 4),
         GhostButton(label: rs.haveAccount, onTap: onSignIn),
       ],
@@ -375,36 +446,43 @@ class _WelcomePage extends StatelessWidget {
   }
 }
 
-class _Feature extends StatelessWidget {
-  const _Feature({required this.icon, required this.color, required this.text});
+/// Tanıtımdaki örnek işlem kartı: avatar · ad · tutar.
+class _SampleTx extends StatelessWidget {
+  const _SampleTx({
+    required this.catalogKey,
+    required this.label,
+    required this.amount,
+  });
 
-  final IconData icon;
-  final Color color;
-  final String text;
+  final String catalogKey;
+  final String label;
+  final String amount;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 11),
+    return ExCard(
+      padding: const EdgeInsets.fromLTRB(12, 10, 14, 10),
       child: Row(
         children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.16),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: color, size: 19),
-          ),
-          const SizedBox(width: 14),
+          CategoryAvatar(catalogKey: catalogKey, size: 40),
+          const SizedBox(width: 12),
           Expanded(
             child: Text(
-              text,
-              maxLines: 2,
+              label,
+              maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                   fontSize: 15, fontWeight: FontWeight.w600, color: Ex.text),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            amount,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: Ex.text,
+              fontFeatures: [FontFeature.tabularFigures()],
             ),
           ),
         ],
@@ -413,7 +491,66 @@ class _Feature extends StatelessWidget {
   }
 }
 
-// ── 2) Para birimi ───────────────────────────────────────────────────────
+// ── 2-4) Tanıtım sayfaları ───────────────────────────────────────────────
+
+/// Ortak tanıtım düzeni: maket üstte (kendi girişiyle gelir), ortalı başlık +
+/// iki satır alt başlık, altta tam genişlik birincil buton.
+class _IntroPage extends StatelessWidget {
+  const _IntroPage({
+    required this.title,
+    required this.subtitle,
+    required this.buttonLabel,
+    required this.onNext,
+    required this.mockup,
+  });
+
+  final String title;
+  final String subtitle;
+  final String buttonLabel;
+  final VoidCallback onNext;
+  final Widget mockup;
+
+  @override
+  Widget build(BuildContext context) {
+    return _FillScroll(
+      children: [
+        const SizedBox(height: 22),
+        Center(child: mockup),
+        const Spacer(),
+        const SizedBox(height: 28),
+        Column(
+          children: [
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 28,
+                height: 1.1,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.8,
+                color: Ex.text,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                  fontSize: 16, height: 1.4, color: Ex.onGlowMuted),
+            ),
+          ],
+        ).enterUp(context, index: 6, dy: 10),
+        const Spacer(),
+        const SizedBox(height: 28),
+        PrimaryButton(label: buttonLabel, onTap: onNext),
+        // Karşılamadaki hayalet bağlantıyla aynı yüksekliği tut.
+        const SizedBox(height: 52),
+      ],
+    );
+  }
+}
+
+// ── 5) Para birimi ───────────────────────────────────────────────────────
 
 class _CurrencyPage extends StatelessWidget {
   const _CurrencyPage({
@@ -448,7 +585,7 @@ class _CurrencyPage extends StatelessWidget {
   }
 }
 
-// ── 3) Cüzdan ────────────────────────────────────────────────────────────
+// ── 6) Cüzdan ────────────────────────────────────────────────────────────
 
 class _WalletPage extends StatelessWidget {
   const _WalletPage({

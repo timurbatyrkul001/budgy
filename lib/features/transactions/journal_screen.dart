@@ -6,11 +6,13 @@ import '../../core/app_date_picker.dart';
 import '../../core/category_avatar.dart';
 import '../../core/formatters.dart';
 import '../../core/l10n.dart';
+import '../../core/redesign_l10n.dart';
 import '../../core/tokens.dart';
 import '../envelopes/budget_repository.dart';
 import '../envelopes/envelope.dart';
 import '../envelopes/envelope_l10n.dart';
 import '../workdays/work_days_repository.dart';
+import 'quick_entry_screen.dart';
 import 'tx.dart';
 import '../../core/feedback.dart';
 
@@ -506,16 +508,44 @@ class TxTile extends ConsumerWidget {
     }
   }
 
-  /// İşleme dokununca: detay + Sil (yanlış girilen işlemi kaldırmak için).
+  /// Gelir, bir gelir KAYNAĞI (₺ kategori zarfı) ile etiketli mi? Döviz
+  /// cüzdanına gelen para değil — orada envelopeId cüzdanın kendisidir.
+  static bool _incomeHasSource(Tx tx, Map<String, Envelope> envById) =>
+      tx.type == TxType.income &&
+      tx.currency == 'TRY' &&
+      envById[tx.envelopeId]?.currency == 'TRY';
+
+  static String _titleOf(Tx tx, Strings str, bool hasSource) => switch (tx.type) {
+        TxType.income =>
+          tx.note ?? (hasSource ? tx.envelopeName : null) ?? str.incomeWord,
+        TxType.expense => tx.note ?? tx.envelopeName ?? str.expenseWord,
+        TxType.transfer => '${tx.fromName} → ${tx.envelopeName}',
+      };
+
+  /// Düzenlenebilir mi: çevrim bacağı, hedef fonu, transfer ve takvim
+  /// maaş günleri (wd_) hayır.
+  bool get _editable =>
+      !tx.isConvert &&
+      !tx.isGoalFund &&
+      tx.type != TxType.transfer &&
+      !tx.id.startsWith('wd_');
+
+  /// Önizleme/harici çağrı: işlem sayfasını aç.
+  static void showActionsFor(
+          BuildContext context, WidgetRef ref, Tx tx, Strings str) =>
+      TxTile(tx: tx, str: str)._showActions(context, ref);
+
+  /// İşleme dokununca: detay + Düzenle + Sil.
   void _showActions(BuildContext context, WidgetRef ref) {
     final c = context.budgy;
+    final rs = ref.read(rsProvider);
     final isIncome = tx.type == TxType.income;
     final isTransfer = tx.type == TxType.transfer;
-    final title = switch (tx.type) {
-      TxType.income => tx.note ?? str.incomeWord,
-      TxType.expense => tx.note ?? tx.envelopeName ?? str.expenseWord,
-      TxType.transfer => '${tx.fromName} → ${tx.envelopeName}',
+    final envById = {
+      for (final e in ref.read(envelopesProvider).value ?? const <Envelope>[])
+        e.id: e,
     };
+    final title = _titleOf(tx, str, _incomeHasSource(tx, envById));
     final sign = isIncome ? '+' : isTransfer ? '' : '−';
     showModalBottomSheet(
       context: context,
@@ -573,6 +603,28 @@ class TxTile extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: 20),
+              if (_editable) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: c.accent,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size.fromHeight(54),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(28)),
+                    ),
+                    onPressed: () {
+                      Navigator.of(sheetCtx).pop();
+                      if (!context.mounted) return;
+                      showQuickEntryEdit(context, tx);
+                    },
+                    icon: const Icon(Icons.edit_rounded),
+                    label: Text(rs.edit),
+                  ),
+                ),
+                const SizedBox(height: 10),
+              ],
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
@@ -605,17 +657,20 @@ class TxTile extends ConsumerWidget {
     final c = context.budgy;
     final isIncome = tx.type == TxType.income;
     final isTransfer = tx.type == TxType.transfer;
-    // Üst satır (isim) + alt satır (kategori) — Cashly stili.
-    final title = switch (tx.type) {
-      TxType.income => tx.note ?? str.incomeWord,
-      TxType.expense => tx.note ?? tx.envelopeName ?? str.expenseWord,
-      TxType.transfer => '${tx.fromName} → ${tx.envelopeName}',
+    final envById = {
+      for (final e in ref.watch(envelopesProvider).value ?? const <Envelope>[])
+        e.id: e,
     };
+    final hasSource = _incomeHasSource(tx, envById);
+    // Üst satır (isim) + alt satır (kategori / kaynak) — Cashly stili.
+    final title = _titleOf(tx, str, hasSource);
     // Döviz çevirme → "Döviz" etiketi (Income/Expense değil).
     final subtitle = tx.isConvert
         ? str.convertTitle
         : switch (tx.type) {
-            TxType.income => str.incomeWord,
+            TxType.income => tx.note != null && hasSource
+                ? tx.envelopeName!
+                : str.incomeWord,
             TxType.expense => tx.note != null
                 ? (tx.envelopeName ?? str.expenseWord)
                 : str.expenseWord,
@@ -630,10 +685,6 @@ class TxTile extends ConsumerWidget {
                 ? c.accent
                 : c.text;
 
-    final envById = {
-      for (final e in ref.watch(envelopesProvider).value ?? const <Envelope>[])
-        e.id: e,
-    };
     // Takvim maaş günleri (id 'wd_') salt-okunur: silinmez/düzenlenmez.
     final readOnly = tx.id.startsWith('wd_');
     return InkWell(
@@ -644,14 +695,16 @@ class TxTile extends ConsumerWidget {
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
-          // Gider: kategori görseli (kategorisizse soru işareti); gelir /
-          // çevirme / transfer: yön simgesi.
+          // Gider: kategori görseli (kategorisizse soru işareti); kaynaklı
+          // gelir: kaynağın görseli; diğer gelir / çevirme / transfer: yön.
           if (tx.type == TxType.expense && !tx.isConvert)
             switch (tx.envelopeId) {
               final id? when envById[id] != null =>
                 CategoryAvatar(envelope: envById[id], size: 44),
               _ => const CategoryAvatar.none(size: 44),
             }
+          else if (hasSource)
+            CategoryAvatar(envelope: envById[tx.envelopeId], size: 44)
           else
             Container(
               width: 44,

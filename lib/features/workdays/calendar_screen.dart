@@ -177,73 +177,84 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       text: existing != null ? existing.toStringAsFixed(0) : '',
     );
 
+    // StatefulBuilder tüm diyaloğu sarıyor: Save düğmesi de yazdıkça
+    // yeniden çiziliyor, böylece geçersiz tutarda GÖRÜNÜR halde sönük
+    // duruyor — eskiden basılıyordu ama sessizce hiçbir şey yapmıyordu.
     final result = await showDialog<_DayAction>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: c.surface,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(BudgyRadii.bigCard),
-        ),
-        title: Text(
-          DateFormat('d MMMM', str.localeCode).format(day),
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.02 * 18,
-            color: c.text,
-          ),
-        ),
-        content: StatefulBuilder(
-          builder: (context, setDialogState) => TextField(
-            controller: controller,
-            autofocus: true,
-            keyboardType:
-                const TextInputType.numberWithOptions(decimal: true),
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: c.text,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final canSave = parseAmount(controller.text) != null;
+          void save() {
+            if (canSave) Navigator.of(context).pop(_DayAction.save);
+          }
+
+          return AlertDialog(
+            backgroundColor: c.surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(BudgyRadii.bigCard),
             ),
-            decoration: InputDecoration(
-              hintText: curText(str.dayEarningsHint),
-              hintStyle: TextStyle(
-                  fontWeight: FontWeight.w500, color: c.textFaint),
-              enabledBorder: UnderlineInputBorder(
-                borderSide: BorderSide(color: c.borderStrong),
-              ),
-              focusedBorder: UnderlineInputBorder(
-                borderSide: BorderSide(color: c.accent, width: 1.6),
+            title: Text(
+              DateFormat('d MMMM', str.localeCode).format(day),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.02 * 18,
+                color: c.text,
               ),
             ),
-            onChanged: (_) => setDialogState(() {}),
-          ),
-        ),
-        actions: [
-          if (isMarked)
-            TextButton(
-              onPressed: () =>
-                  Navigator.of(context).pop(_DayAction.remove),
-              child: Text(str.removeWord,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w700, color: Colors.red)),
+            content: TextField(
+              controller: controller,
+              autofocus: true,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              // Klavyedeki Done tuşu da kaydetsin — rakamı yazıp enter'a
+              // basmak en doğal hareket, eskiden hiçbir şey yapmıyordu.
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => save(),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: c.text,
+              ),
+              decoration: InputDecoration(
+                hintText: curText(str.dayEarningsHint),
+                hintStyle: TextStyle(
+                    fontWeight: FontWeight.w500, color: c.textFaint),
+                enabledBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: c.borderStrong),
+                ),
+                focusedBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(color: c.accent, width: 1.6),
+                ),
+              ),
+              onChanged: (_) => setDialogState(() {}),
             ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(str.cancel,
-                style: TextStyle(
-                    fontWeight: FontWeight.w600, color: c.textMuted)),
-          ),
-          TextButton(
-            onPressed: () {
-              if (parseAmount(controller.text) != null) {
-                Navigator.of(context).pop(_DayAction.save);
-              }
-            },
-            child: Text(str.save,
-                style: TextStyle(
-                    fontWeight: FontWeight.w700, color: c.accent)),
-          ),
-        ],
+            actions: [
+              if (isMarked)
+                TextButton(
+                  onPressed: () =>
+                      Navigator.of(context).pop(_DayAction.remove),
+                  child: Text(str.removeWord,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w700, color: Colors.red)),
+                ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(str.cancel,
+                    style: TextStyle(
+                        fontWeight: FontWeight.w600, color: c.textMuted)),
+              ),
+              TextButton(
+                onPressed: canSave ? save : null,
+                child: Text(str.save,
+                    style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: canSave ? c.accent : c.textFaint)),
+              ),
+            ],
+          );
+        },
       ),
     );
 

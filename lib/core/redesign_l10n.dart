@@ -11,10 +11,13 @@ class RS {
   const RS({
     required this.onbTitle,
     required this.onbSubtitle,
-    required this.featVoice,
-    required this.featCurrency,
-    required this.featCloud,
-    required this.featNoSignup,
+    required this.getStarted,
+    required this.introFastTitle,
+    required this.introFastSubtitle,
+    required this.introRulesTitle,
+    required this.introRulesSubtitleTpl,
+    required this.introBudgetTitle,
+    required this.introBudgetSubtitle,
     required this.next,
     required this.haveAccount,
     required this.currencyTitle,
@@ -203,14 +206,21 @@ class RS {
     required this.sectionHint,
     required this.useLetter,
     required this.chooseEmoji,
+    required this.editingLabel,
+    required this.incomeBySource,
+    required this.entriesTpl,
+    required this.pickIncomeSource,
   });
 
   final String onbTitle;
   final String onbSubtitle;
-  final String featVoice;
-  final String featCurrency;
-  final String featCloud;
-  final String featNoSignup;
+  final String getStarted;
+  final String introFastTitle;
+  final String introFastSubtitle;
+  final String introRulesTitle;
+  final String introRulesSubtitleTpl;
+  final String introBudgetTitle;
+  final String introBudgetSubtitle;
   final String next;
   final String haveAccount;
   final String currencyTitle;
@@ -399,6 +409,10 @@ class RS {
   final String sectionHint;
   final String useLetter;
   final String chooseEmoji;
+  final String editingLabel;
+  final String incomeBySource;
+  final String entriesTpl;
+  final String pickIncomeSource;
 
   static RS of(String code) => switch (code) {
         'tr' => tr,
@@ -407,13 +421,16 @@ class RS {
       };
 
   static const en = RS(
-    onbTitle: 'Know where\nevery coin goes.',
+    onbTitle: 'Welcome to Budgy',
     onbSubtitle:
-        'Log spending in seconds, set a monthly budget and watch your savings grow.',
-    featVoice: 'Add by voice or receipt photo',
-    featCurrency: 'Several currencies side by side',
-    featCloud: 'Securely backed up in the cloud',
-    featNoSignup: 'Start without signing up',
+        'Log what you spend in seconds and always know where your money went.',
+    getStarted: 'Get started',
+    introFastTitle: 'Log it in seconds',
+    introFastSubtitle: 'Type the amount on the keypad, say it out loud, or scan the receipt.',
+    introRulesTitle: 'Categories sort themselves',
+    introRulesSubtitleTpl: 'The merchant name picks the category: {n}+ built-in rules, plus any you add.',
+    introBudgetTitle: 'Set a limit, watch the month',
+    introBudgetSubtitle: 'Weekly or monthly, split per category, and see where the money is going before it is gone.',
     next: 'Next',
     haveAccount: 'I already have an account',
     currencyTitle: 'Which currency do you use?',
@@ -604,16 +621,23 @@ class RS {
     sectionHint: 'Put it in a section so the picker stays tidy.',
     useLetter: 'Use the first letter',
     chooseEmoji: 'Choose an emoji',
+    editingLabel: 'Editing',
+    incomeBySource: 'Income by source',
+    entriesTpl: 'Entries: {n}',
+    pickIncomeSource: 'Source',
   );
 
   static const tr = RS(
-    onbTitle: 'Her kuruşun\nyerini bil.',
+    onbTitle: 'Budgy’ye hoş geldin',
     onbSubtitle:
-        'Harcamanı saniyeler içinde gir, aylık bütçeni koy, birikimini büyüt.',
-    featVoice: 'Sesle ya da fiş fotoğrafıyla ekle',
-    featCurrency: 'Birden fazla para birimi yan yana',
-    featCloud: 'Bulutta güvenle yedeklenir',
-    featNoSignup: 'Kayıt olmadan başla',
+        'Harcamanı saniyeler içinde yaz, paranın nereye gittiğini hep bil.',
+    getStarted: 'Hadi başlayalım',
+    introFastTitle: 'Saniyeler içinde kaydet',
+    introFastSubtitle: 'Tutarı tuş takımına yaz, sesle söyle ya da fişi tara.',
+    introRulesTitle: 'Kategori kendiliğinden gelir',
+    introRulesSubtitleTpl: 'İşletme adı kategoriyi seçer: {n}+ yerleşik kural, üstüne kendi kuralların.',
+    introBudgetTitle: 'Sınır koy, ayı izle',
+    introBudgetSubtitle: 'Haftalık ya da aylık, kategoriye böl; para bitmeden nereye gittiğini gör.',
     next: 'İleri',
     haveAccount: 'Zaten hesabım var',
     currencyTitle: 'Hangi para birimini kullanıyorsun?',
@@ -805,16 +829,23 @@ class RS {
     sectionHint: 'Seçici düzenli kalsın diye bir bölüme koy.',
     useLetter: 'Baş harfi kullan',
     chooseEmoji: 'Emoji seç',
+    editingLabel: 'Düzenleniyor',
+    incomeBySource: 'Gelir kaynakları',
+    entriesTpl: 'Kayıt: {n}',
+    pickIncomeSource: 'Kaynak',
   );
 
   static const ru = RS(
-    onbTitle: 'Знай, куда уходит\nкаждая монета.',
+    onbTitle: 'Добро пожаловать в Budgy',
     onbSubtitle:
-        'Записывай траты за секунды, ставь бюджет на месяц и копи больше.',
-    featVoice: 'Добавляй голосом или фото чека',
-    featCurrency: 'Несколько валют рядом',
-    featCloud: 'Надёжная копия в облаке',
-    featNoSignup: 'Начни без регистрации',
+        'Записывай траты за секунды и всегда знай, куда ушли деньги.',
+    getStarted: 'Начать',
+    introFastTitle: 'Записывай за секунды',
+    introFastSubtitle: 'Введи сумму на клавиатуре, скажи вслух или отсканируй чек.',
+    introRulesTitle: 'Категории проставляются сами',
+    introRulesSubtitleTpl: 'Категорию подбирает название магазина: {n}+ встроенных правил и твои собственные.',
+    introBudgetTitle: 'Поставь лимит и следи за месяцем',
+    introBudgetSubtitle: 'На неделю или месяц, по категориям — и видно, куда уходят деньги, пока они не кончились.',
     next: 'Далее',
     haveAccount: 'У меня уже есть аккаунт',
     currencyTitle: 'Какой валютой пользуешься?',
@@ -1006,5 +1037,9 @@ class RS {
     sectionHint: 'Помести в раздел, чтобы список оставался аккуратным.',
     useLetter: 'Использовать первую букву',
     chooseEmoji: 'Выбрать эмодзи',
+    editingLabel: 'Правка',
+    incomeBySource: 'Источники дохода',
+    entriesTpl: 'Записей: {n}',
+    pickIncomeSource: 'Источник',
   );
 }

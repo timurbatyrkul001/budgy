@@ -35,10 +35,13 @@ const _emojis = [
 
 /// Yeni kategori (zarf). Para birimi seçilmez — döviz cüzdanları
 /// showCurrencyWalletSheet ile açılır.
-Future<void> showAddEnvelopeSheet(BuildContext context, int sortOrder) =>
+/// [initialSection]: bölüm önceden seçili (gelir seçicisinden "+ Yeni").
+Future<void> showAddEnvelopeSheet(BuildContext context, int sortOrder,
+        {String? initialSection}) =>
     Navigator.of(context).push(MaterialPageRoute(
       fullscreenDialog: true,
-      builder: (_) => EnvelopeEditorScreen(sortOrder: sortOrder),
+      builder: (_) => EnvelopeEditorScreen(
+          sortOrder: sortOrder, previewSection: initialSection),
     ));
 
 /// Var olanı düzenle (ad / emoji / renk / bölüm). Para birimine dokunmaz —

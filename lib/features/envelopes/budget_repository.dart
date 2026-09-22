@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/category_visual.dart';
 import '../../core/formatters.dart';
 import '../../core/l10n.dart';
 import '../auth/auth_gate.dart';
@@ -32,7 +33,16 @@ final activeEnvelopesProvider = Provider<List<Envelope>>((ref) {
 final allocatableEnvelopesProvider = Provider<List<Envelope>>((ref) {
   return ref
       .watch(activeEnvelopesProvider)
-      .where((e) => e.currency == 'TRY')
+      .where((e) => e.currency == 'TRY' && !isIncomeEnvelope(e))
+      .toList();
+});
+
+/// Gelir kaynakları (aktif ₺ zarflar, bölümü "income"). Yalnız nakit gelirin
+/// etiketi — bakiye taşımaz, bütçeye/harcama dökümüne girmez.
+final incomeCategoriesProvider = Provider<List<Envelope>>((ref) {
+  return ref
+      .watch(activeEnvelopesProvider)
+      .where((e) => e.currency == 'TRY' && isIncomeEnvelope(e))
       .toList();
 });
 
@@ -681,6 +691,19 @@ class BudgetRepository {
       if (docs.every((doc) => doc.id != txId)) docs.add(snap);
     }
 
+    final rev = _reversalOf([for (final doc in docs) doc.data()!]);
+    final batch = _db.batch();
+    await _applyDeltas(batch, rev.cash, rev.env);
+    for (final doc in docs) {
+      batch.delete(doc.reference);
+    }
+    await batch.commit();
+  }
+
+  /// İşlem belgelerinin para etkisinin TERSİ: cüzdan farkı + zarf farkları.
+  /// deleteTx ve updateTx aynı mantığı paylaşır (iki kopya olmasın).
+  ({double cash, Map<String, double> env}) _reversalOf(
+      List<Map<String, dynamic>> docs) {
     var cashDelta = 0.0;
     final envDeltas = <String, double>{};
     void env(String? id, double delta) {
@@ -688,8 +711,7 @@ class BudgetRepository {
       envDeltas[id] = (envDeltas[id] ?? 0) + delta;
     }
 
-    for (final doc in docs) {
-      final d = doc.data()!;
+    for (final d in docs) {
       final type = d['type'] as String?;
       final amount = (d['amount'] as num?)?.toDouble() ?? 0;
       final currency = d['currency'] as String? ?? 'TRY';
@@ -714,19 +736,78 @@ class BudgetRepository {
         env(goalId, -sign * amount);
       }
     }
+    return (cash: cashDelta, env: envDeltas);
+  }
 
-    final batch = _db.batch();
-    _cashDelta(batch, cashDelta);
-    for (final entry in envDeltas.entries) {
+  /// Cüzdan + zarf farklarını tek partide yazar (belge başına TEK artış;
+  /// olmayan zarf atlanır).
+  Future<void> _applyDeltas(
+      WriteBatch batch, double cash, Map<String, double> env) async {
+    _cashDelta(batch, cash);
+    for (final entry in env.entries) {
+      if (entry.value == 0) continue;
       final envSnap = await _envelopes.doc(entry.key).get();
       if (envSnap.exists) {
         batch.update(_envelopes.doc(entry.key),
             {'balance': FieldValue.increment(entry.value)});
       }
     }
-    for (final doc in docs) {
-      batch.delete(doc.reference);
+  }
+
+  /// İşlemi yerinde düzenle: eski etkiyi geri al + yeni etkiyi uygula, hepsi
+  /// TEK partide. Sonuç, eski işlem hiç olmamış da yenisi sıfırdan yazılmış
+  /// gibidir. Döviz çevirme bacakları (`groupId`), hedef fonu (`goalFund`)
+  /// ve eski transferler düzenlenemez → [TxNotEditable].
+  ///
+  /// [envelopeId]: ₺ işlemde kategori etiketi (bakiye taşımaz), dövizde
+  /// kumbara cüzdanı (bakiyesi değişir).
+  Future<void> updateTx(
+    String txId, {
+    required TxType type,
+    required double amount,
+    required String currency,
+    required DateTime date,
+    String? envelopeId,
+    String? envelopeName,
+    String? note,
+  }) async {
+    if (type == TxType.transfer) throw const TxNotEditable('transfer');
+    if (amount <= 0) throw ArgumentError.value(amount, 'amount');
+    final ref = _txs.doc(txId);
+    final snap = await ref.get();
+    final old = snap.data();
+    if (old == null) throw StateError('tx $txId yok');
+    if (old['groupId'] != null || old['convert'] == true) {
+      throw const TxNotEditable('convert');
     }
+    if (old['goalFund'] == true) throw const TxNotEditable('goalFund');
+    if (old['type'] == TxType.transfer.name) {
+      throw const TxNotEditable('transfer');
+    }
+
+    // Eski etkinin tersi + yeni etki, aynı belgeye tek artış olacak şekilde.
+    final rev = _reversalOf([old]);
+    var cash = rev.cash;
+    final env = Map<String, double>.from(rev.env);
+    final sign = type == TxType.expense ? -1.0 : 1.0;
+    if (currency == 'TRY') {
+      cash += sign * amount;
+    } else if (envelopeId != null) {
+      env[envelopeId] = (env[envelopeId] ?? 0) + sign * amount;
+    }
+
+    final batch = _db.batch();
+    await _applyDeltas(batch, cash, env);
+    batch.update(ref, {
+      'type': type.name,
+      'amount': amount,
+      'date': Timestamp.fromDate(date),
+      'note': note,
+      'envelopeId': envelopeId ?? FieldValue.delete(),
+      'envelopeName': envelopeName ?? FieldValue.delete(),
+      'envelopeIds': [?envelopeId],
+      'currency': currency,
+    });
     await batch.commit();
   }
 
@@ -789,15 +870,23 @@ class BudgetRepository {
   }
 
   /// Доход в кошелёк — единственный путь для ₺-дохода в новой модели.
+  /// [envelopeId]/[envelopeName]: gelir kaynağı etiketi (maaş, hediye…) —
+  /// yalnız etiket, o zarfın bakiyesine dokunulmaz.
   Future<String> addCashIncome({
     required double amount,
     String? note,
     DateTime? date,
+    String? envelopeId,
+    String? envelopeName,
   }) async {
     final batch = _db.batch();
     final doc = _txs.doc();
     _writeCashIncome(batch, doc,
-        amount: amount, note: note, date: date ?? DateTime.now());
+        amount: amount,
+        note: note,
+        date: date ?? DateTime.now(),
+        envelopeId: envelopeId,
+        envelopeName: envelopeName);
     await batch.commit();
     return doc.id;
   }
@@ -808,13 +897,17 @@ class BudgetRepository {
     required double amount,
     required DateTime date,
     String? note,
+    String? envelopeId,
+    String? envelopeName,
   }) {
     batch.set(doc, {
       'type': TxType.income.name,
       'amount': amount,
       'date': Timestamp.fromDate(date),
       'note': note,
-      'envelopeIds': <String>[],
+      'envelopeId': ?envelopeId,
+      'envelopeName': ?envelopeName,
+      'envelopeIds': [?envelopeId],
       'currency': 'TRY',
     });
     _cashDelta(batch, amount);
@@ -933,8 +1026,13 @@ class BudgetRepository {
           note: rule.note,
           date: date);
     } else if (rule.currency == 'TRY' || rule.envelopeId == null) {
+      // ₺ gelir kuralında envelopeId gelir kaynağı etiketidir (bakiye yok).
       _writeCashIncome(batch, doc,
-          amount: rule.amount, note: rule.note, date: date);
+          amount: rule.amount,
+          note: rule.note,
+          date: date,
+          envelopeId: rule.currency == 'TRY' ? rule.envelopeId : null,
+          envelopeName: rule.currency == 'TRY' ? rule.envelopeName : null);
     } else {
       _writeEnvelopeIncome(batch, doc,
           envelopeId: rule.envelopeId!,
@@ -945,4 +1043,14 @@ class BudgetRepository {
           date: date);
     }
   }
+}
+
+/// Düzenlenemeyen işlem (döviz çevirme bacağı, hedef fonu, transfer).
+class TxNotEditable implements Exception {
+  const TxNotEditable(this.reason);
+
+  final String reason;
+
+  @override
+  String toString() => 'TxNotEditable($reason)';
 }

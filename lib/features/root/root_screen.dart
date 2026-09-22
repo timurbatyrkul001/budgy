@@ -8,6 +8,9 @@ import '../budget/budget_period.dart';
 import '../budget/budget_screen.dart';
 import '../automation/automation_screen.dart';
 import '../categories/categories_screen.dart';
+import '../../core/l10n.dart';
+import '../transactions/journal_screen.dart';
+import '../home/preview_home.dart';
 import '../envelopes/add_envelope_sheet.dart';
 import '../converter/converter_screen.dart';
 import '../converter/currency_picker_screen.dart';
@@ -42,6 +45,17 @@ class _RootScreenState extends ConsumerState<RootScreen> {
             autoSheet:
                 kPreviewQuickEntrySheet.isEmpty ? null : kPreviewQuickEntrySheet,
           ));
+    }
+    // PREVIEW_TX: örnek kaynaklı gelirin detay sayfası ya da düzenleme ekranı.
+    if (kPreviewTx.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final tx = previewIncomeTx();
+        if (kPreviewTx == 'edit') {
+          showQuickEntryEdit(context, tx);
+        } else {
+          TxTile.showActionsFor(context, ref, tx, ref.read(strProvider));
+        }
+      });
     }
     final preview = switch (kPreviewBudget) {
       'empty' => const BudgetScreen(),

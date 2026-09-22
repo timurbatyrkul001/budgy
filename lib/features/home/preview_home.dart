@@ -32,6 +32,10 @@ Widget previewHomeScope({required Widget child}) {
     const Envelope(
         id: 'p5', name: 'Kahvaltı', emoji: '', balance: 0, sortOrder: 4,
         section: 'everyday', colorIndex: 1),
+    // Gelir kaynağı (katalog: salary).
+    const Envelope(
+        id: 'p6', name: 'Maaş', emoji: '💼', balance: 0, sortOrder: 5,
+        presetKey: 'salary'),
     const Envelope(
         id: 'p3', name: 'Dolar', emoji: '💵', balance: 1750, sortOrder: 2,
         currency: 'USD'),
@@ -56,12 +60,14 @@ Widget previewHomeScope({required Widget child}) {
         envelopeId: 'p2',
         envelopeName: 'Ulaşım',
         note: 'Taksi'),
+    // Kaynaklı gelir: Maaş (gelir kategorisi p6) — notsuz, başlık kaynak adı.
     Tx(
         id: 't3',
         type: TxType.income,
         amount: 25000,
         date: now.subtract(const Duration(days: 1)),
-        note: 'Maaş'),
+        envelopeId: 'p6',
+        envelopeName: 'Maaş'),
     Tx(
         id: 't4',
         type: TxType.expense,
@@ -108,3 +114,13 @@ Widget previewHomeScope({required Widget child}) {
         })),
   ], child: child);
 }
+
+/// PREVIEW_TX için örnek işlem (ana ekrandaki kaynaklı gelir 't3').
+Tx previewIncomeTx() => Tx(
+      id: 't3',
+      type: TxType.income,
+      amount: 25000,
+      date: DateTime.now().subtract(const Duration(days: 1)),
+      envelopeId: 'p6',
+      envelopeName: 'Maaş',
+    );

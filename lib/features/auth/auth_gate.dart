@@ -21,7 +21,7 @@ final uidProvider = Provider<String>((ref) {
 });
 
 /// Onboarding'i veriye dokunmadan göstermek için (ekran görüntüsü):
-/// `flutter run --dart-define=PREVIEW_ONBOARDING=true [--dart-define=PREVIEW_STEP=2]`.
+/// `flutter run --dart-define=PREVIEW_ONBOARDING=true [--dart-define=PREVIEW_STEP=5]`.
 /// Yalnız debug. (Ana ekran önizlemesi için bkz. home/preview_home.dart.)
 const _previewOnboarding =
     kDebugMode && bool.fromEnvironment('PREVIEW_ONBOARDING');

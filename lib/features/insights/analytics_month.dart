@@ -32,7 +32,14 @@ class MonthAnalytics {
     required this.busiestWeekdayAmount,
     required this.avgPerDay,
     required this.daysCounted,
+    this.incomeBySource = const [],
+    this.incomeTotal = 0,
   });
+
+  /// ₺ gelirler kaynağa göre (tutara göre azalan); toplamı [incomeTotal].
+  /// Gider dökümüne KARIŞMAZ.
+  final List<CategoryStat> incomeBySource;
+  final double incomeTotal;
 
   final DateTime month;
   final double total;
@@ -96,10 +103,22 @@ MonthAnalytics analyzeMonth(
   var total = 0.0;
   var count = 0;
 
+  final incomeBy = <String?, double>{};
+  final incomeCount = <String?, int>{};
+  var incomeTotal = 0.0;
+
   for (final t in txs) {
-    if (t.type != TxType.expense || t.isConvert || t.isGoalFund) continue;
-    if (t.currency != 'TRY') continue;
+    if (t.currency != 'TRY' || t.isConvert || t.isGoalFund) continue;
     if (t.date.year != month.year || t.date.month != month.month) continue;
+    if (t.type == TxType.income) {
+      // Gelir ayrı kovada: kaynak etiketi (yoksa "kaynaksız").
+      if (categoryId != null) continue;
+      incomeTotal += t.amount;
+      incomeBy[t.envelopeId] = (incomeBy[t.envelopeId] ?? 0) + t.amount;
+      incomeCount[t.envelopeId] = (incomeCount[t.envelopeId] ?? 0) + 1;
+      continue;
+    }
+    if (t.type != TxType.expense) continue;
     final id = t.envelopeId;
     if (categoryId != null && (id ?? '') != categoryId) continue;
     total += t.amount;
@@ -136,12 +155,28 @@ MonthAnalytics analyzeMonth(
   final isCurrent = month.year == n.year && month.month == n.month;
   final daysCounted = isCurrent ? n.day : daysInMonth;
 
+  final income = <CategoryStat>[
+    for (final e in incomeBy.entries)
+      CategoryStat(
+        envelopeId: e.key,
+        name: switch (envelopes[e.key]) {
+          final env? => nameOf(env),
+          null => uncategorizedLabel,
+        },
+        emoji: envelopes[e.key]?.emoji ?? '❔',
+        count: incomeCount[e.key] ?? 0,
+        amount: e.value,
+      ),
+  ]..sort((a, b) => b.amount.compareTo(a.amount));
+
   return MonthAnalytics(
     month: month,
     total: total,
     count: count,
     buckets: buckets,
     byCategory: cats,
+    incomeBySource: income,
+    incomeTotal: incomeTotal,
     busiestWeekday: busiest,
     busiestWeekdayAmount: busiestAmount,
     avgPerDay: daysCounted == 0 ? 0 : total / daysCounted,

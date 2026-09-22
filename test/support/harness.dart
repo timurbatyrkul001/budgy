@@ -114,7 +114,17 @@ Future<void> pumpBudgyScreen(
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
         ],
-        home: screen,
+        // Yerleşim testleri animasyonun ortasını değil, YERLEŞİK durumu
+        // ölçmeli. `disableAnimations` ile giriş animasyonları anında
+        // tamamlanır (hepsi `reduceMotion`'a bakar) ve intro'daki döngülü
+        // nokta göstergesi durur — yoksa `pumpAndSettle` sonsuza kadar
+        // beklerdi. Boyutu korumak için copyWith kullanılıyor.
+        home: Builder(
+          builder: (context) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(disableAnimations: true),
+            child: screen,
+          ),
+        ),
       ),
     ),
   );
