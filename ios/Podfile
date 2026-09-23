@@ -39,5 +39,15 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
+
+    # Bazi bagimliliklar hala iOS 9/10/11 hedefliyor; Xcode 26 bunlari
+    # desteklenen aralik (12.0+) disinda sayip uyariyor. Hepsini
+    # uygulamanin kendi tabanina cekiyoruz.
+    target.build_configurations.each do |config|
+      current = config.build_settings['IPHONEOS_DEPLOYMENT_TARGET']
+      if current.nil? || Gem::Version.new(current) < Gem::Version.new('15.0')
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+      end
+    end
   end
 end
