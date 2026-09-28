@@ -71,35 +71,53 @@ class WorkDaysRepository {
   /// суммой — правка дня не удваивает деньги.
   Future<void> setDay(DateTime day, {double? amount}) async {
     final ref = _workDays.doc(_dayId(day));
-    final prev =
-        ((await ref.get()).data()?['amount'] as num?)?.toDouble() ?? 0;
-    final next = amount ?? 0;
 
-    final batch = _db.batch();
-    batch.set(ref, {
-      'month': monthKeyOf(day),
-      'amount': amount,
-    }, SetOptions(merge: true));
-    if (next != prev) {
-      batch.set(_cash, {'balance': FieldValue.increment(next - prev)},
-          SetOptions(merge: true));
-    }
-    await batch.commit();
+    // DİKKAT: önce oku-sonra yaz burada transaction OLMAK ZORUNDA.
+    // Eskiden `ref.get()` + batch kullanılıyordu; get çevrimdışıyken ya da
+    // sunucu yanıtı gelmeden YEREL ÖNBELLEKTEN okuyor. Aynı güne arka arkaya
+    // iki kez kaydedilince (kullanıcı "kaydolmadı" sanıp tekrar basınca)
+    // ikisinde de prev=0 görülüyor, gün belgesine tutar bir kez yazılıyor
+    // ama cüzdana İKİ KEZ ekleniyordu. Gerçekte yaşandı: 25.09'un 3.700'ü
+    // iki kez sayılıp bakiye 3.700 fazla çıktı.
+    await _db.runTransaction((tx) async {
+      // Firestore kuralı: transaction içinde TÜM okumalar yazmalardan önce.
+      final snap = await tx.get(ref);
+      final cashSnap = await tx.get(_cash);
+      final prev = (snap.data()?['amount'] as num?)?.toDouble() ?? 0;
+      final next = amount ?? 0;
+
+      tx.set(ref, {
+        'month': monthKeyOf(day),
+        'amount': amount,
+      }, SetOptions(merge: true));
+      if (next != prev) {
+        // increment yerine mutlak değer: transaction zaten tutarlı bir
+        // okuma veriyor, araya başka yazma giremez. Böylece bakiye tek
+        // bir yerden hesaplanıyor ve çift sayma imkânsız.
+        final cur = (cashSnap.data()?['balance'] as num?)?.toDouble() ?? 0;
+        tx.set(_cash, {'balance': cur + (next - prev)},
+            SetOptions(merge: true));
+      }
+    });
   }
 
   /// Снять отметку дня; его заработок возвращается из кошелька.
   Future<void> removeDay(DateTime day) async {
     final ref = _workDays.doc(_dayId(day));
-    final prev =
-        ((await ref.get()).data()?['amount'] as num?)?.toDouble() ?? 0;
 
-    final batch = _db.batch();
-    batch.delete(ref);
-    if (prev != 0) {
-      batch.set(_cash, {'balance': FieldValue.increment(-prev)},
-          SetOptions(merge: true));
-    }
-    await batch.commit();
+    // setDay ile aynı sebep: silme de okunan tutara dayandığı için
+    // atomik olmak zorunda, yoksa çift silmede bakiye eksiye kayar.
+    await _db.runTransaction((tx) async {
+      final snap = await tx.get(ref);
+      final cashSnap = await tx.get(_cash);
+      final prev = (snap.data()?['amount'] as num?)?.toDouble() ?? 0;
+
+      tx.delete(ref);
+      if (prev != 0) {
+        final cur = (cashSnap.data()?['balance'] as num?)?.toDouble() ?? 0;
+        tx.set(_cash, {'balance': cur - prev}, SetOptions(merge: true));
+      }
+    });
   }
 
   /// Kazancı girilmiş tüm günler (amount>0) — Geçmiş'te gelir olarak.
