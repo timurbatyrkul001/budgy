@@ -278,6 +278,17 @@ class BudgetRepository {
   DocumentReference<Map<String, dynamic>> get _settings =>
       _db.collection('users').doc(_uid).collection('settings').doc('main');
 
+  /// Pro hak sahipliği — kurallarla istemciye SALT OKUNUR açılmış belge.
+  /// Yoksa/okunamazsa false: erişim hatası yanlışlıkla Pro açmamalı.
+  Stream<bool> watchProEntitlement() => _db
+      .collection('users')
+      .doc(_uid)
+      .collection('entitlements')
+      .doc('pro')
+      .snapshots()
+      .map((doc) => doc.data()?['pro'] == true)
+      .handleError((_) => false);
+
   Stream<bool> watchOnboardingDone() => _settings
       .snapshots()
       .map((doc) => doc.data()?['onboardingDone'] == true);

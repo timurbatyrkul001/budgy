@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kopilka_app/core/l10n.dart';
+import 'package:kopilka_app/features/pro/pro_state.dart';
 import 'package:kopilka_app/core/fx.dart';
 import 'package:kopilka_app/core/theme.dart';
 import 'package:kopilka_app/features/home/fx_providers.dart';
@@ -68,6 +69,8 @@ Future<void> pumpBudgyScreen(
   Map<String, dynamic> profile = const {},
   FxSnapshot? fxSnapshot,
   Size logicalSize = const Size(360, 800),
+  /// Pro aboneliği açık mı (kilitli ekranların Pro hâlini test etmek).
+  bool pro = false,
 }) async {
   // Varsayılan test yüzeyi 800x600 — Budgy ekranları uzun, alt çubuktaki
   // Kaydet düğmesi bu boyutta görünürün dışında kalıp dokunulamıyor.
@@ -102,6 +105,7 @@ Future<void> pumpBudgyScreen(
         disabledBuiltinsProvider.overrideWith((ref) => Stream.value(const {})),
         appVersionProvider.overrideWith((ref) async => '1.0.0 (1)'),
         fxSnapshotProvider.overrideWith((ref, base) async => fxSnapshot),
+        isProProvider.overrideWith(() => _TestProStatus(pro)),
       ],
       child: MaterialApp(
         theme: buildTheme(),
@@ -146,4 +150,14 @@ Future<void> seedEnvelope(
     if (envelope.targetAmount != null) 'targetAmount': envelope.targetAmount,
     if (envelope.isGoal) 'goal': true,
   });
+}
+
+/// Testte Pro durumunu sabitler — gerçekte RevenueCat besleyecek.
+class _TestProStatus extends ProStatus {
+  _TestProStatus(this._value);
+
+  final bool _value;
+
+  @override
+  bool build() => _value;
 }

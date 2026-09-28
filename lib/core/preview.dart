@@ -39,3 +39,9 @@ const kPreviewTx = String.fromEnvironment('PREVIEW_TX');
 /// örnek profile yıldızlı EUR ekler.
 const kPreviewConverter = String.fromEnvironment('PREVIEW_CONVERTER');
 const kPreviewStarred = kDebugMode && bool.fromEnvironment('PREVIEW_STARRED');
+
+/// PREVIEW_PRO=true — Pro aboneliği açıkmış gibi davran (kilitli ekranların
+/// gerçek hâlini görmek / ekran görüntüsü almak için).
+/// PREVIEW_PAYWALL=true — açılışta paywall'ı aç.
+const kPreviewPro = kDebugMode && bool.fromEnvironment('PREVIEW_PRO');
+const kPreviewPaywall = kDebugMode && bool.fromEnvironment('PREVIEW_PAYWALL');

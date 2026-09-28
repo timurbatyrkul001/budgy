@@ -89,6 +89,20 @@ service cloud.firestore {
         allow read, write: if isOwner(uid);
       }
 
+      // Pro hak sahipliği: users/{uid}/entitlements/pro → { pro: true }
+      //
+      // İstemci YAZAMAZ. Bu belge ücretli özellikleri açtığı için yazma
+      // hakkı client'ta olsaydı herkes kendine Pro verirdi — paywall'ın
+      // hiçbir anlamı kalmazdı. Sadece konsoldan / Admin SDK'dan yazılır
+      // (Admin SDK kuralları tamamen atlar).
+      //
+      // Kullanım: geliştirici ve davetli test hesapları için elle açılır;
+      // gerçek abonelik RevenueCat'ten gelince ikisi OR'lanır.
+      match /entitlements/{entId} {
+        allow read: if isOwner(uid);
+        allow write: if false;
+      }
+
       // Kategori otomasyonu: kullanıcı kuralları (anahtar kelime → zarf).
       match /rules/{ruleId} {
         allow read, delete: if isOwner(uid);

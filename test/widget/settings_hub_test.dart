@@ -8,8 +8,8 @@ import 'package:kopilka_app/features/automation/automation_screen.dart';
 import 'package:kopilka_app/features/budget/budget_screen.dart';
 import 'package:kopilka_app/features/categories/categories_screen.dart';
 import 'package:kopilka_app/features/settings/data_management_screen.dart';
+import 'package:kopilka_app/features/profile/terms_of_use_screen.dart';
 import 'package:kopilka_app/features/settings/settings_hub.dart';
-import 'package:kopilka_app/features/tags/tags_screen.dart';
 import 'package:kopilka_app/features/transactions/quick_entry_screen.dart';
 import 'package:kopilka_app/features/transactions/tx.dart';
 
@@ -42,11 +42,11 @@ void main() {
   final screens = <String, Widget>{
     'Ayarlar merkezi': const SettingsHubScreen(),
     'Kategoriler': const CategoriesScreen(),
-    'Etiketler': const TagsScreen(),
     'Otomasyon': const AutomationScreen(),
     'Otomasyon · kategori': const RuleKeywordsScreen(
         title: 'Groceries', catalogKey: 'groceries'),
     'Veri yönetimi': const DataManagementScreen(),
+    'Kullanım şartları': const TermsOfUseScreen(),
   };
 
   for (final width in [320.0, 360.0]) {
@@ -76,19 +76,6 @@ void main() {
     expect(find.text('Personal'), findsOneWidget);
     expect(find.text(RS.en.spaceSubtitle), findsOneWidget);
     expect(find.text('2'), findsOneWidget, reason: 'arşivdeki sayılmaz');
-  });
-
-  testWidgets('etiketler: boş durum', (tester) async {
-    await pumpBudgyScreen(tester, const TagsScreen(),
-        db: FakeFirebaseFirestore(), language: AppLanguage.tr);
-    expect(find.text(RS.tr.tagsEmpty), findsOneWidget);
-  });
-
-  testWidgets('etiketler: notlardan liste', (tester) async {
-    await pumpBudgyScreen(tester, const TagsScreen(),
-        db: FakeFirebaseFirestore(), transactions: txs, language: AppLanguage.tr);
-    expect(find.text('ev'), findsOneWidget);
-    expect(find.text('haftalık'), findsOneWidget);
   });
 
   group('tuş takımı düzeni', () {

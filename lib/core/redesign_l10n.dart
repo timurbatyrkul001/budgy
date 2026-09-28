@@ -148,9 +148,6 @@ class RS {
     required this.accountSection,
     required this.helpSection,
     required this.categories,
-    required this.tags,
-    required this.tagsEmpty,
-    required this.tagsHint,
     required this.automation,
     required this.automationHint,
     required this.builtinRulesTpl,
@@ -175,6 +172,28 @@ class RS {
     required this.deleteAllDone,
     required this.paymentReminders,
     required this.privacyPolicy,
+    required this.termsTitle,
+    required this.termsUpdated,
+    required this.paywallTitleAnalytics,
+    required this.paywallTitleAi,
+    required this.paywallTitleAutomation,
+    required this.paywallSubtitle,
+    required this.paywallTrialTpl,
+    required this.paywallBenefitAnalytics,
+    required this.paywallBenefitScan,
+    required this.paywallBenefitVoice,
+    required this.paywallBenefitRecurring,
+    required this.paywallMonthly,
+    required this.paywallYearly,
+    required this.paywallPerMonth,
+    required this.paywallSaveTpl,
+    required this.paywallBilledYearlyTpl,
+    required this.paywallStartTrialTpl,
+    required this.paywallRestore,
+    required this.paywallAutoRenew,
+    required this.paywallTerms,
+    required this.paywallSoon,
+    required this.proLocked,
     required this.about,
     required this.versionTpl,
     required this.archived,
@@ -351,9 +370,6 @@ class RS {
   final String accountSection;
   final String helpSection;
   final String categories;
-  final String tags;
-  final String tagsEmpty;
-  final String tagsHint;
   final String automation;
   final String automationHint;
   final String builtinRulesTpl;
@@ -378,6 +394,28 @@ class RS {
   final String deleteAllDone;
   final String paymentReminders;
   final String privacyPolicy;
+  final String termsTitle;
+  final String termsUpdated;
+  final String paywallTitleAnalytics;
+  final String paywallTitleAi;
+  final String paywallTitleAutomation;
+  final String paywallSubtitle;
+  final String paywallTrialTpl;
+  final String paywallBenefitAnalytics;
+  final String paywallBenefitScan;
+  final String paywallBenefitVoice;
+  final String paywallBenefitRecurring;
+  final String paywallMonthly;
+  final String paywallYearly;
+  final String paywallPerMonth;
+  final String paywallSaveTpl;
+  final String paywallBilledYearlyTpl;
+  final String paywallStartTrialTpl;
+  final String paywallRestore;
+  final String paywallAutoRenew;
+  final String paywallTerms;
+  final String paywallSoon;
+  final String proLocked;
   final String about;
   final String versionTpl;
   final String archived;
@@ -563,9 +601,6 @@ class RS {
     accountSection: 'Account',
     helpSection: 'Help',
     categories: 'Categories',
-    tags: 'Tags',
-    tagsEmpty: 'No tags yet',
-    tagsHint: 'Tags from your notes will appear here — write #home or #trip in a note.',
     automation: 'Category automation',
     automationHint: 'When you save an expense without a category, keywords in the note pick one for you. Your own rules run first.',
     builtinRulesTpl: 'Built-in rules ({n})',
@@ -590,6 +625,28 @@ class RS {
     deleteAllDone: 'All data deleted',
     paymentReminders: 'Payment reminders',
     privacyPolicy: 'Privacy policy',
+    termsTitle: 'Terms of use',
+    paywallTitleAnalytics: 'Unlock your spending analytics',
+    paywallTitleAi: 'Let Budgy read your receipts',
+    paywallTitleAutomation: 'Put your entries on autopilot',
+    paywallSubtitle: 'Budgy Pro turns what you enter into answers: where the money goes, and what to do about it.',
+    paywallTrialTpl: '{days}-day free trial',
+    paywallBenefitAnalytics: 'Full analytics — trends, category breakdown, insights',
+    paywallBenefitScan: 'Scan a receipt, get the expense filled in',
+    paywallBenefitVoice: 'Say it out loud instead of typing',
+    paywallBenefitRecurring: 'Recurring entries and category rules',
+    paywallMonthly: 'Monthly',
+    paywallYearly: 'Yearly',
+    paywallPerMonth: 'per month',
+    paywallSaveTpl: '−{n}%',
+    paywallBilledYearlyTpl: 'Billed once a year — {price}',
+    paywallStartTrialTpl: 'Start {days} free days',
+    paywallRestore: 'Restore purchases',
+    paywallAutoRenew: 'Renews automatically until you cancel in the App Store or Google Play.',
+    paywallTerms: 'Terms of use',
+    paywallSoon: 'Subscriptions aren\'t live yet — coming soon.',
+    proLocked: 'Included in Budgy Pro',
+    termsUpdated: 'Last updated 22 September 2026',
     about: 'About',
     versionTpl: 'Version {v}',
     archived: 'Archived',
@@ -771,9 +828,6 @@ class RS {
     accountSection: 'Hesap',
     helpSection: 'Yardım',
     categories: 'Kategoriler',
-    tags: 'Etiketler',
-    tagsEmpty: 'Henüz etiket yok',
-    tagsHint: 'Notlarındaki etiketler burada görünür — nota #ev ya da #tatil yaz.',
     automation: 'Kategori otomasyonu',
     automationHint: 'Kategorisiz bir harcama kaydettiğinde nottaki anahtar kelimeler kategoriyi senin yerine seçer. Önce kendi kuralların çalışır.',
     builtinRulesTpl: 'Yerleşik kurallar ({n})',
@@ -798,6 +852,28 @@ class RS {
     deleteAllDone: 'Tüm veriler silindi',
     paymentReminders: 'Ödeme hatırlatıcıları',
     privacyPolicy: 'Gizlilik politikası',
+    termsTitle: 'Kullanım şartları',
+    paywallTitleAnalytics: 'Harcama analizini aç',
+    paywallTitleAi: 'Fişlerini Budgy okusun',
+    paywallTitleAutomation: 'Girişleri otomatiğe bağla',
+    paywallSubtitle: 'Budgy Pro, girdiklerini cevaba çevirir: para nereye gidiyor ve ne yapmalısın.',
+    paywallTrialTpl: '{days} gün ücretsiz deneme',
+    paywallBenefitAnalytics: 'Tam analiz — trendler, kategori dağılımı, içgörüler',
+    paywallBenefitScan: 'Fişi tara, harcama kendiliğinden dolsun',
+    paywallBenefitVoice: 'Yazmak yerine sesle söyle',
+    paywallBenefitRecurring: 'Tekrarlayan işlemler ve kategori kuralları',
+    paywallMonthly: 'Aylık',
+    paywallYearly: 'Yıllık',
+    paywallPerMonth: 'ayda',
+    paywallSaveTpl: '−{n}%',
+    paywallBilledYearlyTpl: 'Yılda bir kez — {price}',
+    paywallStartTrialTpl: '{days} gün ücretsiz başla',
+    paywallRestore: 'Satın alımları geri yükle',
+    paywallAutoRenew: 'App Store ya da Google Play\'den iptal edene kadar otomatik yenilenir.',
+    paywallTerms: 'Kullanım şartları',
+    paywallSoon: 'Abonelik henüz açık değil — çok yakında.',
+    proLocked: 'Budgy Pro\'ya dahil',
+    termsUpdated: 'Son güncelleme 22 Eylül 2026',
     about: 'Hakkında',
     versionTpl: 'Sürüm {v}',
     archived: 'Arşiv',
@@ -979,9 +1055,6 @@ class RS {
     accountSection: 'Аккаунт',
     helpSection: 'Помощь',
     categories: 'Категории',
-    tags: 'Теги',
-    tagsEmpty: 'Тегов пока нет',
-    tagsHint: 'Теги из заметок появятся здесь — напиши #дом или #отпуск в заметке.',
     automation: 'Автокатегории',
     automationHint: 'Когда трата сохраняется без категории, ключевые слова в заметке подберут её. Твои правила проверяются первыми.',
     builtinRulesTpl: 'Встроенные правила ({n})',
@@ -1006,6 +1079,28 @@ class RS {
     deleteAllDone: 'Все данные удалены',
     paymentReminders: 'Напоминания о платежах',
     privacyPolicy: 'Политика конфиденциальности',
+    termsTitle: 'Условия использования',
+    paywallTitleAnalytics: 'Открой аналитику расходов',
+    paywallTitleAi: 'Пусть Budgy читает чеки',
+    paywallTitleAutomation: 'Переведи записи на автопилот',
+    paywallSubtitle: 'Budgy Pro превращает записи в ответы: куда уходят деньги и что с этим делать.',
+    paywallTrialTpl: '{days} дней бесплатно',
+    paywallBenefitAnalytics: 'Полная аналитика — тренды, разбивка по категориям, выводы',
+    paywallBenefitScan: 'Сканируй чек — расход заполнится сам',
+    paywallBenefitVoice: 'Скажи вслух вместо того, чтобы печатать',
+    paywallBenefitRecurring: 'Повторяющиеся операции и правила категорий',
+    paywallMonthly: 'Месяц',
+    paywallYearly: 'Год',
+    paywallPerMonth: 'в месяц',
+    paywallSaveTpl: '−{n}%',
+    paywallBilledYearlyTpl: 'Списывается раз в год — {price}',
+    paywallStartTrialTpl: 'Начать {days} бесплатных дней',
+    paywallRestore: 'Восстановить покупки',
+    paywallAutoRenew: 'Продлевается автоматически, пока не отменишь в App Store или Google Play.',
+    paywallTerms: 'Условия использования',
+    paywallSoon: 'Подписка ещё не запущена — скоро.',
+    proLocked: 'Входит в Budgy Pro',
+    termsUpdated: 'Обновлено 22 сентября 2026',
     about: 'О приложении',
     versionTpl: 'Версия {v}',
     archived: 'Архив',

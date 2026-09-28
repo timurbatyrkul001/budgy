@@ -12,6 +12,7 @@ import '../../core/l10n.dart';
 import '../../core/redesign_l10n.dart';
 import '../auth/complete_profile_screen.dart';
 import '../auth/forget_password_screen.dart';
+import '../auth/sign_in_screen.dart';
 import '../auth/sign_up_screen.dart';
 import '../automation/automation_screen.dart';
 import '../categories/categories_screen.dart';
@@ -25,10 +26,10 @@ import '../profile/help_screen.dart';
 import '../profile/language_screen.dart';
 import '../profile/notification_preferences_screen.dart';
 import '../profile/privacy_policy_screen.dart';
+import '../profile/terms_of_use_screen.dart';
 import '../recurring/recurring_screen.dart';
 import '../reminders/reminders_screen.dart';
 import '../space/space.dart';
-import '../tags/tags_screen.dart';
 import '../workdays/calendar_screen.dart';
 import 'app_settings.dart';
 import 'data_management_screen.dart';
@@ -206,11 +207,6 @@ class SettingsHubScreen extends ConsumerWidget {
                 onTap: () => _push(context, const RecurringScreen()),
               ),
               _HubRow(
-                icon: Icons.tag_rounded,
-                title: rs.tags,
-                onTap: () => _push(context, const TagsScreen()),
-              ),
-              _HubRow(
                 icon: Icons.auto_fix_high_rounded,
                 title: rs.automation,
                 onTap: () => _push(context, const AutomationScreen()),
@@ -296,6 +292,20 @@ class SettingsHubScreen extends ConsumerWidget {
                             Navigator.of(context).popUntil((r) => r.isFirst)),
                   ),
                 ),
+              // Zaten hesabı olan kullanıcı için giriş yolu. Bu satır
+              // olmadan onboarding'i geçmiş biri kendi hesabına dönemiyor;
+              // "Hesap oluştur" ise email-already-in-use ile patlıyor.
+              if (anonymous)
+                _HubRow(
+                  icon: Icons.login_rounded,
+                  title: str.signInTitle,
+                  onTap: () => _push(
+                    context,
+                    SignInScreen(
+                        onSignedIn: () =>
+                            Navigator.of(context).popUntil((r) => r.isFirst)),
+                  ),
+                ),
               _HubRow(
                 icon: Icons.badge_outlined,
                 title: str.personalInfo,
@@ -352,6 +362,13 @@ class SettingsHubScreen extends ConsumerWidget {
                 icon: Icons.privacy_tip_outlined,
                 title: rs.privacyPolicy,
                 onTap: () => _push(context, const PrivacyPolicyScreen()),
+              ),
+              // Apple, abonelik satan uygulamalarda paywall'dan bu ekrana
+              // bağlantı zorunlu tutuyor; ayrıca burada da erişilebilir.
+              _HubRow(
+                icon: Icons.gavel_rounded,
+                title: rs.termsTitle,
+                onTap: () => _push(context, const TermsOfUseScreen()),
               ),
             ]),
             const SizedBox(height: 28),

@@ -19,7 +19,6 @@ import '../settings/data_management_screen.dart';
 import '../settings/settings_hub.dart';
 import '../space/space.dart';
 import '../stats/stats_screen.dart';
-import '../tags/tags_screen.dart';
 import '../transactions/quick_entry_screen.dart';
 import '../workdays/calendar_screen.dart';
 
@@ -81,7 +80,6 @@ class _RootScreenState extends ConsumerState<RootScreen> {
           'automationCat' => const RuleKeywordsScreen(
               title: 'Groceries', catalogKey: 'groceries'),
           'calendar' => const CalendarScreen(),
-          'tags' => const TagsScreen(),
           'data' => const DataManagementScreen(),
           'newCategory' => const EnvelopeEditorScreen(sortOrder: 0),
           'newCategoryFilled' => const EnvelopeEditorScreen(

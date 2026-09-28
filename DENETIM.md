@@ -1,25 +1,60 @@
 # Budgy — Yayın Denetimi
 
-**21 Eylül 2026** · 385 test geçiyor · `flutter analyze` temiz · sürüm `1.0.0+1`
+**22 Eylül 2026** · 398 test geçiyor · 50/50 kural testi · `flutter analyze` temiz · sürüm `1.0.0+1`
 
-> **Kısa cevap: şu an çıkamaz.** Kod sağlam, ama beş şey yayını engelliyor.
-> En ciddisi: yapay zekâ anahtarı uygulamanın içinde derleniyor.
+> **Kısa cevap: henüz çıkamaz, ama liste kısaldı.** Kural katmanı artık
+> yayında ve test edilmiş durumda. Kalan dört engelden biri güvenlik
+> (yapay zekâ anahtarı), biri hesap, ikisi yazı işi.
 
 | Konu | Durum |
 |---|---|
-| Testler | ✅ 385 geçiyor |
+| Testler | ✅ 398 geçiyor |
+| Kural testleri | ✅ 50/50 |
 | `flutter analyze` | ✅ temiz |
-| Sürüm | `1.0.0+1` |
-| Yayını engelleyen | ❌ 5 madde |
+| Firestore kuralları | ✅ yayında (22 Eyl) |
+| Hesap anonim değil | ✅ e-postaya bağlandı |
+| Yayını engelleyen | ❌ 4 madde |
 | Eski tasarımda kalan ekran | ⚠️ 6 ekran |
 | Mağaza evrakı | ❌ başlanmadı |
 
 ---
 
-## 1. Yayını engelleyenler
+## 0. 22 Eylül'de kapanan maddeler
 
-Bunlar bitmeden gönderim yapılamaz, ya da yapılırsa uygulama gerçek
-kullanıcıda bozuk çalışır.
+### 0.1 `accounts` kuralı hiç yazılmamıştı · KRİTİKTİ
+
+Firestore'da `match /users/{uid}` izni alt koleksiyonlara **inmez**; her
+alt koleksiyonun kendi bloğu olmak zorunda. `accounts` için blok hiçbir
+commit'te yoktu. Sonuç: cüzdan hem okunamıyor hem yazılamıyordu.
+
+Görünen belirti tamamen yanıltıcıydı — takvimde gün kaydedilmiyordu ve
+hiçbir hata çıkmıyordu. Sebebi `setDay`'in gün belgesiyle cüzdanı **tek
+batch'te** yazması: batch atomik olduğu için cüzdan reddedilince gün
+kaydı da geri alınıyordu. Aynı hata her harcama ve gelir girişini de
+etkiliyordu (hepsi `_cashDelta` ile cüzdana yazıyor).
+
+Kural eklendi, 7 test yazıldı, yayınlandı. Veri kaybı olmadı: kural
+açıldıktan sonra sunucudan okunan bakiye önbellektekiyle aynıydı.
+
+**Ders:** yeni bir koleksiyon eklendiğinde kural bloğu ve kural testi
+aynı commit'te gelmeli. Kural dosyasında olmayan koleksiyon, yazılmamış
+özellik demek.
+
+### 0.2 Anonim hesap e-postaya bağlandı
+
+`linkWithCredential` ile mevcut uid korunarak bağlandı — veri taşınmadı,
+uid değişmedi. Eski bir test hesabı e-postayı işgal ettiği için önce o
+auth kaydı silindi.
+
+### 0.3 Kurallar yayınlandı ve test edildi
+
+Eski denetimdeki 1.2 ve 1.3 maddeleri kapandı: `recurring`, `rules`,
+`accounts` ve işlem düzenleme (`updateTx`) kuralları hem yayında hem
+testli.
+
+---
+
+## 1. Yayını engelleyenler
 
 ### 1.1 Yapay zekâ anahtarı uygulamanın içinde · GÜVENLİK
 
@@ -32,30 +67,29 @@ tarama ve sesli girişteki ayrıştırma bu anahtarı kullanıyor.
 sunucuna gider, anahtar sunucuda kalır), ya da ilk sürümü bu iki özellik
 kapalı çıkar ve proxy'yi sonra ekle.
 
-### 1.2 Firestore kuralları yayınlanmadı · KURAL
+### 1.2 Doğrulama maili spam'e düşüyor · YENİ
 
-`recurring` ve `rules` koleksiyonlarının kuralları yazıldı ama hâlâ yerelde.
-Gerçek kullanıcıda **tekrarlayan işlem kaydedilemez** ve **kendi otomasyon
-kuralın eklenemez** — ikisi de hata verir.
+Gerçek kullanıcıda test edildi: Gmail maili doğrudan Spam kutusuna attı.
+Bir bütçe uygulamasında kayıt akışının ilk adımı bu — spam'e düşen mail,
+kaydı tamamlamayan kullanıcı demek.
 
-```bash
-cd ~/Projects/kopilka_app
-firebase login --reauth
-firebase deploy --only firestore:rules
-```
+Sebep gönderen domain: `noreply@kopilka-b75f6.firebaseapp.com` binlerce
+Firebase projesiyle ortak, itibarı paylaşılıyor. Gmail'in kendi açıklaması
+"geçmişte spam olarak işaretlenen mesajlara benziyor" diyordu.
 
-### 1.3 Yeni kurallar test edilmemiş · KURAL
+Yapıldı: proje adı `Budgy`, gönderen adı `Budgy`, konu elle yazıldı,
+reply-to gerçek adres. Bunlar görünümü düzeltti, teslimatı çözmedi.
 
-`test_rules/rules.test.mjs` içinde `recurring` ya da `rules` geçmiyor.
-23 kural testi var ama hepsi eski koleksiyonlar için. Kural katmanı verinin
-son savunma hattı; test edilmemiş kural, yazılmamış kuraldan biraz daha
-iyidir.
+**Çözüm: özel domain.** Firebase'in kendi özelliği, Hosting gerektirmiyor,
+ücretsiz. Hem gönderen adresini hem de bağlantı adresini senin domainine
+taşıyor ve SPF/DKIM kayıtlarını Firebase veriyor. Adımlar §3'te.
 
-**Çözüm:** her iki koleksiyon için sahibi olmayan kullanıcının okuyamadığını
-ve geçersiz alanların reddedildiğini doğrulayan test ekle, sonra
-`./tool/test_rules.sh`.
+*Not: doğrulama ve e-posta değiştirme maillerinin GÖVDESİ Firebase
+tarafından kilitli (kötüye kullanım önlemi) — sadece şifre sıfırlamanınki
+düzenlenebiliyor. Tamamen kendi HTML'ini istiyorsan tek yol Cloud
+Functions + `generateEmailVerificationLink`.*
 
-### 1.4 Apple Developer hesabı · HESAP
+### 1.3 Apple Developer hesabı · HESAP
 
 Notlarıma göre hesap henüz yok. Hesap olmadan App Store'a gönderim yapılamaz,
 TestFlight de açılamaz. Yıllık 99 $. Onay birkaç gün sürebiliyor, bu yüzden
@@ -63,7 +97,7 @@ en erken başlatılacak adım bu. iOS ana ekran widget'ı da bu hesaba bağlı.
 
 *Durum değiştiyse söyle, bu madde düşer.*
 
-### 1.5 Kullanım Şartları ekranı yok · YASAL
+### 1.4 Kullanım Şartları ekranı yok · YASAL
 
 Metin anahtarı `lib/core/l10n.dart` içinde duruyor ama ekran yok. Apple,
 hesap açılabilen uygulamalarda kullanım şartları (EULA) istiyor. Gizlilik
@@ -105,73 +139,84 @@ kullanıcı sadece "Budgy" görür.
 
 ---
 
-## 3. Kalite açıkları
+## 3. Firebase'de yapılacaklar
+
+Sırayla. İlki mail sorununu çözen asıl adım.
+
+### 3.1 Özel domain — maili spam'den çıkarır
+
+**Önce karar:** hangi alt domain? `budgy.ggtech.co` öneriyorum — `ggtech.co`
+zaten senin, yeni domain almana gerek yok ve alt domain kullanmak ana
+domainin mevcut mail kayıtlarına dokunmuyor.
+
+1. Firebase Console → **Authentication → Templates** → herhangi bir şablon
+   → **Customize domain**
+2. Alan adını gir: `budgy.ggtech.co`
+3. Firebase sana **TXT ve CNAME kayıtları** verir — bunları `ggtech.co`
+   DNS'ine ekle
+4. Doğrulama 24 saate kadar sürebilir; konsol "Verification complete"
+   diyene kadar bekle
+5. **Apply Custom Domain**
+
+Bittiğinde gönderen `noreply@budgy.ggtech.co` olur ve doğrulama bağlantısı
+da `firebaseapp.com` yerine senin adresini gösterir. SPF/DKIM hizalandığı
+için Gmail artık ortak domainin itibarına bakmaz.
+
+> Daha önce bu akış "Could not verify domain" hatası verdi — sebebi DNS
+> kayıtlarının henüz eklenmemiş olması. Kayıtlar girilmeden doğrulama geçmez.
+
+**Bana söylemen gereken:** `ggtech.co` DNS'i nerede yönetiliyor? (Cloudflare,
+Google Domains, hosting paneli…) Kayıtları oraya göre adım adım yazarım.
+
+### 3.2 Şablon dili Türkçe
+
+**Authentication → Templates** → sol altta **Template language** → `Türkçe`.
+Gövdeyi yazamıyorsun ama Firebase'in hazır Türkçe çevirisini seçebilirsin.
+
+### 3.3 App Check zorlamasını aç
+
+Paket kurulu ama Firebase Console'dan zorlama açılmamış. Açılmadığı sürece
+veritabanına uygulaman dışından da istek atılabilir.
+
+⚠️ Simülatörde App Check zaten çalışmıyor (`DeviceCheckProvider is not
+supported on current platform`). Zorlamayı **gerçek cihazda test ettikten
+sonra** aç, yoksa geliştirme simülatörü tamamen kilitlenir.
+
+### 3.4 Blaze planı gözetimi
+
+Proje Blaze'de (kullandıkça öde). Yayına çıkmadan önce **bütçe uyarısı**
+kur — Google Cloud Console → Billing → Budgets & alerts. Kaçak bir döngü
+ya da kötüye kullanım faturayı büyütmeden haber versin.
+
+---
+
+## 4. Kalite açıkları
 
 Çıkışı engellemez ama uygulamayı yarım gösterir.
 
 | Konu | Durum |
 |---|---|
-| **Altı ekran hâlâ eski tasarımda** | Takvim, Hedefler, Geçmiş, Birikim, zarf detayı, eski işlem sayfası. Hepsi `context.budgy` kullanıyor, `Ex.` kullanan yok. Renkleri doğru ama yerleşimleri yeni ekranlara benzemiyor. |
+| **Altı ekran hâlâ eski tasarımda** | Takvim, Hedefler, Geçmiş, Birikim, zarf detayı, eski işlem sayfası. Hepsi `context.budgy` kullanıyor, `Ex.` kullanan yok. |
 | **Ölü kod** | `onboarding_screen.dart` ve `onboarding_story_screen.dart` yalnız birbirlerine ve eski bir teste bağlı. |
 | **iOS ana ekran widget'ı yarım** | Swift kodu yazıldı (`ios/BudgyWidget`), kalan tek adım Xcode'da Widget Extension target'ı + App Group. Apple hesabı gerekiyor. Android widget'ı çalışıyor. |
 | **Açılışta bir kare İngilizce** | Dil Firestore'dan geldiği için ilk kare varsayılanla çiziliyor. Son seçilen dili cihazda saklamak yeterli. |
-| **App Check zorlaması kapalı** | Paket kurulu ama Firebase Console'dan zorlama açılmamış. |
-
----
-
-## 4. Fikirler
-
-Etkiye göre sıralı. İlk ikisi Budgy'yi rakiplerinden ayırır — çünkü ikisi de
-**Türkiye'de Apple Pay olmamasının** etrafından dolaşıyor.
-
-### 4.1 Banka bildirimlerini yakalama (Android) · EN YÜKSEK ETKİ
-
-Banka "Kartınızdan 450,00 TL MIGROS harcaması" push'u gönderdiğinde uygulama
-onu okur, tutarı ve mağazayı ayrıştırır, kategori otomasyonundan geçirir ve
-onayına sunar. Kullanıcı hiçbir şey yazmaz.
-
-`~/Projects/cebim_proto` içinde çalışan bir prototip zaten var: Kotlin
-bildirim dinleyici, Türk banka listesi, uçtan uca doğrulanmış.
-
-Bu, "harcamayı girmeyi unutuyorum" sorununu ortadan kaldırır — bütçe
-uygulamalarının en büyük terk sebebi budur.
-
-### 4.2 iOS Paylaş uzantısı · YÜKSEK ETKİ
-
-iOS'ta bildirim okumak mümkün değil, ama banka SMS'ini seçip
-**Paylaş → Budgy** demek mümkün. Metin ayrıştırılır, işlem dolu gelir.
-Apple Pay olmadan Türkiye'de çalışan tek yarı-otomatik yol.
-
-### 4.3 Kısayollar köprüsü · ORTA
-
-Şu an Budgy dışarıdan hiç çağrılamıyor: URL şeması yok, App Intent yok.
-`budgy://add?amount=450&note=Migros` desteği eklenince Eylem Düğmesi, arkaya
-çift dokunma, NFC etiketi ya da Kontrol Merkezi'nden tek dokunuşla dolu giriş
-ekranı açılır. Kazakistan'da Apple Pay olduğu için orada "İşlem" tetikleyicisi
-de çalışır.
-
-### 4.4 Paylaşılan cüzdan · BÜYÜK İŞ
-
-Çift ya da ev arkadaşları aynı cüzdanı görür. Firestore'daki her koleksiyonun
-alan kimliğine göre ayrılması gerekiyor — ayrı ve büyük bir iş, ama ücretli
-sürüm için en mantıklı özellik.
+| **Sessiz Firestore hataları** | `accounts` olayının asıl dersi: yazma reddedildiğinde kullanıcı hiçbir şey görmüyor. Repository'lerdeki `batch.commit()` çağrıları `permission-denied`'ı yakalayıp kullanıcıya göstermeli. |
 
 ---
 
 ## 5. Önerdiğim sıra
 
-Ucuz ve engelleyici olanlar önce; pahalı olanlar mağaza hesabı beklerken.
-
-1. **Firestore kurallarını yayınla** — beş dakika. Şu an tekrarlayan işlem ve otomasyon kuralı bozuk.
-2. **Yeni kurallar için test yaz** — yarım gün. Veri güvenliğinin son savunma hattı.
-3. **Apple Developer hesabını başlat** — onay bekleyecek, o yüzden erken başlat.
-4. **AI anahtarını sunucuya taşı** — ya proxy, ya da ilk sürümde o iki özelliği kapat.
-5. **Altı eski ekranı yenile** — ekran görüntülerini çekmeden önce, yoksa iki kez çekersin.
-6. **Mağaza evrakı** — gizlilik URL'si, veri formları, ekran görüntüleri, açıklama.
-7. **TestFlight ile kendi telefonunda kullan** — bir hafta gerçek kullanım, gönderimden önceki en iyi test.
-8. **Sonra fikirler** — banka bildirimi yakalama, paylaş uzantısı.
+1. **Özel domain + DNS kayıtları** — mail sorununu bitirir, DNS beklemesi olduğu için erken başlat (§3.1).
+2. **Apple Developer hesabını başlat** — onay bekleyecek, o yüzden erken.
+3. **AI anahtarını Cloud Functions'a taşı** — aynı Functions kurulumu ileride özel mail HTML'i için de kullanılır.
+4. **Kullanım Şartları ekranı** — yarım gün.
+5. **Sessiz Firestore hatalarını görünür yap** — `accounts` hatası bir daha yaşanmasın.
+6. **Altı eski ekranı yenile** — ekran görüntülerini çekmeden önce, yoksa iki kez çekersin.
+7. **Mağaza evrakı** — gizlilik URL'si, veri formları, ekran görüntüleri, açıklama.
+8. **TestFlight ile kendi telefonunda kullan** — bir hafta gerçek kullanım, gönderimden önceki en iyi test.
 
 ---
 
-*Bu denetim depodaki koddan çıkarıldı. Apple Developer hesabının durumu
-notlarımdan geliyor; değiştiyse o madde düşer.*
+*Bu denetim depodaki koddan ve 22 Eylül'de simülatörde alınan gerçek
+loglardan çıkarıldı. Apple Developer hesabının durumu notlarımdan geliyor;
+değiştiyse o madde düşer.*
