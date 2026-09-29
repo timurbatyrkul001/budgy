@@ -4,8 +4,9 @@ import 'l10n.dart';
 
 /// Yeni tasarımın (onboarding + ana ekran) metinleri. Büyük [Strings]
 /// sınıfını şişirmemek için ayrı tutuldu; dil yine uygulama dilinden gelir.
-final rsProvider =
-    Provider<RS>((ref) => RS.of(ref.watch(strProvider).localeCode));
+final rsProvider = Provider<RS>(
+  (ref) => RS.of(ref.watch(strProvider).localeCode),
+);
 
 class RS {
   const RS({
@@ -43,6 +44,10 @@ class RS {
     required this.currency,
     required this.save,
     required this.spentInTpl,
+    required this.summarySpent,
+    required this.summaryTop,
+    required this.summaryDaysTpl,
+    required this.shareSummary,
     required this.budgetEmpty,
     required this.setBudget,
     required this.monthlyBudget,
@@ -179,20 +184,54 @@ class RS {
     required this.paywallTitleAutomation,
     required this.paywallSubtitle,
     required this.paywallTrialTpl,
-    required this.paywallBenefitAnalytics,
-    required this.paywallBenefitScan,
-    required this.paywallBenefitVoice,
-    required this.paywallBenefitRecurring,
     required this.paywallMonthly,
     required this.paywallYearly,
     required this.paywallPerMonth,
     required this.paywallSaveTpl,
     required this.paywallBilledYearlyTpl,
     required this.paywallStartTrialTpl,
-    required this.paywallRestore,
     required this.paywallAutoRenew,
     required this.paywallTerms,
     required this.paywallSoon,
+    required this.paywallBrand,
+    required this.paywallProPill,
+    required this.paywallLifetime,
+    required this.paywallOneTime,
+    required this.paywallLifetimeNote,
+    required this.paywallBuyLifetimeTpl,
+    required this.paywallGroupInsights,
+    required this.paywallGroupEntry,
+    required this.paywallGroupAutomation,
+    required this.paywallGroupMoney,
+    required this.paywallAnalyticsTitle,
+    required this.paywallAnalyticsDesc,
+    required this.paywallShareTitle,
+    required this.paywallShareDesc,
+    required this.paywallAiCatTitle,
+    required this.paywallAiCatDesc,
+    required this.paywallScanTitle,
+    required this.paywallScanDesc,
+    required this.paywallVoiceTitle,
+    required this.paywallVoiceDesc,
+    required this.paywallQuickAddTitle,
+    required this.paywallQuickAddDesc,
+    required this.paywallBenefitsTitle,
+    required this.paywallGroupSpaces,
+    required this.paywallSoonBadge,
+    required this.paywallSpacesMultiTitle,
+    required this.paywallSpacesMultiDesc,
+    required this.paywallSpacesSharedTitle,
+    required this.paywallSpacesSharedDesc,
+    required this.paywallSpacesFamilyTitle,
+    required this.paywallSpacesFamilyDesc,
+    required this.paywallRecurringTitle,
+    required this.paywallRecurringDesc,
+    required this.paywallRulesTitle,
+    required this.paywallRulesDesc,
+    required this.paywallWalletsTitle,
+    required this.paywallWalletsDesc,
+    required this.paywallGoalsTitle,
+    required this.paywallGoalsDesc,
     required this.proLocked,
     required this.about,
     required this.versionTpl,
@@ -265,6 +304,10 @@ class RS {
   final String currency;
   final String save;
   final String spentInTpl;
+  final String summarySpent;
+  final String summaryTop;
+  final String summaryDaysTpl;
+  final String shareSummary;
   final String budgetEmpty;
   final String setBudget;
   final String monthlyBudget;
@@ -401,20 +444,54 @@ class RS {
   final String paywallTitleAutomation;
   final String paywallSubtitle;
   final String paywallTrialTpl;
-  final String paywallBenefitAnalytics;
-  final String paywallBenefitScan;
-  final String paywallBenefitVoice;
-  final String paywallBenefitRecurring;
   final String paywallMonthly;
   final String paywallYearly;
   final String paywallPerMonth;
   final String paywallSaveTpl;
   final String paywallBilledYearlyTpl;
   final String paywallStartTrialTpl;
-  final String paywallRestore;
   final String paywallAutoRenew;
   final String paywallTerms;
   final String paywallSoon;
+  final String paywallBrand;
+  final String paywallProPill;
+  final String paywallLifetime;
+  final String paywallOneTime;
+  final String paywallLifetimeNote;
+  final String paywallBuyLifetimeTpl;
+  final String paywallGroupInsights;
+  final String paywallGroupEntry;
+  final String paywallGroupAutomation;
+  final String paywallGroupMoney;
+  final String paywallAnalyticsTitle;
+  final String paywallAnalyticsDesc;
+  final String paywallShareTitle;
+  final String paywallShareDesc;
+  final String paywallAiCatTitle;
+  final String paywallAiCatDesc;
+  final String paywallScanTitle;
+  final String paywallScanDesc;
+  final String paywallVoiceTitle;
+  final String paywallVoiceDesc;
+  final String paywallQuickAddTitle;
+  final String paywallQuickAddDesc;
+  final String paywallBenefitsTitle;
+  final String paywallGroupSpaces;
+  final String paywallSoonBadge;
+  final String paywallSpacesMultiTitle;
+  final String paywallSpacesMultiDesc;
+  final String paywallSpacesSharedTitle;
+  final String paywallSpacesSharedDesc;
+  final String paywallSpacesFamilyTitle;
+  final String paywallSpacesFamilyDesc;
+  final String paywallRecurringTitle;
+  final String paywallRecurringDesc;
+  final String paywallRulesTitle;
+  final String paywallRulesDesc;
+  final String paywallWalletsTitle;
+  final String paywallWalletsDesc;
+  final String paywallGoalsTitle;
+  final String paywallGoalsDesc;
   final String proLocked;
   final String about;
   final String versionTpl;
@@ -453,10 +530,10 @@ class RS {
   final String pickIncomeSource;
 
   static RS of(String code) => switch (code) {
-        'tr' => tr,
-        'ru' => ru,
-        _ => en,
-      };
+    'tr' => tr,
+    'ru' => ru,
+    _ => en,
+  };
 
   static const en = RS(
     onbTitle: 'Welcome to Budgy',
@@ -464,11 +541,14 @@ class RS {
         'Log what you spend in seconds and always know where your money went.',
     getStarted: 'Get started',
     introFastTitle: 'Log it in seconds',
-    introFastSubtitle: 'Type the amount on the keypad, say it out loud, or scan the receipt.',
+    introFastSubtitle:
+        'Type the amount on the keypad, say it out loud, or scan the receipt.',
     introRulesTitle: 'Categories sort themselves',
-    introRulesSubtitleTpl: 'The merchant name picks the category: {n}+ built-in rules, plus any you add.',
+    introRulesSubtitleTpl:
+        'The merchant name picks the category: {n}+ built-in rules, plus any you add.',
     introBudgetTitle: 'Set a limit, watch the month',
-    introBudgetSubtitle: 'Weekly or monthly, split per category, and see where the money is going before it is gone.',
+    introBudgetSubtitle:
+        'Weekly or monthly, split per category, and see where the money is going before it is gone.',
     next: 'Next',
     haveAccount: 'I already have an account',
     currencyTitle: 'Which currency do you use?',
@@ -485,7 +565,8 @@ class RS {
     defaultWalletName: 'Personal',
     startingAmount: 'How much do you have now?',
     otherCurrencies: 'Other currencies',
-    otherCurrenciesHint: 'Have dollars or euros too? Add them as separate wallets.',
+    otherCurrenciesHint:
+        'Have dollars or euros too? Add them as separate wallets.',
     addCurrencyWallet: '+ Add a currency wallet',
     startingBalance: 'Starting balance',
     currencyWalletTpl: '{code} wallet',
@@ -496,6 +577,10 @@ class RS {
     currency: 'Currency',
     save: 'Save',
     spentInTpl: 'Spent in {month}',
+    summarySpent: 'Spent',
+    summaryTop: 'Top category',
+    summaryDaysTpl: '{n} days worked',
+    shareSummary: 'Share month summary',
     budgetEmpty: 'Set a monthly limit and see how much you can still spend.',
     setBudget: 'Set budget',
     monthlyBudget: 'Monthly budget',
@@ -552,7 +637,8 @@ class RS {
     reviewTitle: 'Needs a category',
     noCategory: 'No category',
     recurringTitle: 'Recurring',
-    recurringEmpty: 'No recurring transactions yet. Pick "Repeat" when adding one.',
+    recurringEmpty:
+        'No recurring transactions yet. Pick "Repeat" when adding one.',
     nextTpl: 'Next: {date}',
     delete: 'Delete',
     account: 'Account',
@@ -561,7 +647,8 @@ class RS {
     budgetTitle: 'Budget',
     analyticsTitle: 'Analytics',
     noBudget: 'No budget set',
-    noBudgetSub: 'Set a limit for the week or month and Budgy will show how much is still safe to spend.',
+    noBudgetSub:
+        'Set a limit for the week or month and Budgy will show how much is still safe to spend.',
     createBudget: 'Create budget',
     editBudget: 'Edit budget',
     budgetAmountHint: 'How much can you spend this period?',
@@ -577,7 +664,8 @@ class RS {
     suggestHint: 'Split the budget by your recent spending.',
     skip: 'Skip',
     weeklyBudget: 'Weekly budget',
-    noCategoriesYet: 'No expense categories yet — pick one when logging an expense.',
+    noCategoriesYet:
+        'No expense categories yet — pick one when logging an expense.',
     overAllocated: 'Over budget',
     spentOfTpl: '{spent} of {total}',
     allCategories: 'All categories',
@@ -602,7 +690,8 @@ class RS {
     helpSection: 'Help',
     categories: 'Categories',
     automation: 'Category automation',
-    automationHint: 'When you save an expense without a category, keywords in the note pick one for you. Your own rules run first.',
+    automationHint:
+        'When you save an expense without a category, keywords in the note pick one for you. Your own rules run first.',
     builtinRulesTpl: 'Built-in rules ({n})',
     yourRules: 'Your rules',
     addKeyword: '+ Add keyword',
@@ -619,7 +708,8 @@ class RS {
     exportCsv: 'Export transactions (CSV)',
     exportCsvHint: 'Date, type, amount, currency, category, note, account.',
     deleteAllData: 'Delete all data',
-    deleteAllDataHint: 'Removes every transaction, category, wallet and setting. Your account stays.',
+    deleteAllDataHint:
+        'Removes every transaction, category, wallet and setting. Your account stays.',
     deleteAllDataConfirm: 'Delete everything? This cannot be undone.',
     deleteAllDataConfirm2: 'Last check — really delete all data?',
     deleteAllDone: 'All data deleted',
@@ -629,22 +719,62 @@ class RS {
     paywallTitleAnalytics: 'Unlock your spending analytics',
     paywallTitleAi: 'Let Budgy read your receipts',
     paywallTitleAutomation: 'Put your entries on autopilot',
-    paywallSubtitle: 'Budgy Pro turns what you enter into answers: where the money goes, and what to do about it.',
+    paywallSubtitle:
+        'Budgy Pro turns what you enter into answers: where the money goes, and what to do about it.',
     paywallTrialTpl: '{days}-day free trial',
-    paywallBenefitAnalytics: 'Full analytics — trends, category breakdown, insights',
-    paywallBenefitScan: 'Scan a receipt, get the expense filled in',
-    paywallBenefitVoice: 'Say it out loud instead of typing',
-    paywallBenefitRecurring: 'Recurring entries and category rules',
     paywallMonthly: 'Monthly',
     paywallYearly: 'Yearly',
-    paywallPerMonth: 'per month',
+    paywallPerMonth: 'mo',
     paywallSaveTpl: '−{n}%',
-    paywallBilledYearlyTpl: 'Billed once a year — {price}',
+    paywallBilledYearlyTpl: '({price} a year)',
     paywallStartTrialTpl: 'Start {days} free days',
-    paywallRestore: 'Restore purchases',
-    paywallAutoRenew: 'Renews automatically until you cancel in the App Store or Google Play.',
+    paywallAutoRenew:
+        'Renews automatically until you cancel in the App Store or Google Play.',
     paywallTerms: 'Terms of use',
     paywallSoon: 'Subscriptions aren\'t live yet — coming soon.',
+    paywallBrand: 'Budgy',
+    paywallProPill: 'Pro',
+    paywallLifetime: 'Lifetime',
+    paywallOneTime: 'One-time',
+    paywallLifetimeNote: 'One-time payment. No subscription, no renewals.',
+    paywallBuyLifetimeTpl: 'Get lifetime for {price}',
+    paywallGroupInsights: 'Insights',
+    paywallGroupEntry: 'Effortless entry',
+    paywallGroupAutomation: 'Automation',
+    paywallGroupMoney: 'Money',
+    paywallAnalyticsTitle: 'Spending analytics',
+    paywallAnalyticsDesc:
+        'Category breakdown each month and month-over-month comparison',
+    paywallShareTitle: 'Month summary sharing',
+    paywallShareDesc: 'Share your month as a card to your story',
+    paywallAiCatTitle: 'AI categorization',
+    paywallAiCatDesc: 'Guesses the category from the merchant name',
+    paywallScanTitle: 'Receipt scan',
+    paywallScanDesc: 'Snap a receipt and the entry fills itself',
+    paywallVoiceTitle: 'Voice input',
+    paywallVoiceDesc: 'Say the expense instead of typing it',
+    paywallQuickAddTitle: 'Quick-add mode',
+    paywallQuickAddDesc: 'Keep the sheet open and log a whole week in one go',
+    paywallBenefitsTitle: 'Benefits',
+    paywallGroupSpaces: 'Spaces & sharing',
+    paywallSoonBadge: 'Soon',
+    paywallSpacesMultiTitle: 'Multiple spaces',
+    paywallSpacesMultiDesc:
+        'Separate personal, business and travel — nothing mixes',
+    paywallSpacesSharedTitle: 'Shared spaces',
+    paywallSpacesSharedDesc:
+        'See every shared expense in one place, in real time',
+    paywallSpacesFamilyTitle: 'Family sharing',
+    paywallSpacesFamilyDesc:
+        'One subscription, shared with up to 5 family members',
+    paywallRecurringTitle: 'Recurring rules',
+    paywallRecurringDesc: 'Rent, subscriptions and salary logged on schedule',
+    paywallRulesTitle: 'Category automation',
+    paywallRulesDesc: 'Keyword → category rules that apply as you type',
+    paywallWalletsTitle: 'Multi-currency wallets',
+    paywallWalletsDesc: 'Wallets in any currency, converted at live rates',
+    paywallGoalsTitle: 'Goals & savings',
+    paywallGoalsDesc: 'Set targets and watch your savings grow',
     proLocked: 'Included in Budgy Pro',
     termsUpdated: 'Last updated 22 September 2026',
     about: 'About',
@@ -665,7 +795,8 @@ class RS {
     minutesAgoTpl: '{n} min ago',
     hoursAgoTpl: '{n} h ago',
     daysAgoTpl: '{n} d ago',
-    ratesOffline: 'No rates yet — connect to the internet once to download them.',
+    ratesOffline:
+        'No rates yet — connect to the internet once to download them.',
     selectCurrency: 'Select currency',
     suggested: 'Suggested',
     allCurrencies: 'All currencies',
@@ -692,9 +823,11 @@ class RS {
     introFastTitle: 'Saniyeler içinde kaydet',
     introFastSubtitle: 'Tutarı tuş takımına yaz, sesle söyle ya da fişi tara.',
     introRulesTitle: 'Kategori kendiliğinden gelir',
-    introRulesSubtitleTpl: 'İşletme adı kategoriyi seçer: {n}+ yerleşik kural, üstüne kendi kuralların.',
+    introRulesSubtitleTpl:
+        'İşletme adı kategoriyi seçer: {n}+ yerleşik kural, üstüne kendi kuralların.',
     introBudgetTitle: 'Sınır koy, ayı izle',
-    introBudgetSubtitle: 'Haftalık ya da aylık, kategoriye böl; para bitmeden nereye gittiğini gör.',
+    introBudgetSubtitle:
+        'Haftalık ya da aylık, kategoriye böl; para bitmeden nereye gittiğini gör.',
     next: 'İleri',
     haveAccount: 'Zaten hesabım var',
     currencyTitle: 'Hangi para birimini kullanıyorsun?',
@@ -711,7 +844,8 @@ class RS {
     defaultWalletName: 'Kişisel',
     startingAmount: 'Şu an ne kadar var?',
     otherCurrencies: 'Diğer para birimlerin',
-    otherCurrenciesHint: 'Doların ya da euron da mı var? Ayrı cüzdan olarak ekle.',
+    otherCurrenciesHint:
+        'Doların ya da euron da mı var? Ayrı cüzdan olarak ekle.',
     addCurrencyWallet: '+ Döviz cüzdanı ekle',
     startingBalance: 'Başlangıç bakiyesi',
     currencyWalletTpl: '{code} cüzdanı',
@@ -722,6 +856,10 @@ class RS {
     currency: 'Para birimi',
     save: 'Kaydet',
     spentInTpl: '{month} ayında harcanan',
+    summarySpent: 'Harcandı',
+    summaryTop: 'En çok',
+    summaryDaysTpl: '{n} gün çalışıldı',
+    shareSummary: 'Ay özetini paylaş',
     budgetEmpty: 'Aylık bir sınır koy, daha ne kadar harcayabileceğini gör.',
     setBudget: 'Bütçe koy',
     monthlyBudget: 'Aylık bütçe',
@@ -779,7 +917,8 @@ class RS {
     reviewTitle: 'Kategori bekleyenler',
     noCategory: 'Kategorisiz',
     recurringTitle: 'Tekrarlayan işlemler',
-    recurringEmpty: 'Henüz tekrarlayan işlem yok. İşlem eklerken "Tekrar"ı seç.',
+    recurringEmpty:
+        'Henüz tekrarlayan işlem yok. İşlem eklerken "Tekrar"ı seç.',
     nextTpl: 'Sıradaki: {date}',
     delete: 'Sil',
     account: 'Hesap',
@@ -788,7 +927,8 @@ class RS {
     budgetTitle: 'Bütçe',
     analyticsTitle: 'Analiz',
     noBudget: 'Bütçe yok',
-    noBudgetSub: 'Hafta ya da ay için bir sınır koy; Budgy daha ne kadar harcayabileceğini göstersin.',
+    noBudgetSub:
+        'Hafta ya da ay için bir sınır koy; Budgy daha ne kadar harcayabileceğini göstersin.',
     createBudget: 'Bütçe oluştur',
     editBudget: 'Bütçeyi düzenle',
     budgetAmountHint: 'Bu dönemde ne kadar harcayabilirsin?',
@@ -804,7 +944,8 @@ class RS {
     suggestHint: 'Bütçeyi son harcamalarına göre dağıt.',
     skip: 'Atla',
     weeklyBudget: 'Haftalık bütçe',
-    noCategoriesYet: 'Henüz harcama kategorisi yok — harcama girerken seçebilirsin.',
+    noCategoriesYet:
+        'Henüz harcama kategorisi yok — harcama girerken seçebilirsin.',
     overAllocated: 'Bütçeyi aşıyor',
     spentOfTpl: '{spent} / {total}',
     allCategories: 'Tüm kategoriler',
@@ -829,7 +970,8 @@ class RS {
     helpSection: 'Yardım',
     categories: 'Kategoriler',
     automation: 'Kategori otomasyonu',
-    automationHint: 'Kategorisiz bir harcama kaydettiğinde nottaki anahtar kelimeler kategoriyi senin yerine seçer. Önce kendi kuralların çalışır.',
+    automationHint:
+        'Kategorisiz bir harcama kaydettiğinde nottaki anahtar kelimeler kategoriyi senin yerine seçer. Önce kendi kuralların çalışır.',
     builtinRulesTpl: 'Yerleşik kurallar ({n})',
     yourRules: 'Kuralların',
     addKeyword: '+ Anahtar kelime ekle',
@@ -846,7 +988,8 @@ class RS {
     exportCsv: 'İşlemleri dışa aktar (CSV)',
     exportCsvHint: 'Tarih, tür, tutar, para birimi, kategori, not, hesap.',
     deleteAllData: 'Tüm verileri sil',
-    deleteAllDataHint: 'Tüm işlemleri, kategorileri, cüzdanları ve ayarları kaldırır. Hesabın kalır.',
+    deleteAllDataHint:
+        'Tüm işlemleri, kategorileri, cüzdanları ve ayarları kaldırır. Hesabın kalır.',
     deleteAllDataConfirm: 'Her şey silinsin mi? Geri alınamaz.',
     deleteAllDataConfirm2: 'Son kontrol — tüm veriler gerçekten silinsin mi?',
     deleteAllDone: 'Tüm veriler silindi',
@@ -856,22 +999,60 @@ class RS {
     paywallTitleAnalytics: 'Harcama analizini aç',
     paywallTitleAi: 'Fişlerini Budgy okusun',
     paywallTitleAutomation: 'Girişleri otomatiğe bağla',
-    paywallSubtitle: 'Budgy Pro, girdiklerini cevaba çevirir: para nereye gidiyor ve ne yapmalısın.',
+    paywallSubtitle:
+        'Budgy Pro, girdiklerini cevaba çevirir: para nereye gidiyor ve ne yapmalısın.',
     paywallTrialTpl: '{days} gün ücretsiz deneme',
-    paywallBenefitAnalytics: 'Tam analiz — trendler, kategori dağılımı, içgörüler',
-    paywallBenefitScan: 'Fişi tara, harcama kendiliğinden dolsun',
-    paywallBenefitVoice: 'Yazmak yerine sesle söyle',
-    paywallBenefitRecurring: 'Tekrarlayan işlemler ve kategori kuralları',
     paywallMonthly: 'Aylık',
     paywallYearly: 'Yıllık',
-    paywallPerMonth: 'ayda',
+    paywallPerMonth: 'ay',
     paywallSaveTpl: '−{n}%',
-    paywallBilledYearlyTpl: 'Yılda bir kez — {price}',
+    paywallBilledYearlyTpl: '(yılda {price})',
     paywallStartTrialTpl: '{days} gün ücretsiz başla',
-    paywallRestore: 'Satın alımları geri yükle',
-    paywallAutoRenew: 'App Store ya da Google Play\'den iptal edene kadar otomatik yenilenir.',
+    paywallAutoRenew:
+        'App Store ya da Google Play\'den iptal edene kadar otomatik yenilenir.',
     paywallTerms: 'Kullanım şartları',
     paywallSoon: 'Abonelik henüz açık değil — çok yakında.',
+    paywallBrand: 'Budgy',
+    paywallProPill: 'Pro',
+    paywallLifetime: 'Ömür boyu',
+    paywallOneTime: 'Tek seferlik',
+    paywallLifetimeNote: 'Tek seferlik ödeme. Abonelik yok, yenileme yok.',
+    paywallBuyLifetimeTpl: 'Ömür boyu al — {price}',
+    paywallGroupInsights: 'İçgörüler',
+    paywallGroupEntry: 'Zahmetsiz giriş',
+    paywallGroupAutomation: 'Otomasyon',
+    paywallGroupMoney: 'Para',
+    paywallAnalyticsTitle: 'Harcama analizi',
+    paywallAnalyticsDesc: 'Aylık kategori dağılımı ve ay ay karşılaştırma',
+    paywallShareTitle: 'Ay özetini paylaş',
+    paywallShareDesc: 'Ayını kart olarak hikâyene at',
+    paywallAiCatTitle: 'Yapay zekâ ile kategori',
+    paywallAiCatDesc: 'Satıcı adından kategoriyi tahmin eder',
+    paywallScanTitle: 'Fiş tarama',
+    paywallScanDesc: 'Fişi çek, işlem kendiliğinden dolsun',
+    paywallVoiceTitle: 'Sesli giriş',
+    paywallVoiceDesc: 'Yazmak yerine harcamayı söyle',
+    paywallQuickAddTitle: 'Hızlı ekleme kipi',
+    paywallQuickAddDesc:
+        'Ekran kapanmadan arka arkaya gir, bir haftayı tek seferde yaz',
+    paywallBenefitsTitle: 'Neler var',
+    paywallGroupSpaces: 'Alanlar ve paylaşım',
+    paywallSoonBadge: 'Yakında',
+    paywallSpacesMultiTitle: 'Birden fazla alan',
+    paywallSpacesMultiDesc:
+        'Kişisel, iş ve seyahat ayrı dursun — hiçbiri karışmaz',
+    paywallSpacesSharedTitle: 'Paylaşımlı alan',
+    paywallSpacesSharedDesc: 'Ortak harcamaların hepsi tek yerde, anlık olarak',
+    paywallSpacesFamilyTitle: 'Aile paylaşımı',
+    paywallSpacesFamilyDesc: 'Tek abonelik, 5 aile üyesine kadar paylaşılır',
+    paywallRecurringTitle: 'Tekrarlayan işlemler',
+    paywallRecurringDesc: 'Kira, abonelik ve maaş zamanında işlensin',
+    paywallRulesTitle: 'Kategori otomasyonu',
+    paywallRulesDesc: 'Anahtar kelime → kategori kuralları, yazarken uygulanır',
+    paywallWalletsTitle: 'Döviz cüzdanları',
+    paywallWalletsDesc: 'İstediğin para biriminde cüzdan, canlı kurla çevrim',
+    paywallGoalsTitle: 'Hedefler ve birikim',
+    paywallGoalsDesc: 'Hedef koy, birikimin büyüsün',
     proLocked: 'Budgy Pro\'ya dahil',
     termsUpdated: 'Son güncelleme 22 Eylül 2026',
     about: 'Hakkında',
@@ -913,15 +1094,17 @@ class RS {
 
   static const ru = RS(
     onbTitle: 'Добро пожаловать в Budgy',
-    onbSubtitle:
-        'Записывай траты за секунды и всегда знай, куда ушли деньги.',
+    onbSubtitle: 'Записывай траты за секунды и всегда знай, куда ушли деньги.',
     getStarted: 'Начать',
     introFastTitle: 'Записывай за секунды',
-    introFastSubtitle: 'Введи сумму на клавиатуре, скажи вслух или отсканируй чек.',
+    introFastSubtitle:
+        'Введи сумму на клавиатуре, скажи вслух или отсканируй чек.',
     introRulesTitle: 'Категории проставляются сами',
-    introRulesSubtitleTpl: 'Категорию подбирает название магазина: {n}+ встроенных правил и твои собственные.',
+    introRulesSubtitleTpl:
+        'Категорию подбирает название магазина: {n}+ встроенных правил и твои собственные.',
     introBudgetTitle: 'Поставь лимит и следи за месяцем',
-    introBudgetSubtitle: 'На неделю или месяц, по категориям — и видно, куда уходят деньги, пока они не кончились.',
+    introBudgetSubtitle:
+        'На неделю или месяц, по категориям — и видно, куда уходят деньги, пока они не кончились.',
     next: 'Далее',
     haveAccount: 'У меня уже есть аккаунт',
     currencyTitle: 'Какой валютой пользуешься?',
@@ -938,7 +1121,8 @@ class RS {
     defaultWalletName: 'Личное',
     startingAmount: 'Сколько у тебя сейчас?',
     otherCurrencies: 'Другие валюты',
-    otherCurrenciesHint: 'Есть доллары или евро? Добавь их отдельными кошельками.',
+    otherCurrenciesHint:
+        'Есть доллары или евро? Добавь их отдельными кошельками.',
     addCurrencyWallet: '+ Добавить валютный кошелёк',
     startingBalance: 'Начальный баланс',
     currencyWalletTpl: 'Кошелёк {code}',
@@ -949,6 +1133,10 @@ class RS {
     currency: 'Валюта',
     save: 'Сохранить',
     spentInTpl: 'Потрачено за {month}',
+    summarySpent: 'Потрачено',
+    summaryTop: 'Больше всего',
+    summaryDaysTpl: 'отработано {n} дн.',
+    shareSummary: 'Поделиться итогами месяца',
     budgetEmpty:
         'Поставь лимит на месяц и смотри, сколько ещё можно потратить.',
     setBudget: 'Задать',
@@ -1006,7 +1194,8 @@ class RS {
     reviewTitle: 'Ждут категорию',
     noCategory: 'Без категории',
     recurringTitle: 'Повторяющиеся',
-    recurringEmpty: 'Повторяющихся операций пока нет. Выбери «Повтор» при добавлении.',
+    recurringEmpty:
+        'Повторяющихся операций пока нет. Выбери «Повтор» при добавлении.',
     nextTpl: 'Следующая: {date}',
     delete: 'Удалить',
     account: 'Счёт',
@@ -1015,7 +1204,8 @@ class RS {
     budgetTitle: 'Бюджет',
     analyticsTitle: 'Аналитика',
     noBudget: 'Бюджет не задан',
-    noBudgetSub: 'Задай лимит на неделю или месяц — Budgy покажет, сколько ещё можно тратить.',
+    noBudgetSub:
+        'Задай лимит на неделю или месяц — Budgy покажет, сколько ещё можно тратить.',
     createBudget: 'Создать бюджет',
     editBudget: 'Изменить бюджет',
     budgetAmountHint: 'Сколько можно тратить за период?',
@@ -1056,7 +1246,8 @@ class RS {
     helpSection: 'Помощь',
     categories: 'Категории',
     automation: 'Автокатегории',
-    automationHint: 'Когда трата сохраняется без категории, ключевые слова в заметке подберут её. Твои правила проверяются первыми.',
+    automationHint:
+        'Когда трата сохраняется без категории, ключевые слова в заметке подберут её. Твои правила проверяются первыми.',
     builtinRulesTpl: 'Встроенные правила ({n})',
     yourRules: 'Твои правила',
     addKeyword: '+ Добавить слово',
@@ -1073,7 +1264,8 @@ class RS {
     exportCsv: 'Экспорт операций (CSV)',
     exportCsvHint: 'Дата, тип, сумма, валюта, категория, заметка, счёт.',
     deleteAllData: 'Удалить все данные',
-    deleteAllDataHint: 'Удалит все операции, категории, кошельки и настройки. Аккаунт останется.',
+    deleteAllDataHint:
+        'Удалит все операции, категории, кошельки и настройки. Аккаунт останется.',
     deleteAllDataConfirm: 'Удалить всё? Это нельзя отменить.',
     deleteAllDataConfirm2: 'Последняя проверка — точно удалить все данные?',
     deleteAllDone: 'Все данные удалены',
@@ -1083,22 +1275,60 @@ class RS {
     paywallTitleAnalytics: 'Открой аналитику расходов',
     paywallTitleAi: 'Пусть Budgy читает чеки',
     paywallTitleAutomation: 'Переведи записи на автопилот',
-    paywallSubtitle: 'Budgy Pro превращает записи в ответы: куда уходят деньги и что с этим делать.',
+    paywallSubtitle:
+        'Budgy Pro превращает записи в ответы: куда уходят деньги и что с этим делать.',
     paywallTrialTpl: '{days} дней бесплатно',
-    paywallBenefitAnalytics: 'Полная аналитика — тренды, разбивка по категориям, выводы',
-    paywallBenefitScan: 'Сканируй чек — расход заполнится сам',
-    paywallBenefitVoice: 'Скажи вслух вместо того, чтобы печатать',
-    paywallBenefitRecurring: 'Повторяющиеся операции и правила категорий',
     paywallMonthly: 'Месяц',
     paywallYearly: 'Год',
-    paywallPerMonth: 'в месяц',
+    paywallPerMonth: 'мес.',
     paywallSaveTpl: '−{n}%',
-    paywallBilledYearlyTpl: 'Списывается раз в год — {price}',
+    paywallBilledYearlyTpl: '({price} в год)',
     paywallStartTrialTpl: 'Начать {days} бесплатных дней',
-    paywallRestore: 'Восстановить покупки',
-    paywallAutoRenew: 'Продлевается автоматически, пока не отменишь в App Store или Google Play.',
+    paywallAutoRenew:
+        'Продлевается автоматически, пока не отменишь в App Store или Google Play.',
     paywallTerms: 'Условия использования',
     paywallSoon: 'Подписка ещё не запущена — скоро.',
+    paywallBrand: 'Budgy',
+    paywallProPill: 'Pro',
+    paywallLifetime: 'Навсегда',
+    paywallOneTime: 'Разово',
+    paywallLifetimeNote: 'Разовый платёж. Без подписки и продлений.',
+    paywallBuyLifetimeTpl: 'Купить навсегда за {price}',
+    paywallGroupInsights: 'Аналитика',
+    paywallGroupEntry: 'Лёгкий ввод',
+    paywallGroupAutomation: 'Автоматизация',
+    paywallGroupMoney: 'Деньги',
+    paywallAnalyticsTitle: 'Аналитика расходов',
+    paywallAnalyticsDesc: 'Разбивка по категориям за месяц и сравнение месяцев',
+    paywallShareTitle: 'Итоги месяца',
+    paywallShareDesc: 'Поделись месяцем как карточкой в сторис',
+    paywallAiCatTitle: 'Категория от ИИ',
+    paywallAiCatDesc: 'Угадывает категорию по названию продавца',
+    paywallScanTitle: 'Скан чека',
+    paywallScanDesc: 'Сфотографируй чек — запись заполнится сама',
+    paywallVoiceTitle: 'Голосовой ввод',
+    paywallVoiceDesc: 'Скажи расход вместо того, чтобы печатать',
+    paywallQuickAddTitle: 'Быстрый ввод',
+    paywallQuickAddDesc: 'Окно не закрывается — внеси всю неделю подряд',
+    paywallBenefitsTitle: 'Что входит',
+    paywallGroupSpaces: 'Пространства и доступ',
+    paywallSoonBadge: 'Скоро',
+    paywallSpacesMultiTitle: 'Несколько пространств',
+    paywallSpacesMultiDesc: 'Личное, работа и поездки — ничего не смешивается',
+    paywallSpacesSharedTitle: 'Общее пространство',
+    paywallSpacesSharedDesc:
+        'Все общие расходы в одном месте, в реальном времени',
+    paywallSpacesFamilyTitle: 'Семейный доступ',
+    paywallSpacesFamilyDesc: 'Одна подписка на 5 членов семьи',
+    paywallRecurringTitle: 'Повторяющиеся операции',
+    paywallRecurringDesc:
+        'Аренда, подписки и зарплата записываются по расписанию',
+    paywallRulesTitle: 'Автокатегории',
+    paywallRulesDesc: 'Правила «ключевое слово → категория» при вводе',
+    paywallWalletsTitle: 'Мультивалютные кошельки',
+    paywallWalletsDesc: 'Кошельки в любой валюте, пересчёт по живому курсу',
+    paywallGoalsTitle: 'Цели и накопления',
+    paywallGoalsDesc: 'Ставь цели и смотри, как растут накопления',
     proLocked: 'Входит в Budgy Pro',
     termsUpdated: 'Обновлено 22 сентября 2026',
     about: 'О приложении',
@@ -1119,7 +1349,8 @@ class RS {
     minutesAgoTpl: '{n} мин назад',
     hoursAgoTpl: '{n} ч назад',
     daysAgoTpl: '{n} дн назад',
-    ratesOffline: 'Курсов пока нет — подключись к интернету один раз, чтобы загрузить.',
+    ratesOffline:
+        'Курсов пока нет — подключись к интернету один раз, чтобы загрузить.',
     selectCurrency: 'Выбор валюты',
     suggested: 'Рекомендуемые',
     allCurrencies: 'Все валюты',

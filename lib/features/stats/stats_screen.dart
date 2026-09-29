@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../insights/month_summary_card.dart';
 import '../../core/category_avatar.dart';
 import '../../core/ex_style.dart';
 import '../../core/formatters.dart';
@@ -207,6 +208,14 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
                       ),
                     ),
                   ),
+                  // Ay özetini paylaş — kart PNG olarak üretilip paylaşıma
+                  // verilir. Boş ayda düğme hiç görünmüyor: sönük bir düğme
+                  // "neden çalışmıyor" sorusunu doğurur, olmayan düğme değil.
+                  if (ref.watch(monthSummaryProvider).hasContent)
+                    GlassSquareButton(
+                      icon: Icons.ios_share_rounded,
+                      onTap: () => shareMonthSummary(context, ref),
+                    ),
                 ],
               ),
               const SizedBox(height: 14),
