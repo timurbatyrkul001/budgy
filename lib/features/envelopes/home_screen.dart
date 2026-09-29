@@ -24,6 +24,8 @@ import '../settings/settings_hub.dart';
 import '../reminders/reminders_repository.dart';
 import '../space/space.dart';
 import '../stats/stats_screen.dart';
+import '../pro/pro_gate.dart';
+import '../pro/pro_state.dart';
 import '../transactions/ai_add_sheet.dart';
 import '../transactions/category_sheet.dart';
 import '../transactions/journal_screen.dart';
@@ -1175,14 +1177,24 @@ class _Dock extends ConsumerWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _DockButton(
-                size: 46,
-                color: Ex.surfaceHi,
-                onTap: () => startReceiptScan(context, ref),
-                child: const Icon(
-                  Icons.document_scanner_outlined,
-                  size: 22,
-                  color: Ex.text,
+              // Fiş tarama ve sesli giriş Pro: düğmeler herkese görünür
+              // (gizlenen özellik satılamaz), Pro değilse rozet taşır ve
+              // basınca paywall açılır. AI çağrısı Pro olmadan hiç yapılmaz.
+              ProBadged(
+                child: _DockButton(
+                  size: 46,
+                  color: Ex.surfaceHi,
+                  onTap: () async {
+                    if (!await requirePro(context, ref, ProFeature.aiEntry)) {
+                      return;
+                    }
+                    if (context.mounted) startReceiptScan(context, ref);
+                  },
+                  child: const Icon(
+                    Icons.document_scanner_outlined,
+                    size: 22,
+                    color: Ex.text,
+                  ),
                 ),
               ),
               const SizedBox(width: 26),
@@ -1197,11 +1209,22 @@ class _Dock extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: 26),
-              _DockButton(
-                size: 46,
-                color: Ex.surfaceHi,
-                onTap: () => showAiAdd(context),
-                child: const Icon(Icons.mic_rounded, size: 22, color: Ex.text),
+              ProBadged(
+                child: _DockButton(
+                  size: 46,
+                  color: Ex.surfaceHi,
+                  onTap: () async {
+                    if (!await requirePro(context, ref, ProFeature.aiEntry)) {
+                      return;
+                    }
+                    if (context.mounted) showAiAdd(context);
+                  },
+                  child: const Icon(
+                    Icons.mic_rounded,
+                    size: 22,
+                    color: Ex.text,
+                  ),
+                ),
               ),
             ],
           ),

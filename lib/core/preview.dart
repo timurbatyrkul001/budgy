@@ -3,12 +3,16 @@ import 'package:flutter/foundation.dart';
 /// Debug önizleme anahtarları — ekran görüntüsü / tasarım kontrolü için,
 /// veriye dokunmadan. Hepsi `--dart-define` ile ve yalnız debug'da.
 ///
-/// * PREVIEW_ONBOARDING=true [PREVIEW_STEP=0..5] — onboarding.
+/// * PREVIEW_ONBOARDING=true [PREVIEW_STEP=0..5] — onboarding;
+///   PREVIEW_AUTOPLAY=true açılan adım 1,6 s sonra kendiliğinden ilerler
+///   (sayfa geçişini kare kare görmek için).
 /// * PREVIEW_HOME=true — ana ekran, örnek veriyle (bkz. preview_home.dart).
 /// * PREVIEW_QUICK_ENTRY=true — ana ekran açılınca "+" ekranı otomatik
 ///   açılır; PREVIEW_QUICK_ENTRY_AMOUNT="2000" tutarı yazar,
 ///   PREVIEW_QUICK_ENTRY_SHEET=category|recurrence|date ilgili sayfayı açar.
 /// * PREVIEW_HOME_TOAST=true — ana ekranda "Kaydedildi · Geri al" çipi.
+const kPreviewOnboardingAutoplay =
+    kDebugMode && bool.fromEnvironment('PREVIEW_AUTOPLAY');
 const kPreviewQuickEntry =
     kDebugMode && bool.fromEnvironment('PREVIEW_QUICK_ENTRY');
 const kPreviewQuickEntryAmount =
@@ -27,7 +31,7 @@ const kPreviewAnalytics =
 const kPreviewAnalyticsOffset =
     int.fromEnvironment('PREVIEW_ANALYTICS_OFFSET');
 
-/// PREVIEW_SETTINGS=hub|categories|automation|automationCat|tags|data
+/// PREVIEW_SETTINGS=hub|categories|automation|recurring|automationCat|tags|data
 /// |newCategory|newCategoryFilled|sectionPicker.
 const kPreviewSettings = String.fromEnvironment('PREVIEW_SETTINGS');
 

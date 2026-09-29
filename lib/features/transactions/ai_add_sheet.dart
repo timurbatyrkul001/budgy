@@ -85,7 +85,8 @@ class _AiAddSheetState extends ConsumerState<_AiAddSheet> {
     }
     setState(() => _listening = true);
     // Konuşma dili: Ayarlar → Sesli giriş dili; yoksa uygulama dili.
-    final localeId = ref.read(voiceLocaleProvider) ??
+    final localeId =
+        ref.read(voiceLocaleProvider) ??
         voiceLocaleFor(ref.read(strProvider).localeCode);
     await _speech.listen(
       listenOptions: SpeechListenOptions(
@@ -163,17 +164,30 @@ class _AiAddSheetState extends ConsumerState<_AiAddSheet> {
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
-          20, 16, 20, MediaQuery.of(context).viewInsets.bottom + 20),
+        20,
+        16,
+        20,
+        MediaQuery.of(context).viewInsets.bottom + 20,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Text(str.aiAddTitle,
+              // Esnek: dar ekranda (320dp) başlık + "Detaylı giriş" düğmesi
+              // sığmıyordu; başlık kısalır, düğme yerinde kalır.
+              Expanded(
+                child: Text(
+                  str.aiAddTitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.w800)),
-              const Spacer(),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
               TextButton(
                 onPressed: () {
                   Navigator.of(context).pop();
@@ -202,15 +216,18 @@ class _AiAddSheetState extends ConsumerState<_AiAddSheet> {
                   textInputAction: TextInputAction.done,
                   onSubmitted: (_) => _parse(),
                   style: const TextStyle(
-                      fontSize: 15, fontWeight: FontWeight.w600),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
                   decoration: InputDecoration(
                     hintText: str.aiInputHint,
-                    hintStyle:
-                        TextStyle(fontSize: 14, color: c.textFaint),
+                    hintStyle: TextStyle(fontSize: 14, color: c.textFaint),
                     filled: true,
                     fillColor: c.surface2,
                     contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 12),
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
                       borderSide: BorderSide.none,
@@ -270,19 +287,20 @@ class _AiAddSheetState extends ConsumerState<_AiAddSheet> {
                 disabledBackgroundColor: c.accent.withValues(alpha: 0.4),
                 minimumSize: const Size.fromHeight(56),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30)),
+                  borderRadius: BorderRadius.circular(30),
+                ),
               ),
               onPressed: _saving || _parsing
                   ? null
                   : _items.isEmpty
-                      ? _parse
-                      : _saveAll,
+                  ? _parse
+                  : _saveAll,
               child: Text(
                 _saving
                     ? '...'
                     : _items.isEmpty
-                        ? str.aiParseAction
-                        : tpl(str.aiSaveAllTpl, {'n': '${_items.length}'}),
+                    ? str.aiParseAction
+                    : tpl(str.aiSaveAllTpl, {'n': '${_items.length}'}),
               ),
             ),
           ),
@@ -331,14 +349,18 @@ class _ItemCard extends ConsumerWidget {
                 Text(
                   '${isIncome ? '+' : '−'}${formatMoney(item.amount)}',
                   style: const TextStyle(
-                      fontSize: 15, fontWeight: FontWeight.w800),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
                 if (item.note.isNotEmpty || item.envelopeName != null)
                   Text(
                     [
                       if (item.note.isNotEmpty) item.note,
-                      if (item.envelopeName != null) item.envelopeName!
-                      else if (!isIncome) str.withoutEnvelope,
+                      if (item.envelopeName != null)
+                        item.envelopeName!
+                      else if (!isIncome)
+                        str.withoutEnvelope,
                     ].join(' · '),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,

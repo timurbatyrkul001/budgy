@@ -9,6 +9,7 @@ import '../envelopes/budget_repository.dart';
 import '../budget/budget_period.dart';
 import '../budget/budget_screen.dart';
 import '../automation/automation_screen.dart';
+import '../recurring/recurring_screen.dart';
 import '../categories/categories_screen.dart';
 import '../../core/l10n.dart';
 import '../transactions/journal_screen.dart';
@@ -40,18 +41,22 @@ class _RootScreenState extends ConsumerState<RootScreen> {
     super.initState();
     // Debug önizlemesi: "+" ekranını (ve istenen alt sayfayı) otomatik aç.
     if (kPreviewQuickEntry) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => showQuickEntry(
-            context,
-            initialExpression: kPreviewQuickEntryAmount,
-            autoSheet:
-                kPreviewQuickEntrySheet.isEmpty ? null : kPreviewQuickEntrySheet,
-          ));
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => showQuickEntry(
+          context,
+          initialExpression: kPreviewQuickEntryAmount,
+          autoSheet: kPreviewQuickEntrySheet.isEmpty
+              ? null
+              : kPreviewQuickEntrySheet,
+        ),
+      );
     }
     // PREVIEW_PAYWALL: açılışta paywall'ı aç. Bayrak preview.dart'ta tanımlı
     // ve belgeliydi ama hiçbir yerde tüketilmiyordu — yani hiçbir şey yapmıyordu.
     if (kPreviewPaywall) {
       WidgetsBinding.instance.addPostFrameCallback(
-          (_) => showPaywall(context, ProFeature.analytics));
+        (_) => showPaywall(context, ProFeature.analytics),
+      );
     }
     // PREVIEW_TX: örnek kaynaklı gelirin detay sayfası ya da düzenleme ekranı.
     if (kPreviewTx.isNotEmpty) {
@@ -67,46 +72,65 @@ class _RootScreenState extends ConsumerState<RootScreen> {
     final preview = switch (kPreviewBudget) {
       'empty' => const BudgetScreen(),
       'amount' => const BudgetAmountStep(initialPeriod: BudgetPeriod.weekly),
-      'amountMonthly' =>
-        const BudgetAmountStep(initialPeriod: BudgetPeriod.monthly),
+      'amountMonthly' => const BudgetAmountStep(
+        initialPeriod: BudgetPeriod.monthly,
+      ),
       'categories' => const BudgetCategoriesStep(
-          settings: BudgetSettings(amount: 15000, period: BudgetPeriod.monthly),
-          autoSuggest: true),
+        settings: BudgetSettings(amount: 15000, period: BudgetPeriod.monthly),
+        autoSuggest: true,
+      ),
       _ => switch (kPreviewConverter) {
-          'two' => const CurrencyConverterScreen(
-              initialRows: ['USD', 'TRY'], initialExpression: '100'),
-          'four' => const CurrencyConverterScreen(
-              initialRows: ['USD', 'TRY', 'EUR', 'KZT'], initialExpression: '250'),
-          'picker' => const CurrencyPickerScreen(exclude: {'TRY'}),
-          'pickerScrolled' => const CurrencyPickerScreen(
-              exclude: {'TRY'}, initialScroll: 1500),
-          _ => switch (kPreviewSettings) {
+        'two' => const CurrencyConverterScreen(
+          initialRows: ['USD', 'TRY'],
+          initialExpression: '100',
+        ),
+        'four' => const CurrencyConverterScreen(
+          initialRows: ['USD', 'TRY', 'EUR', 'KZT'],
+          initialExpression: '250',
+        ),
+        'picker' => const CurrencyPickerScreen(exclude: {'TRY'}),
+        'pickerScrolled' => const CurrencyPickerScreen(
+          exclude: {'TRY'},
+          initialScroll: 1500,
+        ),
+        _ => switch (kPreviewSettings) {
           'hub' => const SettingsHubScreen(),
           'hubScrolled' => const SettingsHubScreen(initialScroll: 620),
           'categories' => const CategoriesScreen(),
           'automation' => const AutomationScreen(),
+          'recurring' => const RecurringScreen(),
           'automationCat' => const RuleKeywordsScreen(
-              title: 'Groceries', catalogKey: 'groceries'),
+            title: 'Groceries',
+            catalogKey: 'groceries',
+          ),
           'calendar' => const CalendarScreen(),
           'data' => const DataManagementScreen(),
           'newCategory' => const EnvelopeEditorScreen(sortOrder: 0),
           'newCategoryFilled' => const EnvelopeEditorScreen(
-              sortOrder: 0,
-              previewName: 'Kahvaltı',
-              previewEmoji: '🥐',
-              previewColorIndex: 1,
-              previewSection: 'everyday'),
+            sortOrder: 0,
+            previewName: 'Kahvaltı',
+            previewEmoji: '🥐',
+            previewColorIndex: 1,
+            previewSection: 'everyday',
+          ),
           'sectionPicker' => const EnvelopeEditorScreen(
-              sortOrder: 0, previewName: 'Kahvaltı', autoOpenSection: true),
-          _ => kPreviewAnalytics
-              ? StatsScreen(initialMonthOffset: kPreviewAnalyticsOffset)
-              : null,
+            sortOrder: 0,
+            previewName: 'Kahvaltı',
+            autoOpenSection: true,
+          ),
+          _ =>
+            kPreviewAnalytics
+                ? StatsScreen(initialMonthOffset: kPreviewAnalyticsOffset)
+                : null,
         },
       },
     };
     if (preview != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => Navigator.of(context)
-          .push(MaterialPageRoute(builder: (_) => preview)));
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => preview)),
+      );
     }
   }
 
@@ -115,7 +139,10 @@ class _RootScreenState extends ConsumerState<RootScreen> {
     // Ana ekran widget'ını güncel tut (App Group yoksa güvenle no-op).
     ref.watch(widgetSyncProvider);
     // Vadesi gelen tekrarlayan işlemleri açılışta işle (yetişme).
-    ref.watch(recurringMaterializerProvider);
+    // Tekrarlayan işlemler Pro: abonelik yokken (ya da bittiğinde) kurallar
+    // sessizce durur, işlem üretmez. Hak sahipliği akışı geç gelirse
+    // isProProvider değişir, bu build yeniden çalışır ve yetişme o an olur.
+    if (ref.watch(isProProvider)) ref.watch(recurringMaterializerProvider);
     // Eski varsayılan cüzdan adını ("Cüzdanım") yeni varsayılana taşı.
     ref.watch(spaceNameMigrationProvider);
     return const HomeScreen();

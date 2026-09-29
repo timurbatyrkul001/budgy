@@ -18,6 +18,8 @@ import '../envelopes/envelope.dart';
 import '../envelopes/envelope_l10n.dart';
 import '../home/accounts_screen.dart';
 import '../home/fx_providers.dart';
+import '../pro/pro_gate.dart';
+import '../pro/pro_state.dart';
 import '../recurring/recurring.dart';
 import '../recurring/recurring_screen.dart';
 import '../settings/app_settings.dart';
@@ -132,7 +134,8 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
       _note = tx.note ?? '';
       // Zarf akışı henüz gelmediyse işlemdeki denormalize ad yeter.
       if (tx.currency != 'TRY') {
-        _wallet = env ??
+        _wallet =
+            env ??
             (tx.envelopeId == null
                 ? null
                 : Envelope(
@@ -141,13 +144,15 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
                     emoji: '',
                     balance: 0,
                     sortOrder: 0,
-                    currency: tx.currency));
+                    currency: tx.currency,
+                  ));
       } else if (tx.envelopeId != null) {
         _category = CategoryPick(
-            id: tx.envelopeId!,
-            name: env?.displayName(str) ?? tx.envelopeName ?? '',
-            emoji: env?.emoji ?? '',
-            catalogKey: env?.presetKey);
+          id: tx.envelopeId!,
+          name: env?.displayName(str) ?? tx.envelopeName ?? '',
+          emoji: env?.emoji ?? '',
+          catalogKey: env?.presetKey,
+        );
       }
     }
     final sheet = widget.autoSheet;
@@ -157,9 +162,9 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
           'category' => _pickCategory(),
           'categoryScrolled' => _pickCategory(initialScroll: 900),
           'incomeCategory' => () {
-              setState(() => _mode = QuickMode.income);
-              _pickCategory();
-            }(),
+            setState(() => _mode = QuickMode.income);
+            _pickCategory();
+          }(),
           'recurrence' => _pickRecurrence(),
           'date' => _pickDate(),
           _ => null,
@@ -210,6 +215,10 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
   }
 
   Future<void> _pickRecurrence() async {
+    // Tekrarlayan işlem kuralı Pro: düğme görünür kalır, Pro değilse
+    // sıklık sayfası yerine paywall açılır (Tekrarlayan ekranıyla aynı kilit).
+    if (!await requirePro(context, ref, ProFeature.automation)) return;
+    if (!mounted) return;
     final rs = ref.read(rsProvider);
     final picked = await showExSheet<Recurrence>(
       context,
@@ -240,10 +249,12 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
   }
 
   Future<void> _pickCategory({double initialScroll = 0}) async {
-    final pick = await showCategorySheet(context,
-        selectedId: _category?.id,
-        initialScroll: initialScroll,
-        income: _mode == QuickMode.income);
+    final pick = await showCategorySheet(
+      context,
+      selectedId: _category?.id,
+      initialScroll: initialScroll,
+      income: _mode == QuickMode.income,
+    );
     if (pick != null) setState(() => _category = pick);
   }
 
@@ -331,7 +342,14 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
     var envelopeName = wallet?.displayName(str) ?? _category?.name;
     // Kategori seçilmediyse nottaki anahtar kelimeler seçsin (otomasyon);
     // kullanıcının seçtiği kategori asla ezilmez.
-    if (isExpense && wallet == null && envelopeId == null && note != null) {
+    // Kategori otomasyonu Pro: Pro değilse çözümleme HİÇ çağrılmaz, sessizce
+    // atlanır — kullanıcı kategoriyi elle seçer. Düğmesi olmayan bir özellik
+    // için paywall açmak kaydı bölerdi; satış noktası Otomasyon ekranı.
+    if (isExpense &&
+        wallet == null &&
+        envelopeId == null &&
+        note != null &&
+        ref.read(isProProvider)) {
       final auto = await resolveCategoryFromText(ref, note);
       if (auto != null) {
         envelopeId = auto.id;
@@ -378,11 +396,12 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
         );
       } else if (wallet == null) {
         id = await repo.addCashIncome(
-            amount: amount,
-            note: note,
-            date: date,
-            envelopeId: envelopeId,
-            envelopeName: envelopeName);
+          amount: amount,
+          note: note,
+          date: date,
+          envelopeId: envelopeId,
+          envelopeName: envelopeName,
+        );
       } else {
         id = await repo.addEnvelopeIncome(
           envelopeId: wallet.id,
@@ -503,11 +522,14 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
                         GlassChip(
                           padding: const EdgeInsets.symmetric(horizontal: 12),
                           onTap: () {},
-                          child: Text(rs.editingLabel,
-                              style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700,
-                                  color: Ex.mint)),
+                          child: Text(
+                            rs.editingLabel,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: Ex.mint,
+                            ),
+                          ),
                         )
                       else
                         GlassSquareButton(
@@ -548,8 +570,9 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
                           // Tutar panelin ortasında durur.
                           Expanded(
                             child: Padding(
-                              padding:
-                                  const EdgeInsets.symmetric(horizontal: 20),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                              ),
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
@@ -586,8 +609,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
                           // Tarih solda; tekrar yanında, not en sağda.
                           // Açılışta solup yukarı kayar (tuş takımı değil).
                           Padding(
-                            padding:
-                                const EdgeInsets.fromLTRB(12, 0, 12, 10),
+                            padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
                             child: Row(
                               children: [
                                 Flexible(
@@ -606,12 +628,13 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
                                 const SizedBox(width: 8),
                                 // Tekrar kuralı düzenlemede yok (kural bu ekrandan değişmez).
                                 if (!_isEditing)
-
-                                  _RoundIconButton(
-                                  icon: Icons.repeat_rounded,
-                                  active: _recurrence != Recurrence.none,
-                                  onTap: _pickRecurrence,
-                                ),
+                                  ProBadged(
+                                    child: _RoundIconButton(
+                                      icon: Icons.repeat_rounded,
+                                      active: _recurrence != Recurrence.none,
+                                      onTap: _pickRecurrence,
+                                    ),
+                                  ),
                                 const Spacer(),
                                 _RoundIconButton(
                                   icon: Icons.sticky_note_2_outlined,
@@ -624,8 +647,9 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
 
                           _Keypad(
                             decimal: _decimalFor(str.localeCode),
-                            oneTwoThreeOnTop:
-                                ref.watch(keypadOneTwoThreeOnTopProvider),
+                            oneTwoThreeOnTop: ref.watch(
+                              keypadOneTwoThreeOnTopProvider,
+                            ),
                             onKey: _key,
                             onBackspace: _back,
                             onClear: _clear,
@@ -673,7 +697,9 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
                           minimumSize: const Size(0, 48),
                           padding: const EdgeInsets.symmetric(horizontal: 26),
                           textStyle: const TextStyle(
-                              fontSize: 17, fontWeight: FontWeight.w700),
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                         child: Text(rs.save),
                       ),
@@ -792,11 +818,7 @@ class _RoundIconButton extends StatelessWidget {
         child: SizedBox(
           width: 44,
           height: 44,
-          child: Icon(
-            icon,
-            size: 20,
-            color: active ? Ex.mint : Ex.textSoft,
-          ),
+          child: Icon(icon, size: 20, color: active ? Ex.mint : Ex.textSoft),
         ),
       ),
     );
@@ -881,8 +903,10 @@ class _RollInCharState extends State<_RollInChar>
     vsync: this,
     duration: const Duration(milliseconds: 180),
   )..forward();
-  late final _curve =
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
+  late final _curve = CurvedAnimation(
+    parent: _controller,
+    curve: Curves.easeOutCubic,
+  );
 
   @override
   void dispose() {
@@ -895,8 +919,10 @@ class _RollInCharState extends State<_RollInChar>
     return FadeTransition(
       opacity: _curve,
       child: SlideTransition(
-        position: Tween(begin: const Offset(0, 0.5), end: Offset.zero)
-            .animate(_curve),
+        position: Tween(
+          begin: const Offset(0, 0.5),
+          end: Offset.zero,
+        ).animate(_curve),
         child: Text(widget.char, style: widget.style),
       ),
     );
@@ -1004,7 +1030,11 @@ class _CategoryPill extends StatelessWidget {
                 )
               else
                 CategoryAvatar(
-                    catalogKey: p.catalogKey, emoji: p.emoji, tintSeed: p.id, size: 22),
+                  catalogKey: p.catalogKey,
+                  emoji: p.emoji,
+                  tintSeed: p.id,
+                  size: 22,
+                ),
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
