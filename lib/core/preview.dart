@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 /// Debug önizleme anahtarları — ekran görüntüsü / tasarım kontrolü için,
 /// veriye dokunmadan. Hepsi `--dart-define` ile ve yalnız debug'da.
 ///
-/// * PREVIEW_ONBOARDING=true [PREVIEW_STEP=0..5] — onboarding;
+/// * PREVIEW_ONBOARDING=true [PREVIEW_STEP=0..16] — onboarding;
 ///   PREVIEW_AUTOPLAY=true açılan adım 1,6 s sonra kendiliğinden ilerler
 ///   (sayfa geçişini kare kare görmek için).
 /// * PREVIEW_HOME=true — ana ekran, örnek veriyle (bkz. preview_home.dart).

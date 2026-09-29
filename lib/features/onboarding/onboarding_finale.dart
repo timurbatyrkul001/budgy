@@ -1,39 +1,9 @@
-// TODO(rs): Aşağıdaki metinler henüz `redesign_l10n.dart`'ta yok; koordinatör
-// RS'ye taşıyana kadar bu dosyada sabit olarak duruyor (`_FinaleText`).
-// Önerilen RS alanları ve üç dildeki karşılıkları:
-//
-//   worldTitle          tr: "Sana uyan bir dünya seç"
-//                       en: "Pick a world that fits you"
-//                       ru: "Выбери мир под себя"
-//   worldSubtitle       tr: "Uygulama bu renkte açılır. Fikrin değişirse
-//                            ayarlardan değiştirirsin."
-//                       en: "Budgy opens in this colour. Change your mind
-//                            later in settings."
-//                       ru: "Приложение откроется в этом цвете. Передумаешь —
-//                            поменяешь в настройках."
-//   worldFootnote       tr: "Renk sadece görünüş — bütçen aynı kalır."
-//                       en: "Colour is just looks — your budget stays the same."
-//                       ru: "Цвет — только внешность, бюджет тот же."
-//   worldGo             tr: "Hadi başlayalım"
-//                       en: "Let's do this"
-//                       ru: "Поехали"
-//   worldNight          tr: "Gece"     en: "Night"   ru: "Ночь"
-//   worldDawn           tr: "Şafak"    en: "Dawn"    ru: "Рассвет"
-//   worldForest         tr: "Orman"    en: "Forest"  ru: "Лес"
-//   worldOcean          tr: "Okyanus"  en: "Ocean"   ru: "Океан"
-//   welcomeBurstTitle   tr: "Budgy dünyasına hoş geldin"
-//                       en: "Welcome to the Budgy world"
-//                       ru: "Добро пожаловать в мир Budgy"
-//   welcomeBurstSub     tr: "Her şey hazır. Şimdi hesabını açalım."
-//                       en: "All set. Now let's open your account."
-//                       ru: "Всё готово. Теперь откроем твой аккаунт."
-
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/l10n.dart';
+import '../../core/redesign_l10n.dart';
 import '../../core/motion.dart';
 import 'onboarding_palette.dart';
 
@@ -44,9 +14,9 @@ import 'onboarding_palette.dart';
 /// Onboarding'de seçilebilen "dünya": kimlik, iki renkli gökyüzü gradyanı ve
 /// zeminin koyu mu açık mı olduğu (metin/düğme rengi buna göre ters döner).
 ///
-/// Bu yalnız görsel bir seçim: uygulamanın tema sistemine dokunmaz, seçilen
-/// kimlik [ThemePickerPage.onNext] ile dışarı verilir; ne yapılacağına
-/// koordinatör karar verir.
+/// Sayfa kendisi hiçbir ayar yazmaz: seçilen kimlik [ThemePickerPage.onNext]
+/// ile dışarı verilir; akış [dark] bayrağına göre koyu/açık tema tercihini
+/// kaydeder (bkz. `onboarding_flow.dart`).
 class OnboardingWorld {
   const OnboardingWorld({
     required this.id,
@@ -110,83 +80,14 @@ const kOnboardingWorlds = <OnboardingWorld>[
 /// Arka planın bir dünyadan diğerine akış süresi.
 const _worldSwitch = Duration(milliseconds: 420);
 
-// ---------------------------------------------------------------------------
-// Metinler (geçici — TODO(rs) bloğuna bak)
-// ---------------------------------------------------------------------------
-
-class _FinaleText {
-  const _FinaleText({
-    required this.title,
-    required this.subtitle,
-    required this.footnote,
-    required this.go,
-    required this.worldNames,
-    required this.welcomeTitle,
-    required this.welcomeSub,
-  });
-
-  final String title;
-  final String subtitle;
-  final String footnote;
-  final String go;
-  final Map<String, String> worldNames;
-  final String welcomeTitle;
-  final String welcomeSub;
-
-  static const tr = _FinaleText(
-    title: 'Sana uyan bir dünya seç',
-    subtitle:
-        'Uygulama bu renkte açılır. Fikrin değişirse ayarlardan değiştirirsin.',
-    footnote: 'Renk sadece görünüş — bütçen aynı kalır.',
-    go: 'Hadi başlayalım',
-    worldNames: {
-      'night': 'Gece',
-      'dawn': 'Şafak',
-      'forest': 'Orman',
-      'ocean': 'Okyanus',
-    },
-    welcomeTitle: 'Budgy dünyasına hoş geldin',
-    welcomeSub: 'Her şey hazır. Şimdi hesabını açalım.',
-  );
-
-  static const en = _FinaleText(
-    title: 'Pick a world that fits you',
-    subtitle:
-        'Budgy opens in this colour. Change your mind later in settings.',
-    footnote: 'Colour is just looks — your budget stays the same.',
-    go: "Let's do this",
-    worldNames: {
-      'night': 'Night',
-      'dawn': 'Dawn',
-      'forest': 'Forest',
-      'ocean': 'Ocean',
-    },
-    welcomeTitle: 'Welcome to the Budgy world',
-    welcomeSub: "All set. Now let's open your account.",
-  );
-
-  static const ru = _FinaleText(
-    title: 'Выбери мир под себя',
-    subtitle:
-        'Приложение откроется в этом цвете. Передумаешь — поменяешь в настройках.',
-    footnote: 'Цвет — только внешность, бюджет тот же.',
-    go: 'Поехали',
-    worldNames: {
-      'night': 'Ночь',
-      'dawn': 'Рассвет',
-      'forest': 'Лес',
-      'ocean': 'Океан',
-    },
-    welcomeTitle: 'Добро пожаловать в мир Budgy',
-    welcomeSub: 'Всё готово. Теперь откроем твой аккаунт.',
-  );
-
-  static _FinaleText of(String localeCode) => switch (localeCode) {
-        'tr' => tr,
-        'ru' => ru,
-        _ => en,
-      };
-}
+/// Dünya kimliği → RS'deki adı.
+String _worldName(RS rs, String id) => switch (id) {
+      'night' => rs.worldNight,
+      'dawn' => rs.worldDawn,
+      'forest' => rs.worldForest,
+      'ocean' => rs.worldOcean,
+      _ => id,
+    };
 
 // ---------------------------------------------------------------------------
 // Tema seçimi
@@ -216,7 +117,7 @@ class _ThemePickerPageState extends ConsumerState<ThemePickerPage> {
 
   @override
   Widget build(BuildContext context) {
-    final text = _FinaleText.of(ref.watch(strProvider).localeCode);
+    final rs = ref.watch(rsProvider);
     final instant = reduceMotion(context);
     final duration = instant ? Duration.zero : _worldSwitch;
     final world = _world;
@@ -242,7 +143,7 @@ class _ThemePickerPageState extends ConsumerState<ThemePickerPage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _FinaleTitle(
-                          text.title,
+                          rs.worldTitle,
                           color: world.ink,
                           maxWidth: width - 40,
                           size: narrow ? 32 : 36,
@@ -252,7 +153,7 @@ class _ThemePickerPageState extends ConsumerState<ThemePickerPage> {
                         AnimatedDefaultTextStyle(
                           duration: duration,
                           style: _bodyStyle.copyWith(color: world.inkSoft),
-                          child: Text(text.subtitle),
+                          child: Text(rs.worldSubtitle),
                         ),
                       ],
                     ),
@@ -272,7 +173,7 @@ class _ThemePickerPageState extends ConsumerState<ThemePickerPage> {
                         return _WorldCard(
                           key: ValueKey('world-${w.id}'),
                           world: w,
-                          label: text.worldNames[w.id] ?? w.id,
+                          label: _worldName(rs, w.id),
                           selected: i == _selected,
                           ringColor: world.ink,
                           duration: duration,
@@ -295,12 +196,12 @@ class _ThemePickerPageState extends ConsumerState<ThemePickerPage> {
                             color: world.ink.withValues(alpha: 0.55),
                           ),
                           textAlign: TextAlign.center,
-                          child: Text(text.footnote, textAlign: TextAlign.center),
+                          child: Text(rs.worldFootnote, textAlign: TextAlign.center),
                         ),
                         const SizedBox(height: 14),
                         Center(
                           child: _FinalePillButton(
-                            label: text.go,
+                            label: rs.worldGo,
                             fill: world.ink,
                             textColor: world.dark ? Poster.ink : Poster.paper,
                             duration: duration,
@@ -627,7 +528,7 @@ class _WelcomeBurstPageState extends ConsumerState<WelcomeBurstPage>
 
   @override
   Widget build(BuildContext context) {
-    final text = _FinaleText.of(ref.watch(strProvider).localeCode);
+    final rs = ref.watch(rsProvider);
     final width = MediaQuery.sizeOf(context).width;
     final narrow = width < 340;
     return ColoredBox(
@@ -665,7 +566,7 @@ class _WelcomeBurstPageState extends ConsumerState<WelcomeBurstPage>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     _FinaleTitle(
-                      text.welcomeTitle,
+                      rs.welcomeBurstTitle,
                       color: Poster.ink,
                       maxWidth: width - 56,
                       size: narrow ? 32 : 36,
@@ -674,7 +575,7 @@ class _WelcomeBurstPageState extends ConsumerState<WelcomeBurstPage>
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      text.welcomeSub,
+                      rs.welcomeBurstSub,
                       textAlign: TextAlign.center,
                       style: _bodyStyle.copyWith(color: Poster.inkSoft),
                     ),

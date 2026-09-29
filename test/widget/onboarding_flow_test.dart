@@ -13,9 +13,9 @@ import 'package:kopilka_app/features/profile/terms_of_use_screen.dart';
 
 import '../support/harness.dart';
 
-/// 6 sayfalı onboarding dar ekranda taşmamalı. Önizleme modu: 6. adım
-/// örnek tutar + iki döviz cüzdanıyla (en dolu hâl) açılır, hiçbir şey
-/// yazılmaz.
+/// 17 sayfalı onboarding dar ekranda taşmamalı. Önizleme modu: cüzdan adımı
+/// (12) örnek tutar + iki döviz cüzdanıyla, özet (10) örnek seçimlerle
+/// (en dolu hâl) açılır, hiçbir şey yazılmaz.
 void main() {
   setUpAll(() async {
     for (final lang in AppLanguage.values) {
@@ -23,7 +23,7 @@ void main() {
     }
   });
 
-  for (final step in [0, 1, 2, 3, 4, 5]) {
+  for (var step = 0; step <= kOnboardingLastStep; step++) {
     for (final width in [320.0, 360.0]) {
       for (final lang in AppLanguage.values) {
         testWidgets(
@@ -85,7 +85,7 @@ void main() {
     await tester.tap(find.text(RS.en.getStarted));
     await tester.pumpAndSettle();
     expect(find.text(RS.en.onbTitle), findsNothing);
-    // Karşılamadan sonra artık tanıtım sayfaları gelir (2/6: hızlı giriş).
+    // Karşılamadan sonra artık tanıtım sayfaları gelir (2/17: hızlı giriş).
     expect(find.text(RS.en.introFastTitle), findsOneWidget);
   });
 
@@ -121,7 +121,8 @@ void main() {
     expect(find.byType(PrivacyPolicyScreen), findsOneWidget);
   });
 
-  testWidgets('1 → 6: Başla, üç Devam, para birimi → cüzdan adımı', (tester) async {
+  testWidgets('1 → 5: Başla, üç Devam → duygu sorusu; geri çalışır',
+      (tester) async {
     await pumpBudgyScreen(
       tester,
       const OnboardingFlow(preview: true, initialStep: 0),
@@ -147,22 +148,18 @@ void main() {
     expect(find.text(RS.en.introBudgetTitle), findsOneWidget);
     await tester.tap(find.text(RS.en.continueLabel));
     await tester.pumpAndSettle();
-    expect(find.text(RS.en.currencyTitle), findsOneWidget);
-    // Para birimi: ortalanmış siyah hap ("Continue with USD").
-    await tester.tap(find.textContaining('Continue with'));
-    await tester.pumpAndSettle();
-    expect(find.text(RS.en.walletTitle), findsOneWidget);
-    expect(find.text(RS.en.letsGo), findsOneWidget);
-    // Geri: cüzdan → para birimi.
+    // Tanıtımdan sonra anket başlar: duygu sorusu.
+    expect(find.text(RS.en.qMoodTitle), findsOneWidget);
+    // Geri: duygu → bütçe tanıtımı.
     await tester.tap(find.byIcon(Icons.arrow_back_rounded).first);
     await tester.pumpAndSettle();
-    expect(find.text(RS.en.currencyTitle), findsOneWidget);
+    expect(find.text(RS.en.introBudgetTitle), findsOneWidget);
   });
 
   testWidgets('cüzdan adımında ek döviz satırı kaldırılabilir', (tester) async {
     await pumpBudgyScreen(
       tester,
-      const OnboardingFlow(preview: true, initialStep: 5),
+      const OnboardingFlow(preview: true, initialStep: 12),
       db: FakeFirebaseFirestore(),
       language: AppLanguage.tr,
     );
@@ -174,6 +171,192 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('US Dollar'), findsNothing);
     expect(find.text('Euro'), findsOneWidget);
+  });
+
+  testWidgets('cevaba karşılık 5. sayfanın cevabına göre; geri gelince balon '
+      'seçimi korunur', (tester) async {
+    await pumpBudgyScreen(
+      tester,
+      const OnboardingFlow(preview: true, initialStep: 4),
+      db: FakeFirebaseFirestore(),
+      language: AppLanguage.en,
+    );
+    await tester.tap(find.text(RS.en.qMoodGood));
+    await tester.pumpAndSettle();
+    expect(find.text(RS.en.qMoodComfortGood), findsOneWidget);
+    await tester.tap(find.text(RS.en.next));
+    await tester.pumpAndSettle();
+    expect(find.text(RS.en.qHardTitle), findsOneWidget);
+    await tester.tap(find.text(RS.en.qHardHabit));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(RS.en.next));
+    await tester.pumpAndSettle();
+    // "habit" cevabına "habit" karşılığı.
+    expect(find.text(RS.en.rHabitTitle), findsOneWidget);
+    expect(find.text(RS.en.rIncomeTitle), findsNothing);
+    await tester.tap(find.text(RS.en.next));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(RS.en.qMethodNone));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(RS.en.next));
+    await tester.pumpAndSettle();
+    // Gider balonları: iki seç, ileri, geri → seçim duruyor.
+    expect(find.text(RS.en.bubblesExpenseTitle), findsOneWidget);
+    await tester.tap(find.text(catalogItem('coffee')!.name('en')));
+    await tester.tap(find.text(catalogItem('taxi')!.name('en')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continue with 2'));
+    await tester.pumpAndSettle();
+    expect(find.text(RS.en.bubblesIncomeTitle), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.arrow_back_rounded).first);
+    await tester.pumpAndSettle();
+    expect(find.text('Continue with 2'), findsOneWidget);
+  });
+
+  testWidgets(
+      'uçtan uca: seçimler tek seferde yazılır — kategoriler, tema, ilk gün, '
+      'onboardingDone', (tester) async {
+    final db = FakeFirebaseFirestore();
+    await pumpBudgyScreen(
+      tester,
+      const OnboardingFlow(),
+      db: db,
+      language: AppLanguage.en,
+    );
+    Future<void> next([String? label]) async {
+      await tester.tap(find.text(label ?? RS.en.next));
+      await tester.pumpAndSettle();
+    }
+
+    await next(RS.en.getStarted);
+    await next(RS.en.continueLabel);
+    await next(RS.en.continueLabel);
+    await next(RS.en.continueLabel);
+    // Anket.
+    await tester.tap(find.text(RS.en.qMoodStressed));
+    await tester.pumpAndSettle();
+    await next();
+    await tester.tap(find.text(RS.en.qHardIncome));
+    await tester.pumpAndSettle();
+    await next();
+    expect(find.text(RS.en.rIncomeTitle), findsOneWidget);
+    await next();
+    await tester.tap(find.text(RS.en.qMethodSheet));
+    await tester.pumpAndSettle();
+    await next();
+    // Balonlar: 2 gider + 1 gelir.
+    await tester.tap(find.text(catalogItem('groceries')!.name('en')));
+    await tester.tap(find.text(catalogItem('rent')!.name('en')));
+    await tester.pumpAndSettle();
+    await next('Continue with 2');
+    await tester.tap(find.text(catalogItem('tips')!.name('en')));
+    await tester.pumpAndSettle();
+    await next('Continue with 1');
+    // Özet sayı satırları semantik etiketle (rakam ayrı span).
+    expect(find.text(RS.en.summaryTitle), findsOneWidget);
+    expect(find.bySemanticsLabel('Expense categories: 2'), findsOneWidget);
+    expect(find.bySemanticsLabel('Income sources: 1'), findsOneWidget);
+    await next();
+    // Para birimi → cüzdan → bildirim (şimdi değil) → dünya (gece).
+    await tester.tap(find.textContaining('Continue with'));
+    await tester.pumpAndSettle();
+    expect(find.text(RS.en.walletTitle), findsOneWidget);
+    await next(RS.en.continueLabel);
+    expect(find.text(RS.en.notifTitle), findsOneWidget);
+    await next(RS.en.notifLater);
+    expect(find.text(RS.en.worldTitle), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('world-night')));
+    await tester.pumpAndSettle();
+    await next(RS.en.worldGo);
+    // İlk gün: bugüne dokun, 350 yaz, kaydet, ileri.
+    expect(find.text(RS.en.firstDayTitle), findsOneWidget);
+    await tester.tap(find.text('${DateTime.now().day}'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '350');
+    await tester.pumpAndSettle();
+    await next(RS.en.firstDayConfirm);
+    await next();
+    // Patlama (hareket kapalı → anında biter) → yazma tamamlanır.
+    expect(find.text(RS.en.welcomeBurstTitle), findsOneWidget);
+    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    final settings =
+        (await db.doc('users/$testUid/settings/main').get()).data()!;
+    expect(settings['onboardingDone'], isTrue);
+    expect(settings['themeMode'], 'dark');
+    expect(settings['currency'], isNotNull);
+    expect(settings['onboardingAnswers'], {
+      'mood': 'stressed',
+      'hardest': 'income',
+      'method': 'sheet',
+      'world': 'night',
+    });
+
+    // Balonlar → zarflar: preset anahtarı + katalog adı; gelir bölümü
+    // katalogdan türer (kayıtlı section yok, preset 'tips' gelir).
+    final envs = (await db.collection('users/$testUid/envelopes').get()).docs;
+    final byKey = {for (final d in envs) d.data()['preset']: d.data()};
+    expect(byKey.keys, unorderedEquals(['groceries', 'rent', 'tips']));
+    expect(byKey['groceries']!['name'], catalogItem('groceries')!.en);
+    expect(byKey['tips']!['emoji'], catalogItem('tips')!.emoji);
+    expect(isIncomeCatalogKey('tips'), isTrue);
+    // Sıra numaraları 0'dan artar.
+    expect([for (final d in envs) d.data()['sortOrder']],
+        unorderedEquals([0, 1, 2]));
+
+    // İlk gün: workDays/{bugün} + cüzdana aynı tutar (setDay farkı yazar).
+    final today = DateTime.now();
+    final id = '${today.year}-${today.month.toString().padLeft(2, '0')}-'
+        '${today.day.toString().padLeft(2, '0')}';
+    final day = (await db.doc('users/$testUid/workDays/$id').get()).data();
+    expect(day?['amount'], 350);
+    final cash = (await db.doc('users/$testUid/accounts/cash').get()).data();
+    expect(cash?['balance'], 350);
+  });
+
+  testWidgets('balon seçilmezse hazır set yazılır; ilk gün atlanınca cüzdan '
+      'boş kalır; şafak açık tema', (tester) async {
+    final db = FakeFirebaseFirestore();
+    await pumpBudgyScreen(
+      tester,
+      const OnboardingFlow(initialStep: 8),
+      db: db,
+      language: AppLanguage.tr,
+    );
+    Future<void> next(String label) async {
+      await tester.tap(find.text(label));
+      await tester.pumpAndSettle();
+    }
+
+    await next(RS.tr.bubblesContinue);
+    await next(RS.tr.bubblesContinue);
+    expect(find.text(RS.tr.summaryEmpty), findsOneWidget);
+    await next(RS.tr.next);
+    await tester.tap(find.textContaining('ile devam et'));
+    await tester.pumpAndSettle();
+    await next(RS.tr.continueLabel);
+    await next(RS.tr.notifLater);
+    await next(RS.tr.worldGo); // varsayılan dünya: şafak
+    await next(RS.tr.firstDaySkip);
+    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pumpAndSettle();
+
+    final settings =
+        (await db.doc('users/$testUid/settings/main').get()).data()!;
+    expect(settings['onboardingDone'], isTrue);
+    expect(settings['themeMode'], 'light');
+    final envs = (await db.collection('users/$testUid/envelopes').get()).docs;
+    expect(
+      [for (final d in envs) d.data()['preset']],
+      unorderedEquals([for (final p in presetEnvelopes) p.key]),
+    );
+    expect((await db.doc('users/$testUid/accounts/cash').get()).exists, isFalse);
+    expect(
+        (await db.collection('users/$testUid/workDays').get()).docs, isEmpty);
   });
 }
 

@@ -275,6 +275,65 @@ class RS {
     required this.incomeBySource,
     required this.entriesTpl,
     required this.pickIncomeSource,
+    required this.qMoodTitle,
+    required this.qMoodStressed,
+    required this.qMoodUnsure,
+    required this.qMoodGood,
+    required this.qMoodComfortStressed,
+    required this.qMoodComfortUnsure,
+    required this.qMoodComfortGood,
+    required this.qHardTitle,
+    required this.qHardIncome,
+    required this.qHardWhere,
+    required this.qHardMonthEnd,
+    required this.qHardHabit,
+    required this.qHardOther,
+    required this.qMethodTitle,
+    required this.qMethodNone,
+    required this.qMethodPaper,
+    required this.qMethodSheet,
+    required this.qMethodApp,
+    required this.rIncomeTitle,
+    required this.rIncomeBody,
+    required this.rWhereTitle,
+    required this.rWhereBody,
+    required this.rMonthEndTitle,
+    required this.rMonthEndBody,
+    required this.rHabitTitle,
+    required this.rHabitBody,
+    required this.rOtherTitle,
+    required this.rOtherBody,
+    required this.summaryTitle,
+    required this.summaryExpensesTpl,
+    required this.summaryIncomesTpl,
+    required this.summaryBody,
+    required this.summaryEmpty,
+    required this.bubblesExpenseTitle,
+    required this.bubblesIncomeTitle,
+    required this.bubblesContinue,
+    required this.bubblesContinueTpl,
+    required this.receiptEmpty,
+    required this.worldTitle,
+    required this.worldSubtitle,
+    required this.worldFootnote,
+    required this.worldGo,
+    required this.worldNight,
+    required this.worldDawn,
+    required this.worldForest,
+    required this.worldOcean,
+    required this.welcomeBurstTitle,
+    required this.welcomeBurstSub,
+    required this.notifTitle,
+    required this.notifBody,
+    required this.notifAllow,
+    required this.notifLater,
+    required this.firstDayTitle,
+    required this.firstDayBody,
+    required this.firstDayTapHint,
+    required this.firstDayAmountHint,
+    required this.firstDayConfirm,
+    required this.firstDayDone,
+    required this.firstDaySkip,
   });
 
   final String onbTitle;
@@ -550,6 +609,69 @@ class RS {
   final String incomeBySource;
   final String entriesTpl;
   final String pickIncomeSource;
+
+  // ── Onboarding anketi, balonlar ve finali ──
+  final String qMoodTitle;
+  final String qMoodStressed;
+  final String qMoodUnsure;
+  final String qMoodGood;
+  final String qMoodComfortStressed;
+  final String qMoodComfortUnsure;
+  final String qMoodComfortGood;
+  final String qHardTitle;
+  final String qHardIncome;
+  final String qHardWhere;
+  final String qHardMonthEnd;
+  final String qHardHabit;
+  final String qHardOther;
+  final String qMethodTitle;
+  final String qMethodNone;
+  final String qMethodPaper;
+  final String qMethodSheet;
+  final String qMethodApp;
+  final String rIncomeTitle;
+  final String rIncomeBody;
+  final String rWhereTitle;
+  final String rWhereBody;
+  final String rMonthEndTitle;
+  final String rMonthEndBody;
+  final String rHabitTitle;
+  final String rHabitBody;
+  final String rOtherTitle;
+  final String rOtherBody;
+  final String summaryTitle;
+  final String summaryExpensesTpl;
+  final String summaryIncomesTpl;
+  final String summaryBody;
+  final String summaryEmpty;
+  final String bubblesExpenseTitle;
+  final String bubblesIncomeTitle;
+  final String bubblesContinue;
+  final String bubblesContinueTpl;
+
+  /// Fiş boşken kâğıdın ortasındaki soluk yönerge.
+  final String receiptEmpty;
+  final String worldTitle;
+  final String worldSubtitle;
+  final String worldFootnote;
+  final String worldGo;
+  final String worldNight;
+  final String worldDawn;
+  final String worldForest;
+  final String worldOcean;
+  final String welcomeBurstTitle;
+  final String welcomeBurstSub;
+  final String notifTitle;
+  final String notifBody;
+  final String notifAllow;
+  final String notifLater;
+  final String firstDayTitle;
+  final String firstDayBody;
+  final String firstDayTapHint;
+  final String firstDayAmountHint;
+  final String firstDayConfirm;
+  final String firstDayDone;
+  final String firstDaySkip;
 
   static RS of(String code) => switch (code) {
     'tr' => tr,
@@ -842,6 +964,77 @@ class RS {
     incomeBySource: 'Income by source',
     entriesTpl: 'Entries: {n}',
     pickIncomeSource: 'Source',
+    qMoodTitle: 'How does tracking money make you feel?',
+    qMoodStressed: 'Stressed',
+    qMoodUnsure: 'Unsure',
+    qMoodGood: 'Good',
+    qMoodComfortStressed:
+        'We get it. Budgy is here to take that weight off — one small step at a time.',
+    qMoodComfortUnsure:
+        "Totally normal. In a few days you'll see clearly where it goes.",
+    qMoodComfortGood: "That's great. We'll help you keep that feeling.",
+    qHardTitle: "What's the hardest part?",
+    qHardIncome: 'Not knowing when I earn what',
+    qHardWhere: 'Not seeing where the money goes',
+    qHardMonthEnd: 'Running out before month end',
+    qHardHabit: 'Not keeping it up regularly',
+    qHardOther: 'Something else',
+    qMethodTitle: 'How do you track it today?',
+    qMethodNone: "I don't track it",
+    qMethodPaper: 'Pen and paper',
+    qMethodSheet: 'Spreadsheet',
+    qMethodApp: 'Another app',
+    rIncomeTitle: "It's not you. It's the calendar.",
+    rIncomeBody:
+        'Irregular income never fit a notebook. Budgy marks the days you work and tells you when the money lands — and how much.',
+    rWhereTitle: "Money doesn't vanish. It just goes unrecorded.",
+    rWhereBody:
+        "Remembering isn't a system. Budgy files every expense under its category, so where it went is one glance away.",
+    rMonthEndTitle: "The 20th shouldn't be a surprise.",
+    rMonthEndBody:
+        "You can't pace yourself without a line. Budgy sets a budget per category and warns you when you're burning through it too fast.",
+    rHabitTitle: "You didn't quit. The method was too much work.",
+    rHabitBody:
+        'A habit that costs five minutes a day never sticks. In Budgy an expense takes three seconds: tap it in, say it, or snap the receipt.',
+    rOtherTitle: 'Whatever it is, step one is the same.',
+    rOtherBody:
+        'You can only manage what you can see. Budgy starts by showing you — the rest shapes itself around you.',
+    summaryTitle: 'All set.',
+    summaryExpensesTpl: 'Expense categories: {n}',
+    summaryIncomesTpl: 'Income sources: {n}',
+    summaryBody:
+        "They're waiting on your home screen. The picture starts filling in with your first expense.",
+    summaryEmpty:
+        "No categories yet — that's fine, Budgy will suggest one with your first expense.",
+    bubblesExpenseTitle: 'What do you spend on?',
+    bubblesIncomeTitle: 'Where does your money come from?',
+    bubblesContinue: 'Continue',
+    bubblesContinueTpl: 'Continue with {n}',
+    receiptEmpty: 'Tap a category to print it here',
+    worldTitle: 'Pick a world that fits you',
+    worldSubtitle:
+        'Night and Forest are dark, Dawn and Ocean are light. Your pick is saved as your look preference.',
+    worldFootnote: 'Just a look preference — your budget stays the same.',
+    worldGo: "Let's do this",
+    worldNight: 'Night',
+    worldDawn: 'Dawn',
+    worldForest: 'Forest',
+    worldOcean: 'Ocean',
+    welcomeBurstTitle: 'Welcome to the Budgy world',
+    welcomeBurstSub: 'All set. Your book is waiting.',
+    notifTitle: "Don't forget to mark the day",
+    notifBody:
+        'One tap in the evening: "What did you earn today?" Miss a day and the month won\'t add up — let us remind you.',
+    notifAllow: 'Allow',
+    notifLater: 'Not now',
+    firstDayTitle: 'Mark your first day',
+    firstDayBody:
+        "Tap today and type what you earned. That's how Budgy works — that's all.",
+    firstDayTapHint: 'Tap today',
+    firstDayAmountHint: 'What did you earn today?',
+    firstDayConfirm: 'Save',
+    firstDayDone: 'First day is in the book. Keep going.',
+    firstDaySkip: 'Skip for now',
   );
 
   static const tr = RS(
@@ -1125,6 +1318,77 @@ class RS {
     incomeBySource: 'Gelir kaynakları',
     entriesTpl: 'Kayıt: {n}',
     pickIncomeSource: 'Kaynak',
+    qMoodTitle: 'Parayı takip etmek sana ne hissettiriyor?',
+    qMoodStressed: 'Stresli',
+    qMoodUnsure: 'Kararsız',
+    qMoodGood: 'İyi',
+    qMoodComfortStressed:
+        'Anlıyoruz. Budgy o yükü hafifletmek için var — küçük adımlarla.',
+    qMoodComfortUnsure:
+        'Gayet normal. Birkaç günde nereye gittiğini net göreceksin.',
+    qMoodComfortGood: 'Harika. Bu hissi korumana yardım edeceğiz.',
+    qHardTitle: 'En zor gelen ne?',
+    qHardIncome: 'Ne zaman ne kazandığımı bilmemek',
+    qHardWhere: 'Harcamaların nereye gittiğini görmemek',
+    qHardMonthEnd: 'Ay sonunu getirememek',
+    qHardHabit: 'Düzenli takip edememek',
+    qHardOther: 'Başka bir şey',
+    qMethodTitle: 'Şu an nasıl takip ediyorsun?',
+    qMethodNone: 'Hiç takip etmiyorum',
+    qMethodPaper: 'Kâğıt kalem',
+    qMethodSheet: 'Tablo (Excel, Sheets)',
+    qMethodApp: 'Başka bir uygulama',
+    rIncomeTitle: 'Sorun sende değil, takvimde.',
+    rIncomeBody:
+        'Düzensiz gelir deftere sığmaz. Budgy çalıştığın günleri işaretler; ne zaman ne alacağını kendisi hesaplar.',
+    rWhereTitle: 'Para uçmuyor. Sadece kayıt yok.',
+    rWhereBody:
+        'Aklında tutmak bir yöntem değil. Budgy her harcamayı kategorisine koyar; nereye ne gitti, tek bakışta.',
+    rMonthEndTitle: "Ayın 20'si sürpriz olmamalı.",
+    rMonthEndBody:
+        'Sınırı bilmeden tutumlu olunmaz. Budgy her kategoriye bütçe koyar; tempon hızlıysa ay bitmeden söyler.',
+    rHabitTitle: 'Bırakmadın. Yöntem çok uğraştırıyordu.',
+    rHabitBody:
+        "Günde beş dakika isteyen alışkanlık tutmaz. Budgy'de bir harcama üç saniye: tuşla, sesle söyle ya da fişi çek.",
+    rOtherTitle: 'Ne olursa olsun, ilk adım aynı.',
+    rOtherBody:
+        'Gördüğün parayı yönetirsin. Budgy önce göstermeye başlar; gerisi sana göre şekillenir.',
+    summaryTitle: 'Hazır.',
+    summaryExpensesTpl: '{n} gider kategorisi',
+    summaryIncomesTpl: '{n} gelir kaynağı',
+    summaryBody:
+        'Hepsi ana ekranda seni bekliyor. İlk harcamanı girdiğin an tablo dolmaya başlar.',
+    summaryEmpty:
+        'Şimdilik kategori seçmedin — sorun değil, ilk harcamada Budgy önerir.',
+    bubblesExpenseTitle: 'Nelere para harcıyorsun?',
+    bubblesIncomeTitle: 'Paran nereden geliyor?',
+    bubblesContinue: 'Devam et',
+    bubblesContinueTpl: '{n} tanesiyle devam et',
+    receiptEmpty: 'Bir kategoriye dokun, fişe yazılsın',
+    worldTitle: 'Sana uyan bir dünya seç',
+    worldSubtitle:
+        'Gece ve Orman koyu, Şafak ve Okyanus açık ton. Seçimin görünüm tercihi olarak kaydedilir.',
+    worldFootnote: 'Sadece görünüm tercihi — bütçen aynı kalır.',
+    worldGo: 'Hadi başlayalım',
+    worldNight: 'Gece',
+    worldDawn: 'Şafak',
+    worldForest: 'Orman',
+    worldOcean: 'Okyanus',
+    welcomeBurstTitle: 'Budgy dünyasına hoş geldin',
+    welcomeBurstSub: 'Her şey hazır. Defterin seni bekliyor.',
+    notifTitle: 'Günü işaretlemeyi unutma',
+    notifBody:
+        'Akşam tek bir dokunuş: "Bugün ne kazandın?" Bir kez unutursan ay sonu hesabı tutmaz — hatırlatalım.',
+    notifAllow: 'İzin ver',
+    notifLater: 'Şimdi değil',
+    firstDayTitle: 'İlk gününü işaretle',
+    firstDayBody:
+        'Bugüne dokun, kazancını yaz. Uygulamaya böyle başlanır — hepsi bu.',
+    firstDayTapHint: 'Bugüne dokun',
+    firstDayAmountHint: 'Bugün ne kazandın?',
+    firstDayConfirm: 'Kaydet',
+    firstDayDone: 'İlk günün defterde. Böyle devam.',
+    firstDaySkip: 'Şimdilik atla',
   );
 
   static const ru = RS(
@@ -1409,5 +1673,76 @@ class RS {
     incomeBySource: 'Источники дохода',
     entriesTpl: 'Записей: {n}',
     pickIncomeSource: 'Источник',
+    qMoodTitle: 'Что ты чувствуешь, когда следишь за деньгами?',
+    qMoodStressed: 'Стресс',
+    qMoodUnsure: 'Не знаю',
+    qMoodGood: 'Хорошо',
+    qMoodComfortStressed:
+        'Понимаем. Budgy здесь, чтобы снять этот груз — маленькими шагами.',
+    qMoodComfortUnsure:
+        'Это нормально. Через пару дней ты ясно увидишь, куда всё уходит.',
+    qMoodComfortGood: 'Отлично. Поможем сохранить это чувство.',
+    qHardTitle: 'Что даётся труднее всего?',
+    qHardIncome: 'Не знаю, когда и сколько заработал',
+    qHardWhere: 'Не вижу, куда уходят деньги',
+    qHardMonthEnd: 'Не дотягиваю до конца месяца',
+    qHardHabit: 'Не получается вести регулярно',
+    qHardOther: 'Другое',
+    qMethodTitle: 'Как ты ведёшь учёт сейчас?',
+    qMethodNone: 'Никак',
+    qMethodPaper: 'Ручка и бумага',
+    qMethodSheet: 'Таблица (Excel, Sheets)',
+    qMethodApp: 'Другое приложение',
+    rIncomeTitle: 'Дело не в тебе, а в календаре.',
+    rIncomeBody:
+        'Нерегулярный доход не помещается в тетрадь. Budgy отмечает рабочие дни и сам считает, когда и сколько придёт.',
+    rWhereTitle: 'Деньги не исчезают. Их просто никто не записал.',
+    rWhereBody:
+        'Держать всё в голове — не метод. Budgy раскладывает каждую трату по категориям: куда ушло — видно с одного взгляда.',
+    rMonthEndTitle: 'Двадцатое число не должно быть сюрпризом.',
+    rMonthEndBody:
+        'Нельзя экономить, не зная границы. Budgy ставит бюджет на каждую категорию и предупреждает, если тратишь быстрее, чем нужно.',
+    rHabitTitle: 'Дело не в дисциплине. Дело в методе.',
+    rHabitBody:
+        'Привычка, которая требует пять минут в день, не приживается. В Budgy трата занимает три секунды: набери, надиктуй или сфотографируй чек.',
+    rOtherTitle: 'С чего бы ни начать, первый шаг один.',
+    rOtherBody:
+        'Управлять можно только тем, что видишь. Budgy начинает с того, что показывает, — остальное подстроится под тебя.',
+    summaryTitle: 'Готово.',
+    summaryExpensesTpl: 'Категорий расходов: {n}',
+    summaryIncomesTpl: 'Источников дохода: {n}',
+    summaryBody:
+        'Они уже ждут на главном экране. Картина начнёт складываться с первой записи.',
+    summaryEmpty:
+        'Категории пока не выбраны — ничего, Budgy предложит при первой трате.',
+    bubblesExpenseTitle: 'На что ты тратишь?',
+    bubblesIncomeTitle: 'Откуда приходят деньги?',
+    bubblesContinue: 'Продолжить',
+    bubblesContinueTpl: 'Выбрано {n} · Продолжить',
+    receiptEmpty: 'Нажми на категорию — она появится в чеке',
+    worldTitle: 'Выбери мир под себя',
+    worldSubtitle:
+        'Ночь и Лес — тёмные, Рассвет и Океан — светлые. Выбор сохранится как настройка оформления.',
+    worldFootnote: 'Только оформление — бюджет тот же.',
+    worldGo: 'Поехали',
+    worldNight: 'Ночь',
+    worldDawn: 'Рассвет',
+    worldForest: 'Лес',
+    worldOcean: 'Океан',
+    welcomeBurstTitle: 'Добро пожаловать в мир Budgy',
+    welcomeBurstSub: 'Всё готово. Блокнот ждёт тебя.',
+    notifTitle: 'Не забывай отмечать день',
+    notifBody:
+        'Одно касание вечером: «Сколько заработал сегодня?» Пропустишь день — месяц не сойдётся. Мы напомним.',
+    notifAllow: 'Разрешить',
+    notifLater: 'Не сейчас',
+    firstDayTitle: 'Отметь первый день',
+    firstDayBody:
+        'Коснись сегодняшнего дня и впиши заработок. Так и работает Budgy — вот и всё.',
+    firstDayTapHint: 'Коснись сегодня',
+    firstDayAmountHint: 'Сколько заработал сегодня?',
+    firstDayConfirm: 'Сохранить',
+    firstDayDone: 'Первый день в блокноте. Так держать.',
+    firstDaySkip: 'Пока пропустить',
   );
 }

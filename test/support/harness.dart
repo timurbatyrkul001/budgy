@@ -85,6 +85,10 @@ Future<void> pumpBudgyScreen(
       overrides: [
         budgetRepositoryProvider
             .overrideWithValue(BudgetRepository(db, testUid)),
+        // Onboarding'in ilk gün adımı buraya yazar; gerçek sağlayıcı
+        // uidProvider'a bağlı ve testte fırlatır.
+        workDaysRepositoryProvider
+            .overrideWithValue(WorkDaysRepository(db, testUid)),
         languageProvider.overrideWith((ref) => Stream.value(language)),
         currencyProvider.overrideWith((ref) => Stream.value(currency)),
         envelopesProvider.overrideWith((ref) => Stream.value(envelopes)),

@@ -7,61 +7,23 @@ import '../../core/ex_style.dart';
 import '../../core/motion.dart';
 import 'onboarding_palette.dart';
 
-// TODO(rs): Aşağıdaki metinler `lib/core/redesign_l10n.dart`'a (RS) taşınacak;
-// bu dosya metni sabit tutmaz, [MoodQuestionTexts] / [ChoiceQuestionPage]
-// parametreleriyle dışarıdan alır. Önerilen anahtarlar ve üç dil:
-//
-//   qMoodTitle
-//     tr: 'Parayı takip etmek sana ne hissettiriyor?'
-//     en: 'How does tracking money make you feel?'
-//     ru: 'Что ты чувствуешь, когда следишь за деньгами?'
-//   qMoodStressed        tr: 'Stresli'     en: 'Stressed'   ru: 'Стресс'
-//   qMoodUnsure          tr: 'Kararsız'    en: 'Unsure'     ru: 'Не знаю'
-//   qMoodGood            tr: 'İyi'         en: 'Good'       ru: 'Хорошо'
-//   qMoodComfortStressed
-//     tr: 'Anlıyoruz. Budgy o yükü hafifletmek için var — küçük adımlarla.'
-//     en: 'We get it. Budgy is here to take that weight off — one small step at a time.'
-//     ru: 'Понимаем. Budgy здесь, чтобы снять этот груз — маленькими шагами.'
-//   qMoodComfortUnsure
-//     tr: 'Gayet normal. Birkaç günde nereye gittiğini net göreceksin.'
-//     en: 'Totally normal. In a few days you\'ll see clearly where it goes.'
-//     ru: 'Это нормально. Через пару дней ты ясно увидишь, куда всё уходит.'
-//   qMoodComfortGood
-//     tr: 'Harika. Bu hissi korumana yardım edeceğiz.'
-//     en: 'That\'s great. We\'ll help you keep that feeling.'
-//     ru: 'Отлично. Поможем сохранить это чувство.'
-//
-//   qHardTitle
-//     tr: 'En zor gelen ne?'
-//     en: 'What\'s the hardest part?'
-//     ru: 'Что даётся труднее всего?'
-//   qHardIncome      tr: 'Ne zaman ne kazandığımı bilmemek'
-//                    en: 'Not knowing when I earn what'
-//                    ru: 'Не знаю, когда и сколько заработал'
-//   qHardWhere       tr: 'Harcamaların nereye gittiğini görmemek'
-//                    en: 'Not seeing where the money goes'
-//                    ru: 'Не вижу, куда уходят деньги'
-//   qHardMonthEnd    tr: 'Ay sonunu getirememek'
-//                    en: 'Running out before month end'
-//                    ru: 'Не дотягиваю до конца месяца'
-//   qHardHabit       tr: 'Düzenli takip edememek'
-//                    en: 'Not keeping it up regularly'
-//                    ru: 'Не получается вести регулярно'
-//   qHardOther       tr: 'Başka bir şey'   en: 'Something else'   ru: 'Другое'
-//
-//   qMethodTitle
-//     tr: 'Şu an nasıl takip ediyorsun?'
-//     en: 'How do you track it today?'
-//     ru: 'Как ты ведёшь учёт сейчас?'
-//   qMethodNone      tr: 'Hiç takip etmiyorum'   en: 'I don\'t track it'   ru: 'Никак'
-//   qMethodPaper     tr: 'Kâğıt kalem'           en: 'Pen and paper'       ru: 'Ручка и бумага'
-//   qMethodSheet     tr: 'Tablo (Excel, Sheets)' en: 'Spreadsheet'         ru: 'Таблица (Excel, Sheets)'
-//   qMethodApp       tr: 'Başka bir uygulama'    en: 'Another app'         ru: 'Другое приложение'
-//
-//   Devam düğmesi için mevcut `RS.next` kullanılabilir.
-
 /// Duygu sorusunun cevapları.
 enum MoodAnswer { stressed, unsure, good }
+
+/// Her cevabın kendi rengi var: kırmızı · amber · yeşil. Üçünü de yeşil
+/// yapmak "seçildi"den başka bir şey anlatmıyordu; renk cevabın kendisini
+/// taşısın diye ayrıldı. Teselli baloncuğu da aynı rengi kullanır.
+Color moodColor(MoodAnswer m) => switch (m) {
+      MoodAnswer.stressed => Ex.red,
+      MoodAnswer.unsure => Ex.amber,
+      MoodAnswer.good => Ex.brand,
+    };
+
+/// Renkli zemin üzerindeki yazı/çizgi rengi. Kırmızı ve amber açık tonlar,
+/// üzerlerinde koyu mürekkep okunuyor; markanın kendi zıt rengi yalnız
+/// yeşilde doğru.
+Color onMoodColor(MoodAnswer m) =>
+    m == MoodAnswer.good ? Ex.onBrand : Poster.ink;
 
 /// Duygu sorusunun metinleri — koordinatör RS'den kurar.
 class MoodQuestionTexts {
@@ -150,6 +112,8 @@ class _MoodQuestionPageState extends ConsumerState<MoodQuestionPage> {
               : _ComfortBubble(
                   key: ValueKey(answer),
                   text: t.comforts[answer] ?? '',
+                  color: moodColor(answer),
+                  onColor: onMoodColor(answer),
                   // Kuyruk seçili yüzün altında: üç eşit sütunun merkezleri
                   // -2/3, 0, +2/3 hizasında.
                   tailAlign: -2 / 3 + (2 / 3) * answer.index,
@@ -340,7 +304,7 @@ class _MoodFaceButton extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                   fontSize: 14,
                   height: 1.2,
-                  color: selected ? Ex.brand : Poster.ink,
+                  color: selected ? moodColor(mood) : Poster.ink,
                 ),
               ),
             ],
@@ -363,8 +327,8 @@ class _FacePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final c = size.center(Offset.zero);
     final r = size.shortestSide / 2;
-    final fill = Color.lerp(const Color(0xFFEDECE8), Ex.brand, t)!;
-    final ink = Color.lerp(Poster.ink, Ex.onBrand, t)!;
+    final fill = Color.lerp(const Color(0xFFEDECE8), moodColor(mood), t)!;
+    final ink = Color.lerp(Poster.ink, onMoodColor(mood), t)!;
     canvas.drawCircle(c, r, Paint()..color = fill);
 
     final stroke = Paint()
@@ -416,10 +380,16 @@ class _ComfortBubble extends StatelessWidget {
   const _ComfortBubble({
     super.key,
     required this.text,
+    required this.color,
+    required this.onColor,
     this.tailAlign = -1,
   });
 
   final String text;
+
+  /// Seçilen cevabın rengi — yüzle aynı olsun diye dışarıdan geliyor.
+  final Color color;
+  final Color onColor;
 
   /// Kuyruğun yatay konumu (-1 sol, 0 orta, 1 sağ).
   final double tailAlign;
@@ -433,12 +403,12 @@ class _ComfortBubble extends StatelessWidget {
           alignment: Alignment(tailAlign, 0),
           child: CustomPaint(
             size: const Size(18, 9),
-            painter: _BubbleTailPainter(),
+            painter: _BubbleTailPainter(color: color),
           ),
         ),
         DecoratedBox(
           decoration: BoxDecoration(
-            color: Ex.brand,
+            color: color,
             borderRadius: BorderRadius.circular(18),
           ),
           child: Padding(
@@ -461,6 +431,10 @@ class _ComfortBubble extends StatelessWidget {
 
 /// Baloncuğun yukarı bakan üçgen kuyruğu.
 class _BubbleTailPainter extends CustomPainter {
+  const _BubbleTailPainter({required this.color});
+
+  final Color color;
+
   @override
   void paint(Canvas canvas, Size size) {
     final path = Path()
@@ -468,11 +442,11 @@ class _BubbleTailPainter extends CustomPainter {
       ..lineTo(size.width / 2, 0)
       ..lineTo(size.width, size.height)
       ..close();
-    canvas.drawPath(path, Paint()..color = Ex.brand);
+    canvas.drawPath(path, Paint()..color = color);
   }
 
   @override
-  bool shouldRepaint(_BubbleTailPainter old) => false;
+  bool shouldRepaint(_BubbleTailPainter old) => old.color != color;
 }
 
 /// Liste satırı: beyaz kart, seçilince marka yeşili dolgu ve sağda onay.

@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/category_catalog.dart';
 import '../../core/l10n.dart';
 import '../../core/motion.dart';
+import '../../core/redesign_l10n.dart';
 import 'onboarding_palette.dart';
 
 /// Onboarding'in "balon bulutu" seçim sayfası.
@@ -123,7 +124,7 @@ class _BubblePickerPageState extends ConsumerState<BubblePickerPage> {
 
   @override
   Widget build(BuildContext context) {
-    final locale = ref.watch(strProvider).localeCode;
+    final rs = ref.watch(rsProvider);
     final width = MediaQuery.sizeOf(context).width - 40;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -150,7 +151,7 @@ class _BubblePickerPageState extends ConsumerState<BubblePickerPage> {
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
           child: Center(
             child: _InkPill(
-              label: _nextLabel(locale, _selected.length),
+              label: _nextLabel(rs, _selected.length),
               onTap: () => widget.onNext(Set.unmodifiable(_selected)),
             ),
           ),
@@ -160,25 +161,11 @@ class _BubblePickerPageState extends ConsumerState<BubblePickerPage> {
   }
 }
 
-/// Düğme metni seçim sayısına göre.
-///
-/// GEÇİCİ: bu metinler `RS`'ye taşınacak (koordinatör ekleyecek); o zamana
-/// kadar burada, üç dilde. Sıfır seçimde de basılabilir — kullanıcı
-/// atlayabilmeli.
-String _nextLabel(String locale, int count) {
-  if (count == 0) {
-    return switch (locale) {
-      'tr' => 'Devam et',
-      'ru' => 'Продолжить',
-      _ => 'Continue',
-    };
-  }
-  return switch (locale) {
-    'tr' => '$count tanesiyle devam et',
-    'ru' => 'Выбрано $count · Продолжить',
-    _ => 'Continue with $count',
-  };
-}
+/// Düğme metni seçim sayısına göre. Sıfır seçimde de basılabilir —
+/// kullanıcı atlayabilmeli.
+String _nextLabel(RS rs, int count) => count == 0
+    ? rs.bubblesContinue
+    : tpl(rs.bubblesContinueTpl, {'n': '$count'});
 
 /// Akıştaki `_Title` ölçüsünün eşi: InterDisplay w900, 36 px (dar ekranda
 /// 32), en uzun kelime sığmazsa punto düşer. Kaynak `onboarding_flow.dart`'ta

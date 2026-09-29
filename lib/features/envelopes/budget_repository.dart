@@ -326,8 +326,11 @@ class BudgetRepository {
       _settings.set(data, SetOptions(merge: true));
 
   /// Стартовый набор конвертов из онбординга — одним батчем.
+  /// [startSortOrder]: mevcut zarfların ardından devam etmek için.
   Future<void> addEnvelopes(
-      List<({String key, String emoji, String name})> items) {
+    List<({String key, String emoji, String name})> items, {
+    int startSortOrder = 0,
+  }) {
     final batch = _db.batch();
     for (final (index, item) in items.indexed) {
       batch.set(_envelopes.doc(), {
@@ -335,7 +338,7 @@ class BudgetRepository {
         'emoji': item.emoji,
         'preset': item.key,
         'balance': 0,
-        'sortOrder': index,
+        'sortOrder': startSortOrder + index,
         'createdAt': FieldValue.serverTimestamp(),
       });
     }

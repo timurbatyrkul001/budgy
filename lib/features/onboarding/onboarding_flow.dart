@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/brand.dart';
+import '../../core/category_catalog.dart';
 import '../../core/category_rules.dart';
 import '../../core/currency_info.dart';
 import '../../core/ex_style.dart';
@@ -23,22 +24,58 @@ import '../profile/privacy_policy_screen.dart';
 import '../profile/terms_of_use_screen.dart';
 import '../space/currency_wallet_sheet.dart';
 import '../space/space.dart';
+import '../workdays/work_days_repository.dart';
 import 'intro_mockups.dart';
+import 'onboarding_bubbles.dart';
+import 'onboarding_receipt.dart';
+import 'onboarding_finale.dart';
+import 'onboarding_firstday.dart';
 import 'onboarding_palette.dart';
+import 'onboarding_questions.dart';
+import 'onboarding_response.dart';
 
-/// 6 sayfalı onboarding: karşılama → hızlı giriş → kurallar → bütçe
-/// (tanıtım) → para birimi → cüzdan (kurulum).
-/// Sonunda para birimi + cüzdan + hazır kategoriler yazılır ve
+// ── Sayfa sırası ─────────────────────────────────────────────────────────
+// Geri düğmesi, önizleme (PREVIEW_STEP) ve testler bu indekslere göre.
+const _pWelcome = 0;
+const _pIntroFast = 1;
+const _pIntroRules = 2;
+const _pIntroBudget = 3;
+const _pMood = 4;
+const _pHardest = 5;
+const _pReply = 6;
+const _pMethod = 7;
+const _pExpenses = 8;
+const _pIncomes = 9;
+const _pSummary = 10;
+const _pCurrency = 11;
+const _pWallet = 12;
+const _pNotif = 13;
+const _pWorld = 14;
+const _pFirstDay = 15;
+const _pBurst = 16;
+
+/// Son sayfanın indeksi (PREVIEW_STEP üst sınırı).
+const kOnboardingLastStep = _pBurst;
+
+/// 17 sayfalı onboarding: karşılama → tanıtım ×3 → anket (duygu, en zor
+/// gelen, cevaba karşılık, mevcut yöntem) → balonlar (giderler, gelirler) →
+/// "Hazır" özeti → para birimi → cüzdan → bildirim izni → dünya seçimi →
+/// ilk gün → karşılama patlaması.
+///
+/// Hiçbir sayfa Firestore'a yazmaz; cevaplar bu state'te birikir ve
+/// karşılama patlaması açılırken TEK SEFERDE yazılır (para birimi, cüzdan,
+/// balonlardan kategoriler, tema tercihi, ilk gün). Patlama bitince
 /// `onboardingDone` işaretlenir; auth kapısı ana ekrana geçer.
 ///
 /// [preview] (yalnız `--dart-define=PREVIEW_ONBOARDING=true`): hiçbir şey
-/// yazmaz, son buton sadece geri döner — ekran görüntüsü almak için.
+/// yazmaz, son sayfa sadece geri döner — ekran görüntüsü almak için.
 class OnboardingFlow extends ConsumerStatefulWidget {
   const OnboardingFlow({super.key, this.preview = false, this.initialStep = 0});
 
   final bool preview;
 
-  /// Başlangıç adımı (0-5) — önizlemede belirli bir adımı açmak için.
+  /// Başlangıç adımı (0-[kOnboardingLastStep]) — önizlemede belirli bir
+  /// adımı açmak için.
   final int initialStep;
 
   @override
@@ -46,16 +83,35 @@ class OnboardingFlow extends ConsumerStatefulWidget {
 }
 
 class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
-  late int _page = widget.initialStep.clamp(0, 5);
+  late int _page = widget.initialStep.clamp(0, kOnboardingLastStep);
   bool _forward = true;
-  bool _saving = false;
   late String _currency;
   SpaceInfo? _draft;
 
   /// Ana cüzdanın başlangıç tutarı (boş = 0) ve ek döviz cüzdanları —
-  /// "Başlayalım"a kadar yalnız yerel taslak.
+  /// akış sonuna kadar yalnız yerel taslak.
   final _mainAmount = TextEditingController();
   final _extras = <CurrencyWalletDraft>[];
+
+  // ── Anket cevapları ve seçimler (akış sonunda yazılır) ──
+  MoodAnswer? _mood;
+
+  /// "En zor gelen ne?" cevabı — [AnswerResponsePage] buna göre konuşur.
+  String? _hardest;
+  String? _method;
+
+  /// Balonlarda seçilen katalog anahtarları; geri gelince korunur.
+  Set<String> _expenseKeys = const {};
+  Set<String> _incomeKeys = const {};
+
+  /// Seçilen dünya (`kOnboardingWorlds` id'si); tema tercihine çevrilir.
+  String _worldId = 'dawn';
+
+  /// İlk gün ekranında girilen kazanç; atlandıysa null.
+  double? _firstDayAmount;
+
+  /// Patlama açılırken başlayan yazma; patlama bitince beklenir.
+  Future<void>? _commit;
 
   @override
   void initState() {
@@ -64,19 +120,26 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
         currencyForRegion(PlatformDispatcher.instance.locale.countryCode);
     // Önizlemede PREVIEW_AUTOPLAY: 1,6 s sonra kendiliğinden ileri gider —
     // sayfa geçişini ekran görüntüleriyle kare kare doğrulamak için.
-    if (widget.preview && kPreviewOnboardingAutoplay && _page < 5) {
+    if (widget.preview && kPreviewOnboardingAutoplay && _page < _pBurst) {
       Future.delayed(const Duration(milliseconds: 1600), () {
         if (mounted) _go(_page + 1);
       });
     }
-    // Önizleme doğrudan cüzdan adımında açılırsa dolu hâlini göster
-    // (ekran görüntüsü için); veri yazılmaz.
-    if (widget.preview && widget.initialStep == 5) {
-      _mainAmount.text = '12500';
-      _extras.addAll(const [
-        CurrencyWalletDraft(code: 'USD', amount: 500),
-        CurrencyWalletDraft(code: 'EUR', amount: 120),
-      ]);
+    // Önizleme ileri bir adımda açılırsa dolu hâlini göster (ekran
+    // görüntüsü için); veri yazılmaz.
+    if (widget.preview) {
+      if (widget.initialStep >= _pReply) _hardest = 'income';
+      if (widget.initialStep >= _pSummary) {
+        _expenseKeys = const {'groceries', 'rent', 'coffee', 'taxi', 'utilities'};
+        _incomeKeys = const {'salary', 'tips'};
+      }
+      if (widget.initialStep == _pWallet) {
+        _mainAmount.text = '12500';
+        _extras.addAll(const [
+          CurrencyWalletDraft(code: 'USD', amount: 500),
+          CurrencyWalletDraft(code: 'EUR', amount: 120),
+        ]);
+      }
     }
   }
 
@@ -136,70 +199,133 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
     );
   }
 
-  Future<void> _start(RS rs) async {
-    if (_saving) return;
+  /// Seçilen dünya koyu mu? Gece ve orman → koyu; şafak ve okyanus → açık.
+  bool get _worldIsDark =>
+      kOnboardingWorlds.firstWhere((w) => w.id == _worldId).dark;
+
+  /// Karşılama patlamasına geç; gerçek akışta yazma ANİMASYONLA PARALEL
+  /// başlar (1,8 s'lik patlama ağ gecikmesini örter). `ignore()`: hata
+  /// [_finish]'te yakalanır, o zamana kadar "unhandled" sayılmasın.
+  void _enterBurst(RS rs) {
+    if (!widget.preview) _commit ??= _writeAll(rs)..ignore();
+    _go(_pBurst);
+  }
+
+  /// Patlama bitti: yazma tamamlanmışsa `onboardingDone` — auth kapısı ana
+  /// ekrana geçer. Hata olursa ilk gün sayfasına dönülür; tekrar denemede
+  /// [_writeAll] var olanı yeniden yazmaz (anahtar/preset kontrolü).
+  Future<void> _finish() async {
     if (widget.preview) {
       Navigator.of(context).maybePop();
       return;
     }
-    setState(() => _saving = true);
     // Repo'yu ÖNCE al: yazma sırasında auth kapısı bu widget'ı değiştirebilir,
     // sonra ref okumak güvenli olmaz.
     final repo = ref.read(budgetRepositoryProvider);
     final str = ref.read(strProvider);
-    final hasEnvelopes = ref.read(envelopesProvider).value?.isNotEmpty ?? false;
-    final space = _space(rs);
     try {
-      await repo.setCurrency(_currency);
-      await repo.saveProfile(space.toProfile());
-      // Harcama kategorileri hâlâ gerekli (gider sınıflandırma) — sessizce
-      // hazır seti oluştur.
-      if (!hasEnvelopes) {
-        await repo.addEnvelopes([
-          for (final p in presetEnvelopes)
-            (
-              key: p.key,
-              emoji: p.emoji,
-              name: str.presetNames[p.key] ?? p.key,
-            ),
-        ]);
-      }
-      // Başlangıç bakiyesi: ₺ cüzdana gelir; dövizler ayrı kumbara zarfı.
-      final mainAmount = parseAmount(_mainAmount.text) ?? 0;
-      if (mainAmount > 0) {
-        await repo.addCashIncome(amount: mainAmount, note: rs.startingBalance);
-      }
-      // Sıra numarası mevcut/hazır zarfların ardından devam eder.
-      var sortOrder = hasEnvelopes
-          ? (ref.read(envelopesProvider).value?.length ?? 0)
-          : presetEnvelopes.length;
-      for (final e in _extras) {
-        await repo.addCurrencyWallet(
-          code: e.code,
-          name: walletNameFor(rs, e.code),
-          emoji: walletEmojiFor(e.code),
-          amount: e.amount,
-          sortOrder: sortOrder++,
-          note: rs.startingBalance,
-        );
-      }
+      await _commit;
       await repo.setOnboardingDone();
     } catch (_) {
+      _commit = null;
       if (mounted) {
         showErrorSnack(context, str.errorSaveFailed);
-        setState(() => _saving = false);
+        _go(_pFirstDay);
       }
     }
+  }
+
+  /// Akışta biriken her şeyi kullanıcının ağacına yazar (kimlik bu noktada
+  /// belli — uygulama anonim oturumla açılır, `uidProvider` dolu).
+  ///
+  /// Sıra: para birimi + profil + tema tercihi → kategoriler → başlangıç
+  /// bakiyesi → döviz cüzdanları → ilk gün. Kategoriler balonlardan
+  /// (gider balonu → gider zarfı, gelir balonu → gelir kategorisi; ikisi de
+  /// katalog anahtarıyla `preset` olarak yazılır, bölüm katalogdan türer).
+  /// Gider seçilmediyse eski hazır set — kullanıcı kategorisiz kalmasın.
+  Future<void> _writeAll(RS rs) async {
+    final repo = ref.read(budgetRepositoryProvider);
+    final workDays = ref.read(workDaysRepositoryProvider);
+    final str = ref.read(strProvider);
+    final existing = ref.read(envelopesProvider).value ?? const [];
+    final space = _space(rs);
+
+    await repo.setCurrency(_currency);
+    await repo.saveProfile({
+      ...space.toProfile(),
+      // Anket cevapları: ürün kararları için ham veri, ekranda kullanılmaz.
+      'onboardingAnswers': {
+        'mood': _mood?.name,
+        'hardest': _hardest,
+        'method': _method,
+        'world': _worldId,
+      },
+    });
+    await repo.setThemeMode(_worldIsDark ? ThemeMode.dark : ThemeMode.light);
+
+    // Kategoriler. Var olan preset'ler atlanır (tekrar denemede çift yok).
+    final have = {for (final e in existing) e.presetKey};
+    final expenseKeys = _expenseKeys.isNotEmpty
+        ? _expenseKeys.toList()
+        : [for (final p in presetEnvelopes) p.key];
+    final keys = [...expenseKeys, ..._incomeKeys]
+        .where((k) => !have.contains(k))
+        .toList();
+    var sortOrder = existing.length;
+    if (keys.isNotEmpty) {
+      await repo.addEnvelopes(
+        [for (final k in keys) _categoryFor(k, str)],
+        startSortOrder: sortOrder,
+      );
+      sortOrder += keys.length;
+    }
+
+    // Başlangıç bakiyesi: ₺ cüzdana gelir; dövizler ayrı kumbara zarfı.
+    final mainAmount = parseAmount(_mainAmount.text) ?? 0;
+    if (mainAmount > 0) {
+      await repo.addCashIncome(amount: mainAmount, note: rs.startingBalance);
+    }
+    for (final e in _extras) {
+      await repo.addCurrencyWallet(
+        code: e.code,
+        name: walletNameFor(rs, e.code),
+        emoji: walletEmojiFor(e.code),
+        amount: e.amount,
+        sortOrder: sortOrder++,
+        note: rs.startingBalance,
+      );
+    }
+
+    // İlk gün: setDay transaction'lı, cüzdana FARKI yazar — mantığa dokunma.
+    final firstDay = _firstDayAmount;
+    if (firstDay != null) {
+      await workDays.setDay(DateTime.now(), amount: firstDay);
+    }
+  }
+
+  /// Katalog/hazır anahtar → zarf kaydı. Ad `displayName` ile aynı öncelik:
+  /// önce hazır set çevirisi, sonra katalog; emoji katalogdan, yoksa hazır
+  /// setten (food/transport gibi eski anahtarlar katalogda yok).
+  ({String key, String emoji, String name}) _categoryFor(
+      String key, Strings str) {
+    final item = catalogItem(key);
+    final preset = presetEnvelopes.where((p) => p.key == key).firstOrNull;
+    return (
+      key: key,
+      emoji: item?.emoji ?? preset?.emoji ?? '🗂️',
+      name: str.presetNames[key] ?? item?.name(str.localeCode) ?? key,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final rs = ref.watch(rsProvider);
-    final locale = ref.watch(strProvider).localeCode;
+    final str = ref.watch(strProvider);
+    final locale = str.localeCode;
     final pages = [
       _WelcomePage(
         rs: rs,
-        onNext: () => _go(1),
+        onNext: () => _go(_pIntroFast),
         onSignIn: _signIn,
       ),
       // Tanıtım sayfaları: maket üstte, ortalı başlık + alt başlık, Devam.
@@ -207,7 +333,7 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
         title: rs.introFastTitle,
         subtitle: rs.introFastSubtitle,
         buttonLabel: rs.continueLabel,
-        onNext: () => _go(2),
+        onNext: () => _go(_pIntroRules),
         mockup: const FastEntryMock(),
       ),
       _IntroPage(
@@ -215,21 +341,128 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
         subtitle: tpl(rs.introRulesSubtitleTpl,
             {'n': '${kBuiltinRuleCount ~/ 10 * 10}'}),
         buttonLabel: rs.continueLabel,
-        onNext: () => _go(3),
+        onNext: () => _go(_pIntroBudget),
         mockup: RulesMock(locale: locale),
       ),
       _IntroPage(
         title: rs.introBudgetTitle,
         subtitle: rs.introBudgetSubtitle,
         buttonLabel: rs.continueLabel,
-        onNext: () => _go(4),
+        onNext: () => _go(_pMood),
         mockup: BudgetMock(locale: locale, title: rs.monthlyBudget),
+      ),
+      // Anket: duygu → en zor gelen → cevaba karşılık → mevcut yöntem.
+      MoodQuestionPage(
+        texts: MoodQuestionTexts(
+          title: rs.qMoodTitle,
+          labels: {
+            MoodAnswer.stressed: rs.qMoodStressed,
+            MoodAnswer.unsure: rs.qMoodUnsure,
+            MoodAnswer.good: rs.qMoodGood,
+          },
+          comforts: {
+            MoodAnswer.stressed: rs.qMoodComfortStressed,
+            MoodAnswer.unsure: rs.qMoodComfortUnsure,
+            MoodAnswer.good: rs.qMoodComfortGood,
+          },
+          next: rs.next,
+        ),
+        onNext: (a) {
+          _mood = a;
+          _go(_pHardest);
+        },
+      ),
+      ChoiceQuestionPage(
+        title: rs.qHardTitle,
+        options: [
+          ChoiceOption(id: 'income', label: rs.qHardIncome),
+          ChoiceOption(id: 'where', label: rs.qHardWhere),
+          ChoiceOption(id: 'monthEnd', label: rs.qHardMonthEnd),
+          ChoiceOption(id: 'habit', label: rs.qHardHabit),
+          ChoiceOption(id: 'other', label: rs.qHardOther),
+        ],
+        nextLabel: rs.next,
+        onNext: (id) {
+          _hardest = id;
+          _go(_pReply);
+        },
+      ),
+      AnswerResponsePage(
+        answerId: _hardest ?? 'other',
+        texts: AnswerResponseTexts(
+          titles: {
+            'income': rs.rIncomeTitle,
+            'where': rs.rWhereTitle,
+            'monthEnd': rs.rMonthEndTitle,
+            'habit': rs.rHabitTitle,
+            'other': rs.rOtherTitle,
+          },
+          bodies: {
+            'income': rs.rIncomeBody,
+            'where': rs.rWhereBody,
+            'monthEnd': rs.rMonthEndBody,
+            'habit': rs.rHabitBody,
+            'other': rs.rOtherBody,
+          },
+          next: rs.next,
+        ),
+        onNext: () => _go(_pMethod),
+      ),
+      ChoiceQuestionPage(
+        title: rs.qMethodTitle,
+        options: [
+          ChoiceOption(id: 'none', label: rs.qMethodNone),
+          ChoiceOption(id: 'paper', label: rs.qMethodPaper),
+          ChoiceOption(id: 'sheet', label: rs.qMethodSheet),
+          ChoiceOption(id: 'app', label: rs.qMethodApp),
+        ],
+        nextLabel: rs.next,
+        onNext: (id) {
+          _method = id;
+          _go(_pExpenses);
+        },
+      ),
+      // Fiş: seçilen kategoriler kâğıda basılır, akış sonunda gerçek
+      // zarf olur. Balon bulutu (onboarding_bubbles.dart) duruyor —
+      // bu iki satır geri alınırsa ona dönülür.
+      ReceiptPickerPage(
+        title: rs.bubblesExpenseTitle,
+        items: expenseBubbles(str),
+        accent: Ex.red,
+        initialSelected: _expenseKeys,
+        onNext: (keys) {
+          setState(() => _expenseKeys = keys);
+          _go(_pIncomes);
+        },
+      ),
+      ReceiptPickerPage(
+        title: rs.bubblesIncomeTitle,
+        items: incomeBubbles(str),
+        accent: Ex.brand,
+        initialSelected: _incomeKeys,
+        onNext: (keys) {
+          setState(() => _incomeKeys = keys);
+          _go(_pSummary);
+        },
+      ),
+      SetupSummaryPage(
+        expenseCount: _expenseKeys.length,
+        incomeCount: _incomeKeys.length,
+        texts: SetupSummaryTexts(
+          title: rs.summaryTitle,
+          expenseLine: rs.summaryExpensesTpl,
+          incomeLine: rs.summaryIncomesTpl,
+          body: rs.summaryBody,
+          empty: rs.summaryEmpty,
+          next: rs.next,
+        ),
+        onNext: () => _go(_pCurrency),
       ),
       _CurrencyPage(
         rs: rs,
         code: _currency,
         onChange: _changeCurrency,
-        onUse: () => _go(5),
+        onUse: () => _go(_pWallet),
       ),
       _WalletPage(
         rs: rs,
@@ -240,25 +473,62 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
         onAddExtra: _addExtra,
         onRemoveExtra: (i) => setState(() => _extras.removeAt(i)),
         onCustomize: () => _customize(rs),
-        onStart: _saving ? null : () => _start(rs),
+        onStart: () => _go(_pNotif),
       ),
+      // Finale: bildirim izni → dünya → ilk gün → patlama.
+      NotificationAskPage(
+        texts: NotificationAskTexts(
+          title: rs.notifTitle,
+          body: rs.notifBody,
+          allow: rs.notifAllow,
+          later: rs.notifLater,
+        ),
+        // İzin sonucu sistemde kalır; akış için "sordu" yeterli.
+        onNext: (_) => _go(_pWorld),
+      ),
+      ThemePickerPage(
+        onNext: (id) {
+          _worldId = id;
+          _go(_pFirstDay);
+        },
+      ),
+      FirstDayPage(
+        texts: FirstDayTexts(
+          title: rs.firstDayTitle,
+          body: rs.firstDayBody,
+          tapHint: rs.firstDayTapHint,
+          amountHint: rs.firstDayAmountHint,
+          confirm: rs.firstDayConfirm,
+          done: rs.firstDayDone,
+          next: rs.next,
+          skip: rs.firstDaySkip,
+        ),
+        onNext: (amount) {
+          _firstDayAmount = amount;
+          _enterBurst(rs);
+        },
+      ),
+      WelcomeBurstPage(onDone: _finish),
     ];
+    assert(pages.length == kOnboardingLastStep + 1);
 
     // Tüm akış beyaz afiş dilinde; durum çubuğu simgeleri koyu. Karşılama
     // (0) üst şeritsiz poster, diğer adımlarda yalnız sol üstte geri oku
-    // (ilerleme çubuğu bilinçli olarak yok — referansta da yok).
-    final Widget body = _page == 0
+    // (ilerleme çubuğu bilinçli olarak yok — referansta da yok). Patlama
+    // sayfasında geri yok: yazma başladı, yarıda dönülmez.
+    final Widget body = _page == _pWelcome
         ? KeyedSubtree(key: const ValueKey('welcome'), child: pages[0])
         : Column(
             key: const ValueKey('flow'),
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: _PaperBackButton(onTap: () => _go(_page - 1)),
+              if (_page != _pBurst)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: _PaperBackButton(onTap: () => _go(_page - 1)),
+                  ),
                 ),
-              ),
               Expanded(
                 child: AnimatedSwitcher(
                   duration: _pageSwitch,
@@ -1437,7 +1707,7 @@ class _WalletPage extends StatelessWidget {
             .dropIn(context, const Duration(milliseconds: 520), dy: -8),
         const Spacer(),
         const SizedBox(height: 16),
-        Center(child: _InkPillButton(label: rs.letsGo, onTap: onStart))
+        Center(child: _InkPillButton(label: rs.continueLabel, onTap: onStart))
             .dropIn(context, const Duration(milliseconds: 600), dy: -8),
         const SizedBox(height: 4),
         _PaperTextButton(label: rs.customize, onTap: onCustomize)
