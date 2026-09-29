@@ -2,8 +2,9 @@ import 'claude_client.dart';
 
 /// Kategori bütçesi önerisini (geçmişe göre hesaplanmış dağılımı) Claude
 /// Haiku ile inceltir: toplamı korur, kategori adlarına göre makul
-/// düzeltmeler yapar. Anahtar yoksa ya da çağrı başarısızsa [draft]
-/// olduğu gibi döner — buton anahtarsız da tam çalışır.
+/// düzeltmeler yapar. Çağrı `aiCall` Cloud Function'ı üzerinden gider
+/// (aylık `advice` hakkı sunucuda sayılır). Giriş yoksa, hak bittiyse ya da
+/// çağrı başarısızsa [draft] olduğu gibi döner — buton AI'sız da tam çalışır.
 class BudgetAdvisor {
   static bool get available => ClaudeClient.available;
 
@@ -16,6 +17,7 @@ class BudgetAdvisor {
     if (!available || draft.isEmpty) return draft;
     try {
       final input = await ClaudeClient.callTool(
+        op: AiOp.advice,
         toolName: 'set_category_budgets',
         toolDescription: 'Kategori bütçelerini belirle',
         inputSchema: {
@@ -38,17 +40,15 @@ class BudgetAdvisor {
         content: [
           {
             'type': 'text',
-            'text': 'Aylık/haftalık kişisel bütçe: toplam $total. '
+            'text':
+                'Aylık/haftalık kişisel bütçe: toplam $total. '
                 'Aşağıdaki taslak, kullanıcının son 60 günlük harcama '
                 'payından üretildi. Kategori adlarına bakarak makul '
                 'düzeltmeler yap (zorunlu giderleri kısma, keyfî olanları '
                 'hafifçe kırp), toplam AYNI kalsın, her kategori için '
                 'id\'yi birebir kullan, tutarları 10\'a yuvarla. '
                 'Dil: $languageCode.\n\n'
-                '${[
-              for (final e in draft.entries)
-                '${e.key} (${names[e.key] ?? e.key}): ${e.value}'
-            ].join('\n')}',
+                '${[for (final e in draft.entries) '${e.key} (${names[e.key] ?? e.key}): ${e.value}'].join('\n')}',
           },
         ],
       );

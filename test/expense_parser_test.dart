@@ -1,17 +1,14 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kopilka_app/core/ai/expense_parser.dart';
 
-/// Parser'ın regex-fолбэк yolu (testte API anahtarı yok — AI devre dışı).
+/// Parser'ın regex-fолбэк yolu (testte Firebase/giriş yok — AI devre dışı).
 /// AI yolu aynı [ParsedItem] sözleşmesini üretir; şema zorlaması
 /// (tool_choice) yüzünden ayrıca birim testine gerek yok.
 void main() {
   final parser = ExpenseParser();
-  const envelopes = [
-    (id: 'e1', name: 'Market'),
-    (id: 'e2', name: 'Kafe'),
-  ];
+  const envelopes = [(id: 'e1', name: 'Market'), (id: 'e2', name: 'Kafe')];
 
-  test('AI anahtarı testte kapalı — fолбэк çalışmalı', () {
+  test('AI testte kapalı (giriş yok) — fолбэк çalışmalı', () {
     expect(ExpenseParser.aiAvailable, isFalse);
   });
 
@@ -35,8 +32,10 @@ void main() {
   });
 
   test('kazanç sözcüğü geliri işaretler ve kategori almaz', () async {
-    final items =
-        await parser.parse('bugün 2000 kazandım', envelopes: envelopes);
+    final items = await parser.parse(
+      'bugün 2000 kazandım',
+      envelopes: envelopes,
+    );
     expect(items.single.kind, 'income');
     expect(items.single.amount, 2000);
     expect(items.single.envelopeId, isNull);

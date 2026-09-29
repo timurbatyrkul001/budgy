@@ -4,6 +4,9 @@ import 'dart:typed_data';
 import '../../features/envelopes/envelope.dart';
 import 'claude_client.dart';
 
+export 'claude_client.dart'
+    show AiLimitReached, AiNetworkError, AiOp, AiUnavailable;
+
 /// Doğal dilden ya da fişten çözülmüş tek bir işlem.
 class ParsedItem {
   const ParsedItem({
@@ -25,19 +28,13 @@ class ParsedItem {
   final String? envelopeId;
   final String? envelopeName;
 
-  ParsedItem copyWith({String? envelopeId, String? envelopeName}) =>
-      ParsedItem(
-        kind: kind,
-        amount: amount,
-        note: note,
-        envelopeId: envelopeId ?? this.envelopeId,
-        envelopeName: envelopeName ?? this.envelopeName,
-      );
-}
-
-/// API anahtarı yokken görüntü çözümü istendi.
-class AiUnavailable implements Exception {
-  const AiUnavailable();
+  ParsedItem copyWith({String? envelopeId, String? envelopeName}) => ParsedItem(
+    kind: kind,
+    amount: amount,
+    note: note,
+    envelopeId: envelopeId ?? this.envelopeId,
+    envelopeName: envelopeName ?? this.envelopeName,
+  );
 }
 
 /// Serbest metni ("kahve 90, market 450, 2000 kazandım") ve fiş
@@ -45,13 +42,12 @@ class AiUnavailable implements Exception {
 ///
 /// İki motor:
 ///  * **AI (Haiku)** — ana yol: her ifadeyi anlar, birden çok işlemi ayırır,
-///    kategoriyi kullanıcının KENDİ zarf adlarıyla eşler. Anahtar derlemede
-///    verilir: `--dart-define=ANTHROPIC_API_KEY=sk-...`
-///  * **Regex** — anahtar/ağ yoksa: "not tutar" kalıbındaki tek işlemi çözer.
-///    Görüntü için anlamsız; fişte AI yoksa [AiUnavailable] fırlar.
-///
-/// PROD NOTU: yayında anahtar istemciye gömülmez — çağrı Cloud Functions
-/// proxy'sine taşınacak. --dart-define yalnız geliştirme kolaylığı.
+///    kategoriyi kullanıcının KENDİ zarf adlarıyla eşler. Çağrı `aiCall`
+///    Cloud Function'ı üzerinden gider (bkz. [ClaudeClient]); anahtar
+///    cihazda yok, aylık hak sunucuda sayılır.
+///  * **Regex** — giriş yok / ağ yok / hak bitti: "not tutar" kalıbındaki
+///    tek işlemi çözer. Görüntü için anlamsız; fişte AI yoksa
+///    [AiUnavailable], hak bittiyse [AiLimitReached] fırlar.
 class ExpenseParser {
   static bool get aiAvailable => ClaudeClient.available;
 
@@ -70,7 +66,8 @@ class ExpenseParser {
           [
             {
               'type': 'text',
-              'text': 'Kullanıcının serbest metnini para işlemlerine çevir. '
+              'text':
+                  'Kullanıcının serbest metnini para işlemlerine çevir. '
                   'Birden fazla işlem olabilir. Sayılar Türkçe biçimde '
                   'olabilir (1.250,50 = 1250.50). Dil: $languageCode.\n'
                   '${_categoryLine(envelopes)}\n\n'
@@ -78,16 +75,20 @@ class ExpenseParser {
             },
           ],
           envelopes,
+          AiOp.parse,
         );
       } catch (_) {
-        // Ağ/limit hatası → regex'e düş; kullanıcı en azından tutarı alır.
+        // Ağ hatası / hak bitti → regex'e düş; kullanıcı en azından tutarı
+        // alır. ([AiLimitReached] burada yutulur; fişte yutulmaz.)
       }
     }
     return _parseWithRegex(cleaned, envelopes, resolveCategory);
   }
 
   /// Fiş fotoğrafı → TEK gider: tutar = ödenen son toplam, not = mağaza,
-  /// kategori = listeden birebir ad ya da boş. Anahtar yoksa [AiUnavailable].
+  /// kategori = listeden birebir ad ya da boş. Giriş yoksa [AiUnavailable],
+  /// aylık tarama hakkı bittiyse [AiLimitReached], ağ/sunucu hatasında
+  /// [AiNetworkError] fırlar.
   Future<List<ParsedItem>> parseReceipt(
     Uint8List bytes, {
     required String mediaType,
@@ -107,7 +108,8 @@ class ExpenseParser {
         },
         {
           'type': 'text',
-          'text': 'Bu bir alışveriş fişinin fotoğrafı. TEK bir gider olarak '
+          'text':
+              'Bu bir alışveriş fişinin fotoğrafı. TEK bir gider olarak '
               'kaydet: tutar = gerçekten ödenen son toplam (ara toplam, '
               'vergi satırı ya da para üstü değil), not = mağaza/işletme adı, '
               'kategori = alınanlara en uygun olan. Fiş değilse ya da toplam '
@@ -116,6 +118,7 @@ class ExpenseParser {
         },
       ],
       envelopes,
+      AiOp.scan,
     );
   }
 
@@ -130,6 +133,7 @@ class ExpenseParser {
   Future<List<ParsedItem>> _callAi(
     List<Map<String, Object?>> content,
     List<({String id, String name})> envelopes,
+    AiOp op,
   ) async {
     final schema = {
       'type': 'object',
@@ -151,7 +155,8 @@ class ExpenseParser {
               },
               'category': {
                 'type': 'string',
-                'description': 'Kategori listesinden BİREBİR bir ad, '
+                'description':
+                    'Kategori listesinden BİREBİR bir ad, '
                     'ya da uymuyorsa boş string',
               },
             },
@@ -163,13 +168,14 @@ class ExpenseParser {
     };
 
     final input = await ClaudeClient.callTool(
+      op: op,
       content: content,
       toolName: 'record_transactions',
       toolDescription: 'Çözülen işlemleri kaydet',
       inputSchema: schema,
     );
-    final items =
-        (input['items'] as List? ?? const []).cast<Map<String, dynamic>>();
+    final items = (input['items'] as List? ?? const [])
+        .cast<Map<String, dynamic>>();
 
     return [
       for (final item in items)
@@ -214,7 +220,8 @@ class ExpenseParser {
   ]) {
     final match = _amountRe.firstMatch(text);
     if (match == null) return const [];
-    final amount = double.tryParse(
+    final amount =
+        double.tryParse(
           match.group(1)!.replaceAll('.', '').replaceAll(',', '.'),
         ) ??
         0;
@@ -225,8 +232,13 @@ class ExpenseParser {
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
     final lower = text.toLowerCase();
-    final isIncome = ['kazandım', 'kazanç', 'gelir', 'maaş', 'aldım para']
-        .any(lower.contains);
+    final isIncome = [
+      'kazandım',
+      'kazanç',
+      'gelir',
+      'maaş',
+      'aldım para',
+    ].any(lower.contains);
 
     var item = ParsedItem(
       kind: isIncome ? 'income' : 'expense',

@@ -291,6 +291,36 @@ await check('kapalı yerleşik kurallar yazma', assertSucceeds(
   setDoc(doc(me, `users/${ME}/settings/automation`),
     { disabled: ['groceries:a101', 'fuel:shell'] })));
 
+// ── AI kullanım sayaçları (usage) ────────────────────────────────────
+// users/{uid}/usage/{yyyy-MM} yalnız Cloud Function (Admin SDK) yazar.
+// İstemci okuyabilir ama yazamaz; aksi hâlde aylık AI sınırı delinir.
+const USAGE_ID = '2026-09';
+await testEnv.withSecurityRulesDisabled(async (ctx) => {
+  await setDoc(doc(ctx.firestore(), `users/${ME}/usage/${USAGE_ID}`),
+    { scan: 3, parse: 12, advice: 1 });
+});
+
+await check('kullanım sayacını sahibi okuyabilir', assertSucceeds(
+  getDoc(doc(me, `users/${ME}/usage/${USAGE_ID}`))));
+
+await check('kullanım sayacını sahibi oluşturamaz', assertFails(
+  setDoc(doc(me, `users/${ME}/usage/2026-10`), { scan: 0 })));
+
+await check('kullanım sayacını sahibi sıfırlayamaz (update)', assertFails(
+  updateDoc(doc(me, `users/${ME}/usage/${USAGE_ID}`), { scan: 0 })));
+
+await check('kullanım sayacını sahibi silemez', assertFails(
+  deleteDoc(doc(me, `users/${ME}/usage/${USAGE_ID}`))));
+
+await check('başkasının kullanım sayacı okunamaz', assertFails(
+  getDoc(doc(other, `users/${ME}/usage/${USAGE_ID}`))));
+
+await check('başkasının kullanım sayacına yazılamaz', assertFails(
+  setDoc(doc(other, `users/${ME}/usage/${USAGE_ID}`), { scan: 0 })));
+
+await check('anonim kullanım sayacını okuyamaz', assertFails(
+  getDoc(doc(anon, `users/${ME}/usage/${USAGE_ID}`))));
+
 await testEnv.cleanup();
 
 // ── rapor ────────────────────────────────────────────────────────────

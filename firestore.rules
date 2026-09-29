@@ -103,6 +103,21 @@ service cloud.firestore {
         allow write: if false;
       }
 
+      // Yapay zekâ kullanım sayaçları: users/{uid}/usage/{yyyy-MM}
+      //   → { scan: n, parse: n, advice: n }
+      //
+      // İstemci YAZAMAZ. Sayaç, aylık AI hakkını (fiş tarama / metin
+      // çözümleme / bütçe önerisi) sınırlar; yazma hakkı client'ta olsaydı
+      // herkes sayacı sıfırlayıp sınırsız istek atardı. Yalnız `aiCall`
+      // Cloud Function'ı Admin SDK ile yazar (Admin SDK kuralları atlar).
+      //
+      // Kullanıcı kendi sayacını okuyabilir: "bu ay 37/100 tarama" gibi
+      // bir gösterge için yeterli.
+      match /usage/{docId} {
+        allow read: if isOwner(uid);
+        allow write: if false;
+      }
+
       // Kategori otomasyonu: kullanıcı kuralları (anahtar kelime → zarf).
       match /rules/{ruleId} {
         allow read, delete: if isOwner(uid);
