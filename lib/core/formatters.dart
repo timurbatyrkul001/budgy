@@ -38,6 +38,10 @@ NumberFormat get _money {
 String formatMoney(double amount) =>
     '${_money.format(amount)} $currencySymbol';
 
+/// Yalnız sayı, para simgesi yok: 5700 -> «5,700» (en) / «5.700» (tr).
+/// Onboarding maketleri gibi para biriminin henüz seçilmediği yerler için.
+String formatNumber(double amount) => _money.format(amount);
+
 /// Belirli para biriminde formatla (zarf bazlı): (1000, 'USD') -> «1,000 $».
 String formatMoneyIn(double amount, String currencyCode) {
   final symbol = kCurrencies[currencyCode] ?? currencySymbol;

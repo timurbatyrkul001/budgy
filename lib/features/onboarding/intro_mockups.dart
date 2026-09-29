@@ -10,18 +10,26 @@ import '../../core/ex_style.dart';
 import '../../core/formatters.dart';
 import '../../core/motion.dart';
 import '../budget/budget_ring.dart';
+import 'onboarding_palette.dart';
 
 /// Tanıtım sayfalarının maketleri — ekran görüntüsü değil, kendi
-/// bileşen ve token'larımızla küçültülmüş "canlı" parçalar. Kategori
-/// paleti renk sözlüğümüz; koyu zümrüt zemin ve marka yeşili çapa.
+/// bileşen ve token'larımızla küçültülmüş "canlı" parçalar; temsilî
+/// çizimler. Onboarding afişinin beyaz paletinde ([Poster]) çizilirler:
+/// beyaz kartlar, mürekkep metin, marka yeşili ve kategori renkleri vurgu.
+/// Çerçevesiz, doğrudan zeminde dururlar (karşılamadaki gravür gibi).
 /// Hareket: yalnız giriş + sayfa başına tek anlamlı vuruş, döngü yok;
 /// hareket azaltmada yerleşik durum.
 
 const _mockWidth = 264.0;
 
-/// Kahraman öğenin arkasındaki yumuşak ışık (radyal, token renginden).
+/// Kahraman öğenin arkasındaki yumuşak leke (radyal, token renginden).
+///
+/// Koyu temada "ışık"tı (α0.34); beyaz zeminde ışık anlamsız, o yüzden
+/// çok soluk bir renk lekesine (α≈0.08) indirildi: maketi zemine bağlar,
+/// göze çarpmaz. Kaldırmak yerine tutuldu — kolaj hissi için hafif bir
+/// sıcaklık veriyor ve çağıranlar alfayı kendileri seçiyor.
 class IntroGlow extends StatelessWidget {
-  const IntroGlow({super.key, required this.color, this.size = 260, this.alpha = 0.34});
+  const IntroGlow({super.key, required this.color, this.size = 260, this.alpha = 0.08});
 
   final Color color;
   final double size;
@@ -45,27 +53,34 @@ class IntroGlow extends StatelessWidget {
   }
 }
 
-/// Kartlara derinlik: yumuşak, geniş gölge.
-List<BoxShadow> _softShadow([Color color = Colors.black]) => [
+/// Kartlara derinlik: beyaz zeminde çok hafif gölge (koyu temanın 0.45'i
+/// beyazda kirli gri leke olurdu).
+List<BoxShadow> _softShadow([Color color = Poster.ink]) => [
       BoxShadow(
-        color: color.withValues(alpha: 0.45),
-        blurRadius: 28,
-        offset: const Offset(0, 14),
+        color: color.withValues(alpha: 0.08),
+        blurRadius: 22,
+        offset: const Offset(0, 10),
       ),
     ];
+
+/// Beyaz kart zemini ve ince mürekkep kenarı.
+const _card = Colors.white;
+final _cardBorder = Poster.ink.withValues(alpha: 0.12);
+
+/// Kart içindeki ikincil yüzey (tuşlar, işletme adı çipi, halka izi).
+final _well = Poster.ink.withValues(alpha: 0.06);
 
 // ── 2) Hızlı giriş ───────────────────────────────────────────────────────
 
 /// Hafif eğik tuş takımı paneli, alt kenarı kırpılmış; tutar basamak basamak
 /// "yazılır" (tek vuruş). Sağ altta üç giriş yolu: yaz / söyle / tara.
 class FastEntryMock extends StatelessWidget {
-  const FastEntryMock({super.key, required this.currency});
-
-  final String currency;
+  const FastEntryMock({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final amount = formatMoneyIn(450, currency);
+    // Sembolsüz: para birimi 5. adımda seçilir, burada tahmin göstermeyiz.
+    final amount = formatNumber(450);
     return SizedBox(
       width: _mockWidth,
       height: 236,
@@ -86,9 +101,9 @@ class FastEntryMock extends StatelessWidget {
                 child: Container(
                   height: 214,
                   decoration: BoxDecoration(
-                    color: Ex.surface,
+                    color: _card,
                     borderRadius: BorderRadius.circular(Ex.cardRadius),
-                    border: Border.all(color: Ex.borderHi),
+                    border: Border.all(color: _cardBorder),
                     boxShadow: _softShadow(),
                   ),
                   child: Stack(
@@ -113,7 +128,7 @@ class FastEntryMock extends StatelessWidget {
                                       fontSize: 34,
                                       fontWeight: FontWeight.w800,
                                       letterSpacing: -1,
-                                      color: Ex.text,
+                                      color: Poster.ink,
                                       fontFeatures: [
                                         FontFeature.tabularFigures()
                                       ],
@@ -157,8 +172,8 @@ class FastEntryMock extends StatelessWidget {
                                 begin: Alignment.topCenter,
                                 end: Alignment.bottomCenter,
                                 colors: [
-                                  Ex.surface.withValues(alpha: 0),
-                                  Ex.bg.withValues(alpha: 0.96),
+                                  _card.withValues(alpha: 0),
+                                  Poster.paper.withValues(alpha: 0.98),
                                 ],
                               ),
                             ),
@@ -213,13 +228,14 @@ class _MockKey extends StatelessWidget {
       transform: Matrix4.identity()..scaleByDouble(1 - 0.04 * a, 1 - 0.04 * a, 1, 1),
       transformAlignment: Alignment.center,
       decoration: BoxDecoration(
-        color: Color.lerp(Ex.surfaceHi, Ex.brand.withValues(alpha: 0.26), a),
+        color: Color.lerp(_well, Ex.brand.withValues(alpha: 0.28), a),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Color.lerp(Ex.border, Ex.glassBorder, a)!),
+        border: Border.all(
+            color: Color.lerp(_cardBorder, Ex.brand.withValues(alpha: 0.6), a)!),
         boxShadow: a > 0.05
             ? [
                 BoxShadow(
-                  color: Ex.brand.withValues(alpha: 0.35 * a),
+                  color: Ex.brand.withValues(alpha: 0.30 * a),
                   blurRadius: 14 * a,
                 )
               ]
@@ -229,7 +245,7 @@ class _MockKey extends StatelessWidget {
           style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
-              color: Color.lerp(Ex.text, Ex.mint, a))),
+              color: Color.lerp(Poster.ink, Ex.onBrand, a))),
     );
   }
 }
@@ -346,12 +362,13 @@ class _WayChip extends StatelessWidget {
       width: 46,
       height: 46,
       decoration: BoxDecoration(
-        color: Color.alphaBlend(color.withValues(alpha: 0.22), Ex.surface),
+        color: Color.alphaBlend(color.withValues(alpha: 0.16), _card),
         shape: BoxShape.circle,
-        border: Border.all(color: color.withValues(alpha: 0.55)),
+        border: Border.all(color: color.withValues(alpha: 0.5)),
         boxShadow: _softShadow(),
       ),
-      child: Icon(icon, size: 21, color: Color.lerp(color, Colors.white, 0.35)),
+      // Beyazda okunsun diye renk mürekkebe doğru koyulaştırılır.
+      child: Icon(icon, size: 21, color: Color.lerp(color, Poster.ink, 0.3)),
     );
   }
 }
@@ -377,7 +394,7 @@ class RulesMock extends StatelessWidget {
         clipBehavior: Clip.none,
         alignment: Alignment.center,
         children: [
-          IntroGlow(color: mid, size: 300, alpha: 0.28),
+          IntroGlow(color: mid, size: 300),
           Column(
             children: [
               for (final (i, m) in merchants.indexed) ...[
@@ -487,15 +504,15 @@ class _RuleRow extends StatelessWidget {
     // Gerçek yerleşik kurallar: kopya değil, uygulamanın kendisi.
     final key = matchCategory(merchant)?.catalogKey;
     final name = key == null ? '?' : catalogItem(key)!.name(locale);
-    final color = categoryVisual(key)?.color ?? Ex.textMuted;
+    final color = categoryVisual(key)?.color ?? Poster.inkFaint;
     // Kategori, nottan ~120 ms sonra "çözülür".
     final resolve = kEnterStep * (order * 2) + const Duration(milliseconds: 120);
     return Container(
       padding: const EdgeInsets.fromLTRB(8, 7, 12, 7),
       decoration: BoxDecoration(
-        color: Ex.surface,
+        color: _card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Ex.borderHi),
+        border: Border.all(color: _cardBorder),
         boxShadow: _softShadow(),
       ),
       child: Row(
@@ -506,7 +523,7 @@ class _RuleRow extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
               decoration: BoxDecoration(
-                color: Ex.surfaceHi,
+                color: _well,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
@@ -516,7 +533,7 @@ class _RuleRow extends StatelessWidget {
                 style: const TextStyle(
                     fontSize: 13.5,
                     fontWeight: FontWeight.w600,
-                    color: Ex.textSoft),
+                    color: Poster.inkSoft),
               ),
             ),
           ),
@@ -537,7 +554,8 @@ class _RuleRow extends StatelessWidget {
                     style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
-                        color: Color.lerp(color, Colors.white, 0.45)),
+                        // Beyazda okunsun diye mürekkebe doğru koyulaştırılır.
+                        color: Color.lerp(color, Poster.ink, 0.35)),
                   ),
                 ),
               ],
@@ -555,12 +573,10 @@ class _RuleRow extends StatelessWidget {
 class BudgetMock extends StatelessWidget {
   const BudgetMock({
     super.key,
-    required this.currency,
     required this.locale,
     required this.title,
   });
 
-  final String currency;
   final String locale;
 
   /// Halkanın altındaki küçük etiket ("Aylık bütçe").
@@ -585,19 +601,27 @@ class BudgetMock extends StatelessWidget {
                   children: [
                     Container(
                       decoration: BoxDecoration(
-                          shape: BoxShape.circle, boxShadow: _softShadow()),
+                          shape: BoxShape.circle,
+                          color: _card,
+                          boxShadow: _softShadow()),
                       child: BudgetRing(
-                          value: 0.62, over: false, size: 108, animate: !reduce),
+                        value: 0.62,
+                        over: false,
+                        size: 108,
+                        animate: !reduce,
+                        trackColor: _well,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '${formatMoneyIn(_scaled(5700), currency)} · $title',
+                      // Sembolsüz: para birimi henüz seçilmedi.
+                      '${formatNumber(5700)} · $title',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w600,
-                          color: Ex.onGlowMuted),
+                          color: Poster.inkSoft),
                     ),
                   ],
                 ).enterPop(context),
@@ -624,13 +648,6 @@ class BudgetMock extends StatelessWidget {
     );
   }
 
-  /// Örnek tutar para birimine göre makul ölçekte (₺ 5.700 ↔ $ 570).
-  double _scaled(double tryAmount) => switch (currency) {
-        'TRY' => tryAmount,
-        'RUB' => tryAmount * 2.5,
-        'KZT' => tryAmount * 13,
-        _ => tryAmount / 10,
-      };
 }
 
 class _LimitBar extends StatelessWidget {
@@ -655,9 +672,9 @@ class _LimitBar extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       decoration: BoxDecoration(
-        color: Ex.surface,
+        color: _card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Ex.border),
+        border: Border.all(color: _cardBorder),
         boxShadow: _softShadow(),
       ),
       child: Row(
@@ -677,7 +694,7 @@ class _LimitBar extends StatelessWidget {
                           style: const TextStyle(
                               fontSize: 13.5,
                               fontWeight: FontWeight.w600,
-                              color: Ex.text)),
+                              color: Poster.ink)),
                     ),
                     Text('${(fraction * 100).round()}%',
                         style: TextStyle(
@@ -693,7 +710,7 @@ class _LimitBar extends StatelessWidget {
                     height: 6,
                     child: Stack(
                       children: [
-                        Container(color: Ex.surfaceHi),
+                        Container(color: _well),
                         // Bir kez dolar (giriş vuruşu), döngü yok.
                         TweenAnimationBuilder<double>(
                           tween: Tween(begin: animate ? 0 : fraction, end: fraction),

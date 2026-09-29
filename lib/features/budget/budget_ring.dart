@@ -17,6 +17,7 @@ class BudgetRing extends StatelessWidget {
     required this.over,
     this.size = 84,
     this.animate = true,
+    this.trackColor = Ex.surfaceHi,
   });
 
   /// Harcanan / bütçe. 1'in üstü aşım demektir (halka dolu kalır).
@@ -26,6 +27,10 @@ class BudgetRing extends StatelessWidget {
 
   /// false: halka anında yerleşik durumda çizilir (hareket azaltma).
   final bool animate;
+
+  /// Boş halkanın rengi; koyu uygulama yüzeyi varsayılan, açık zeminde
+  /// (onboarding afişi) çağıran soluk bir ton verir.
+  final Color trackColor;
 
   @override
   Widget build(BuildContext context) {
@@ -42,6 +47,7 @@ class BudgetRing extends StatelessWidget {
           painter: _RingPainter(
             progress: v.clamp(0, 1),
             color: color,
+            trackColor: trackColor,
             stroke: size * 0.12,
           ),
           child: Center(
@@ -65,11 +71,13 @@ class _RingPainter extends CustomPainter {
   const _RingPainter({
     required this.progress,
     required this.color,
+    required this.trackColor,
     required this.stroke,
   });
 
   final double progress;
   final Color color;
+  final Color trackColor;
   final double stroke;
 
   @override
@@ -80,7 +88,7 @@ class _RingPainter extends CustomPainter {
     final track = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = stroke
-      ..color = Ex.surfaceHi;
+      ..color = trackColor;
     canvas.drawArc(rect, 0, math.pi * 2, false, track);
 
     if (progress <= 0) return;
@@ -95,5 +103,8 @@ class _RingPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_RingPainter old) =>
-      old.progress != progress || old.color != color || old.stroke != stroke;
+      old.progress != progress ||
+      old.color != color ||
+      old.trackColor != trackColor ||
+      old.stroke != stroke;
 }

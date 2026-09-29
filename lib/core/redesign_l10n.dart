@@ -12,6 +12,11 @@ class RS {
   const RS({
     required this.onbTitle,
     required this.onbSubtitle,
+    required this.onbBadge,
+    required this.onbNote,
+    required this.onbLegalTpl,
+    required this.onbLegalTerms,
+    required this.onbLegalPrivacy,
     required this.getStarted,
     required this.introFastTitle,
     required this.introFastSubtitle,
@@ -77,6 +82,8 @@ class RS {
     required this.gallery,
     required this.scanning,
     required this.aiKeyMissing,
+    required this.aiLimitReached,
+    required this.aiNetworkError,
     required this.scanFailed,
     required this.enterAmount,
     required this.saveAllTpl,
@@ -272,6 +279,19 @@ class RS {
 
   final String onbTitle;
   final String onbSubtitle;
+
+  /// Karşılama: kimin için olduğunu söyleyen rozet.
+  final String onbBadge;
+
+  /// Karşılama: gravürün yanındaki el yazısı not (kimin için yaptık).
+  final String onbNote;
+
+  /// Karşılama altındaki yasal not; {terms} ve {privacy} tıklanabilir
+  /// bağlantı metinleriyle ([onbLegalTerms], [onbLegalPrivacy]) doldurulur —
+  /// bağlantı sözcükleri dile göre ek alabildiği için ayrı tutuluyor.
+  final String onbLegalTpl;
+  final String onbLegalTerms;
+  final String onbLegalPrivacy;
   final String getStarted;
   final String introFastTitle;
   final String introFastSubtitle;
@@ -337,6 +357,8 @@ class RS {
   final String gallery;
   final String scanning;
   final String aiKeyMissing;
+  final String aiLimitReached;
+  final String aiNetworkError;
   final String scanFailed;
   final String enterAmount;
   final String saveAllTpl;
@@ -536,9 +558,14 @@ class RS {
   };
 
   static const en = RS(
-    onbTitle: 'Welcome to Budgy',
+    onbTitle: 'Mark the days you work',
     onbSubtitle:
-        'Log what you spend in seconds and always know where your money went.',
+        'Your earnings add up on their own and land in your wallet.',
+    onbBadge: 'Built for irregular income',
+    onbNote: 'For people who earn by the day, not by the month.',
+    onbLegalTpl: 'By continuing you agree to the {terms} and {privacy}.',
+    onbLegalTerms: 'Terms of Use',
+    onbLegalPrivacy: 'Privacy Policy',
     getStarted: 'Get started',
     introFastTitle: 'Log it in seconds',
     introFastSubtitle:
@@ -609,7 +636,9 @@ class RS {
     camera: 'Camera',
     gallery: 'Photo library',
     scanning: 'Reading receipt…',
-    aiKeyMissing: 'AI isn’t configured yet (API key missing)',
+    aiKeyMissing: 'Sign in to use AI features',
+    aiLimitReached: 'Your AI quota for this month is used up',
+    aiNetworkError: 'AI is unreachable right now, try again later',
     scanFailed: 'Couldn’t read the receipt',
     enterAmount: 'Enter an amount',
     saveAllTpl: 'Save ({n})',
@@ -816,9 +845,13 @@ class RS {
   );
 
   static const tr = RS(
-    onbTitle: 'Budgy’ye hoş geldin',
-    onbSubtitle:
-        'Harcamanı saniyeler içinde yaz, paranın nereye gittiğini hep bil.',
+    onbTitle: 'Çalıştığın günü işaretle',
+    onbSubtitle: 'Kazancın kendiliğinden toplanır, cüzdanına yazılır.',
+    onbBadge: 'Sabit maaşı olmayanlar için',
+    onbNote: 'Ay sonunu değil, çalıştığı günü sayanlar için yaptık.',
+    onbLegalTpl: 'Devam ederek {terms} ve {privacy} kabul etmiş olursun.',
+    onbLegalTerms: 'Kullanım şartları',
+    onbLegalPrivacy: 'Gizlilik politikasını',
     getStarted: 'Hadi başlayalım',
     introFastTitle: 'Saniyeler içinde kaydet',
     introFastSubtitle: 'Tutarı tuş takımına yaz, sesle söyle ya da fişi tara.',
@@ -889,7 +922,9 @@ class RS {
     camera: 'Kamera',
     gallery: 'Galeri',
     scanning: 'Fiş okunuyor…',
-    aiKeyMissing: 'Yapay zekâ henüz ayarlı değil (API anahtarı yok)',
+    aiKeyMissing: 'Yapay zekâ için giriş yapman gerekiyor',
+    aiLimitReached: 'Bu ayki yapay zekâ hakkın doldu',
+    aiNetworkError: 'Yapay zekâya şu an ulaşılamıyor, sonra tekrar dene',
     scanFailed: 'Fiş okunamadı',
     enterAmount: 'Bir tutar gir',
     saveAllTpl: 'Kaydet ({n})',
@@ -1093,8 +1128,13 @@ class RS {
   );
 
   static const ru = RS(
-    onbTitle: 'Добро пожаловать в Budgy',
-    onbSubtitle: 'Записывай траты за секунды и всегда знай, куда ушли деньги.',
+    onbTitle: 'Отмечай рабочие дни',
+    onbSubtitle: 'Заработок сложится сам и попадёт в кошелёк.',
+    onbBadge: 'Для тех, у кого нет оклада',
+    onbNote: 'Для тех, кто зарабатывает по дням, а не по окладу.',
+    onbLegalTpl: 'Продолжая, ты принимаешь {terms} и {privacy}.',
+    onbLegalTerms: 'Условия использования',
+    onbLegalPrivacy: 'Политику конфиденциальности',
     getStarted: 'Начать',
     introFastTitle: 'Записывай за секунды',
     introFastSubtitle:
@@ -1166,7 +1206,9 @@ class RS {
     camera: 'Камера',
     gallery: 'Галерея',
     scanning: 'Читаю чек…',
-    aiKeyMissing: 'ИИ ещё не настроен (нет API-ключа)',
+    aiKeyMissing: 'Войди в аккаунт, чтобы пользоваться ИИ',
+    aiLimitReached: 'Лимит ИИ на этот месяц исчерпан',
+    aiNetworkError: 'ИИ сейчас недоступен, попробуй позже',
     scanFailed: 'Не удалось прочитать чек',
     enterAmount: 'Введи сумму',
     saveAllTpl: 'Сохранить ({n})',
