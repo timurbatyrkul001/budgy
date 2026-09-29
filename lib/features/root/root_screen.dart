@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../pro/paywall_sheet.dart';
+import '../pro/pro_state.dart';
 import '../../core/preview.dart';
 import '../../core/widget_service.dart';
 import '../envelopes/budget_repository.dart';
@@ -44,6 +46,12 @@ class _RootScreenState extends ConsumerState<RootScreen> {
             autoSheet:
                 kPreviewQuickEntrySheet.isEmpty ? null : kPreviewQuickEntrySheet,
           ));
+    }
+    // PREVIEW_PAYWALL: açılışta paywall'ı aç. Bayrak preview.dart'ta tanımlı
+    // ve belgeliydi ama hiçbir yerde tüketilmiyordu — yani hiçbir şey yapmıyordu.
+    if (kPreviewPaywall) {
+      WidgetsBinding.instance.addPostFrameCallback(
+          (_) => showPaywall(context, ProFeature.analytics));
     }
     // PREVIEW_TX: örnek kaynaklı gelirin detay sayfası ya da düzenleme ekranı.
     if (kPreviewTx.isNotEmpty) {

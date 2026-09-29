@@ -14,8 +14,7 @@ import '../envelopes/budget_repository.dart';
 ///
 /// RevenueCat geldiğinde [ProStatus.build] `CustomerInfo.entitlements.active`
 /// akışını dinleyecek; paywall ve kilitli ekranlar değişmeyecek.
-final isProProvider =
-    NotifierProvider<ProStatus, bool>(ProStatus.new);
+final isProProvider = NotifierProvider<ProStatus, bool>(ProStatus.new);
 
 /// Abonelik durumu. Yazılabilir olması bilinçli: önizlemede ve testte
 /// [set] ile açılıp kapanabiliyor.
@@ -70,6 +69,18 @@ enum ProPlan {
     perMonthLabel: '₺47,42',
     billingNote: '₺569,00',
     savingPercent: 32,
+  ),
+
+  /// Tek seferlik satın alma (App Store'da non-consumable). Abonelik değil:
+  /// yenilenmez, deneme süresi yok. [perMonthLabel] burada anlamsız — aya
+  /// bölünecek bir dönem yok — o yüzden [priceLabel] ile aynı tutuluyor;
+  /// paywall [isLifetime] üzerinden "ayda" etiketini gizleyip tek fiyatı
+  /// gösterir. Alan yapısı diğer planlarla aynı kalsın diye null yapmadık.
+  lifetime(
+    priceLabel: '₺3.999,99',
+    perMonthLabel: '₺3.999,99',
+    billingNote: null,
+    savingPercent: null,
   );
 
   const ProPlan({
@@ -79,17 +90,22 @@ enum ProPlan {
     required this.savingPercent,
   });
 
-  /// Dönem başına ödenen toplam.
+  /// Dönem başına ödenen toplam (ömür boyunda: tek seferlik bedel).
   final String priceLabel;
 
-  /// Aya bölünmüş hâli — iki planı karşılaştırılabilir kılan sayı.
+  /// Aya bölünmüş hâli — abonelikleri karşılaştırılabilir kılan sayı.
+  /// Ömür boyu planda [priceLabel] ile aynıdır, bkz. [lifetime].
   final String perMonthLabel;
 
-  /// Yıllıkta "yılda bir kez şu kadar" notu; aylıkta yok.
+  /// Yıllıkta "yılda bir kez şu kadar" notu; aylık ve ömür boyunda yok.
   final String? billingNote;
 
-  /// Aylığa göre kazanç yüzdesi; aylıkta yok.
+  /// Aylığa göre kazanç yüzdesi; yalnız yıllıkta var.
   final int? savingPercent;
+
+  /// Tek seferlik satın alma mı? Paywall'da CTA metni, ücretlendirme notu
+  /// ve fiyat gösterimi buna göre değişir.
+  bool get isLifetime => this == ProPlan.lifetime;
 }
 
 /// Ücretsiz deneme uzunluğu (gün). Mağazada tanımlanan değerle aynı olmalı.
