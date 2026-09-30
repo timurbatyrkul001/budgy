@@ -69,6 +69,11 @@ Future<void> pumpBudgyScreen(
   Map<String, dynamic> profile = const {},
   FxSnapshot? fxSnapshot,
   Size logicalSize = const Size(360, 800),
+
+  /// Çentik/ev çubuğu güvenli alanı (mantıksal piksel). Varsayılan sıfır;
+  /// tam ekran zemin gibi SafeArea'ya bağlı şeyleri sınamak için verilir.
+  EdgeInsets safeArea = EdgeInsets.zero,
+
   /// Pro aboneliği açık mı (kilitli ekranların Pro hâlini test etmek).
   bool pro = false,
 }) async {
@@ -79,6 +84,15 @@ Future<void> pumpBudgyScreen(
   tester.view.devicePixelRatio = 3.0;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
+  if (safeArea != EdgeInsets.zero) {
+    tester.view.padding = FakeViewPadding(
+      top: safeArea.top * 3,
+      bottom: safeArea.bottom * 3,
+      left: safeArea.left * 3,
+      right: safeArea.right * 3,
+    );
+    addTearDown(tester.view.resetPadding);
+  }
 
   await tester.pumpWidget(
     ProviderScope(

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/category_catalog.dart';
 import '../../core/l10n.dart';
 import '../../core/motion.dart';
 import '../../core/redesign_l10n.dart';
@@ -228,7 +227,7 @@ class _InkPill extends StatelessWidget {
 // Kategori ızgarası
 // ---------------------------------------------------------------------------
 
-/// Sıkışık ızgara: emoji + kısa ad hücreleri. Etiket uzunlukları dile göre
+/// Sıkışık ızgara: yalnız ad yazan hücreler. Etiket uzunlukları dile göre
 /// çok değişiyor (RU'da "Общественный транспорт"), sabit sütunlu GridView
 /// kısa hücrede metni keserdi; Wrap her hücreyi içeriğine göre boyutlar ve
 /// satırı doldurur.
@@ -248,8 +247,8 @@ class _CategoryGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Wrap(
-      spacing: 6,
-      runSpacing: 6,
+      spacing: 7,
+      runSpacing: 7,
       children: [
         for (final (i, item) in items.indexed)
           _Cell(
@@ -289,7 +288,6 @@ class _Cell extends StatelessWidget {
     final fg = selected
         ? (accent.computeLuminance() < 0.5 ? Poster.paper : Poster.ink)
         : Poster.ink;
-    final emoji = catalogItem(item.id)?.emoji ?? '';
     return Semantics(
       button: true,
       selected: selected,
@@ -300,24 +298,19 @@ class _Cell extends StatelessWidget {
         child: AnimatedContainer(
           duration: d,
           curve: Curves.easeOutCubic,
-          padding: const EdgeInsets.fromLTRB(9, 7, 11, 7),
+          padding: const EdgeInsets.fromLTRB(13, 10, 13, 10),
           decoration: BoxDecoration(
             color: selected ? accent : Poster.ink.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: selected ? accent : Poster.ink.withValues(alpha: 0.10),
             ),
           ),
+          // Emoji yok: afişin dili tipografik, renkli emoji araya yamalı
+          // duruyordu. Seçimi dolgu rengi anlatıyor.
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Emoji sabit boy: seçimde yazı rengi değişir, emoji değişmez.
-              // Emoji için ayrı Text — Semantics'te etiketle karışmasın diye
-              // ExcludeSemantics.
-              ExcludeSemantics(
-                child: Text(emoji, style: const TextStyle(fontSize: 14)),
-              ),
-              const SizedBox(width: 6),
               // En uzun etiket (ru "Общественный транспорт") 320 dp'de
               // hücreyi ekrandan taşırıyordu. Flexible + scaleDown:
               // yalnızca sığmayan etiket bir tık küçülür, kırpılmaz;
@@ -328,7 +321,7 @@ class _Cell extends StatelessWidget {
                   style: TextStyle(
                     fontFamily: 'InterDisplay',
                     fontWeight: FontWeight.w600,
-                    fontSize: 13,
+                    fontSize: 15,
                     height: 1.15,
                     letterSpacing: -0.2,
                     color: fg,
@@ -366,6 +359,45 @@ TextStyle _receiptStyle({
   color: color,
   fontFeatures: const [FontFeature.tabularFigures()],
 );
+
+/// Fiş kâğıdı: beyaz zemin, hafif gölge, altta testere dişi kenar.
+///
+/// Bu ekranın dışında kapanış sayfası da (`onboarding_save.dart`) aynı kâğıdı
+/// kullanıyor — kullanıcı kategorilerini bir fişe bastığı için, kurduğu
+/// defterin özeti de aynı kâğıtta çıkıyor.
+class ReceiptPaper extends StatelessWidget {
+  const ReceiptPaper({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: _ReceiptPaperPainter(),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, _kTeeth + 12),
+        child: child,
+      ),
+    );
+  }
+}
+
+/// Fiş tipografisi: tek aralıklı font yok, Inter'e harf aralığı ve tabular
+/// rakam verilerek yazarkasa hissi kuruluyor.
+TextStyle receiptTextStyle({
+  double size = 13,
+  Color color = Poster.ink,
+  double spacing = 0.8,
+}) => _receiptStyle(size: size, color: color, spacing: spacing);
+
+/// Fişteki noktalı ayraç.
+class ReceiptRule extends StatelessWidget {
+  const ReceiptRule({super.key});
+
+  @override
+  Widget build(BuildContext context) =>
+      _DashedRule(color: Poster.ink.withValues(alpha: 0.18));
+}
 
 /// Tırtıklı alt kenarın diş yüksekliği.
 const _kTeeth = 6.0;
@@ -492,7 +524,7 @@ class _Receipt extends StatelessWidget {
   }
 }
 
-/// Fişteki tek satır: sıra numarası, emoji, ad, noktalı dolgu, onay.
+/// Fişteki tek satır: sıra numarası, ad, noktalı dolgu, onay.
 /// [animate] true ise 220 ms'de açılarak (yükseklik + solma + hafif yukarı
 /// kayma) girer — "yazıcıdan çıkma". Hareket azaltmada anında.
 class _ReceiptLine extends StatefulWidget {
@@ -542,8 +574,7 @@ class _ReceiptLineState extends State<_ReceiptLine>
 
   @override
   Widget build(BuildContext context) {
-    final emoji = catalogItem(widget.item.id)?.emoji ?? '';
-    // Satır: "01  🛒 Market ........ ✓". Ad ihtiyacı kadar yer alır, noktalı
+    // Satır: "01  Market ........ ✓". Ad ihtiyacı kadar yer alır, noktalı
     // dolgu artanı doldurur; Row'da iki esnek çocuk yeri paylaşacağı için
     // (ad yarıya kırpılırdı) adın üst sınırı LayoutBuilder ile verilir —
     // satır genişliği eksi sabit parçalar ve en az 18 px dolgu.
@@ -551,7 +582,7 @@ class _ReceiptLineState extends State<_ReceiptLine>
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: LayoutBuilder(
         builder: (context, box) {
-          const fixed = 22 + 8 + 20 + 6 + 6 + 18 + 6 + 14;
+          const fixed = 22 + 8 + 6 + 18 + 6 + 14;
           final labelMax = (box.maxWidth - fixed).clamp(40.0, double.infinity);
           return Row(
             children: [
@@ -563,18 +594,6 @@ class _ReceiptLineState extends State<_ReceiptLine>
                 ),
               ),
               const SizedBox(width: 8),
-              SizedBox(
-                width: 20,
-                child: ExcludeSemantics(
-                  child: Text(
-                    emoji,
-                    softWrap: false,
-                    overflow: TextOverflow.visible,
-                    style: const TextStyle(fontSize: 13),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 6),
               ConstrainedBox(
                 constraints: BoxConstraints(maxWidth: labelMax),
                 child: Text(

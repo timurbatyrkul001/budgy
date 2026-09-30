@@ -323,6 +323,17 @@ class RS {
     required this.worldOcean,
     required this.welcomeBurstTitle,
     required this.welcomeBurstSub,
+    required this.saveTitle,
+    required this.saveBody,
+    required this.saveApple,
+    required this.saveGoogle,
+    required this.saveSkip,
+    required this.saveNote,
+    required this.saveFailed,
+    required this.saveRowCurrency,
+    required this.saveRowFirstDay,
+    required this.saveRowWhere,
+    required this.saveRowWhereValue,
     required this.notifTitle,
     required this.notifBody,
     required this.notifAllow,
@@ -661,6 +672,21 @@ class RS {
   final String worldOcean;
   final String welcomeBurstTitle;
   final String welcomeBurstSub;
+
+  /// Kapanış: hesabı bağlama daveti.
+  final String saveTitle;
+  final String saveBody;
+  final String saveApple;
+  final String saveGoogle;
+  final String saveSkip;
+  final String saveNote;
+  final String saveFailed;
+
+  /// Kapanış fişindeki satır etiketleri.
+  final String saveRowCurrency;
+  final String saveRowFirstDay;
+  final String saveRowWhere;
+  final String saveRowWhereValue;
   final String notifTitle;
   final String notifBody;
   final String notifAllow;
@@ -1022,6 +1048,17 @@ class RS {
     worldOcean: 'Ocean',
     welcomeBurstTitle: 'Welcome to the Budgy world',
     welcomeBurstSub: 'All set. Your book is waiting.',
+    saveTitle: "Keep your book safe",
+    saveBody: "Connect an account so your records survive a lost or new phone. Everything you just set up comes with you.",
+    saveApple: "Continue with Apple",
+    saveGoogle: "Continue with Google",
+    saveSkip: "Not now",
+    saveNote: "You can do this later in Settings.",
+    saveFailed: "Couldn't connect the account. Your data is safe — try again from Settings.",
+    saveRowCurrency: "Currency",
+    saveRowFirstDay: "First day",
+    saveRowWhere: "Stored on",
+    saveRowWhereValue: "This phone only",
     notifTitle: "Don't forget to mark the day",
     notifBody:
         'One tap in the evening: "What did you earn today?" Miss a day and the month won\'t add up — let us remind you.',
@@ -1376,6 +1413,17 @@ class RS {
     worldOcean: 'Okyanus',
     welcomeBurstTitle: 'Budgy dünyasına hoş geldin',
     welcomeBurstSub: 'Her şey hazır. Defterin seni bekliyor.',
+    saveTitle: "Defterini güvene al",
+    saveBody: "Bir hesap bağla, telefonun kaybolsa da değişse de kayıtların sende kalsın. Az önce kurduğun her şey seninle gelir.",
+    saveApple: "Apple ile devam et",
+    saveGoogle: "Google ile devam et",
+    saveSkip: "Şimdi değil",
+    saveNote: "Bunu sonra Ayarlar'dan da yapabilirsin.",
+    saveFailed: "Hesap bağlanamadı. Verin duruyor — Ayarlar'dan tekrar deneyebilirsin.",
+    saveRowCurrency: "Para birimi",
+    saveRowFirstDay: "İlk gün",
+    saveRowWhere: "Kayıtlı yer",
+    saveRowWhereValue: "Yalnızca bu telefon",
     notifTitle: 'Günü işaretlemeyi unutma',
     notifBody:
         'Akşam tek bir dokunuş: "Bugün ne kazandın?" Bir kez unutursan ay sonu hesabı tutmaz — hatırlatalım.',
@@ -1731,6 +1779,17 @@ class RS {
     worldOcean: 'Океан',
     welcomeBurstTitle: 'Добро пожаловать в мир Budgy',
     welcomeBurstSub: 'Всё готово. Блокнот ждёт тебя.',
+    saveTitle: "Сохрани свой блокнот",
+    saveBody: "Привяжи аккаунт — записи останутся с тобой, даже если телефон потеряется или сменится. Всё, что ты настроил, переедет вместе с тобой.",
+    saveApple: "Продолжить с Apple",
+    saveGoogle: "Продолжить с Google",
+    saveSkip: "Не сейчас",
+    saveNote: "Это можно сделать позже в настройках.",
+    saveFailed: "Не удалось привязать аккаунт. Данные на месте — попробуй ещё раз в настройках.",
+    saveRowCurrency: "Валюта",
+    saveRowFirstDay: "Первый день",
+    saveRowWhere: "Хранится",
+    saveRowWhereValue: "Только на телефоне",
     notifTitle: 'Не забывай отмечать день',
     notifBody:
         'Одно касание вечером: «Сколько заработал сегодня?» Пропустишь день — месяц не сойдётся. Мы напомним.',

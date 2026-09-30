@@ -52,57 +52,61 @@ void main() {
     await tester.pump();
   }
 
-  /// Sayfa zemini: en dıştaki AnimatedContainer'ın gradyanı.
-  LinearGradient backgroundOf(WidgetTester tester) {
-    final box = tester.widget<AnimatedContainer>(
-        find.byType(AnimatedContainer).first);
-    return (box.decoration! as BoxDecoration).gradient! as LinearGradient;
-  }
+  /// "Hadi başlayalım" düğmesi — ağaçtaki son AnimatedContainer.
+  AnimatedContainer pillOf(WidgetTester tester) => tester
+      .widget<AnimatedContainer>(find.byType(AnimatedContainer).last);
 
   group('ThemePickerPage', () {
-    testWidgets('kart seçilince arka plan o dünyaya döner, onNext id verir',
+    testWidgets('kart seçilince dünya dışarı bildirilir, onNext id verir',
         (tester) async {
       String? picked;
-      await pumpFinale(tester, ThemePickerPage(onNext: (id) => picked = id));
+      final seen = <String>[];
+      await pumpFinale(
+        tester,
+        ThemePickerPage(
+          onNext: (id) => picked = id,
+          onWorldChanged: (w) => seen.add(w.id),
+        ),
+      );
       await tester.pumpAndSettle();
 
-      // Başlangıç: şafak (açık zemin).
-      final dawn = kOnboardingWorlds.firstWhere((w) => w.id == 'dawn');
-      expect(backgroundOf(tester).colors, [dawn.top, dawn.bottom]);
+      // Gökyüzünü akış çiziyor; sayfa açılır açılmaz başlangıcı bildirir.
+      expect(seen, ['dawn']);
 
       await tester.tap(find.byKey(const ValueKey('world-night')));
-      await tester.pump();
-      // Geçişin ortası: hedef gradyan hemen widget'a yazılır, çizim akar.
-      final night = kOnboardingWorlds.firstWhere((w) => w.id == 'night');
-      expect(backgroundOf(tester).colors, [night.top, night.bottom]);
       await tester.pumpAndSettle();
-      expect(backgroundOf(tester).colors, [night.top, night.bottom]);
+      expect(seen, ['dawn', 'night']);
 
       // Koyu zeminde düğme kâğıt rengine döner (siyah lacivertte kaybolurdu).
-      final pill = tester.widget<AnimatedContainer>(
-          find.byType(AnimatedContainer).last);
-      expect((pill.decoration! as ShapeDecoration).color, night.ink);
+      final night = kOnboardingWorlds.firstWhere((w) => w.id == 'night');
+      expect((pillOf(tester).decoration! as ShapeDecoration).color, night.ink);
 
       await tester.tap(find.text("Let's do this"));
       expect(picked, 'night');
     });
 
     testWidgets('hareket azaltmada geçiş anında', (tester) async {
-      await pumpFinale(tester, ThemePickerPage(onNext: (_) {}),
-          reduceMotion: true);
+      await pumpFinale(
+        tester,
+        ThemePickerPage(onNext: (_) {}, onWorldChanged: (_) {}),
+        reduceMotion: true,
+      );
       await tester.tap(find.byKey(const ValueKey('world-night')));
       await tester.pump();
-      final box = tester.widget<AnimatedContainer>(
-          find.byType(AnimatedContainer).first);
-      expect(box.duration, Duration.zero);
       final night = kOnboardingWorlds.firstWhere((w) => w.id == 'night');
-      expect(backgroundOf(tester).colors, [night.top, night.bottom]);
+      expect(pillOf(tester).duration, Duration.zero);
+      expect((pillOf(tester).decoration! as ShapeDecoration).color, night.ink);
     });
 
     for (final lang in AppLanguage.values) {
       testWidgets('320dp · ${lang.code} taşmıyor', (tester) async {
-        await pumpFinale(tester, ThemePickerPage(onNext: (_) {}),
-            language: lang, size: const Size(320, 800), reduceMotion: true);
+        await pumpFinale(
+          tester,
+          ThemePickerPage(onNext: (_) {}, onWorldChanged: (_) {}),
+          language: lang,
+          size: const Size(320, 800),
+          reduceMotion: true,
+        );
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
         // Dört dünya kartı da kuruluyor (ilk üçü görünür, dördüncü kayar).
@@ -137,13 +141,19 @@ void main() {
       expect(SchedulerBinding.instance.transientCallbackCount, greaterThan(base));
       expect(tester.binding.hasScheduledFrame, isTrue);
 
-      await tester.pumpAndSettle();
+      // Süresi dolsun; pumpAndSettle kullanılamıyor çünkü banknotların
+      // süzülme saati (BillRain) bilerek hiç durmuyor.
+      await tester.pump(WelcomeBurstPage.duration);
+      await tester.pump();
       expect(done, 1);
-      // Controller durdu: pumpAndSettle takılmadı, ticker tabana döndü.
-      expect(SchedulerBinding.instance.transientCallbackCount, base);
-      expect(tester.binding.hasScheduledFrame, isFalse);
+      // Giriş controller'ı durdu; ekranda yalnız süzülme saati kaldı.
+      expect(
+        SchedulerBinding.instance.transientCallbackCount,
+        base + 1,
+      );
 
-      // Ekrandan kaldırılınca controller dispose edilir (sızıntı yok).
+      // Ekrandan kaldırılınca iki controller da dispose edilir; sızıntı
+      // olsaydı "was disposed with an active Ticker" hatası düşerdi.
       await tester.pumpWidget(const SizedBox());
       expect(tester.takeException(), isNull);
     });
@@ -154,7 +164,8 @@ void main() {
       var done = 0;
       await pumpFinale(tester, WelcomeBurstPage(onDone: () => done++),
           reduceMotion: true);
-      // İlk kare sonrası post-frame callback çalıştı; ticker hiç başlamadı.
+      // İlk kare sonrası post-frame callback çalıştı; ne giriş ne süzülme
+      // ticker'ı başladı — hareket azaltmada banknotlar yerinde durur.
       await tester.pump();
       expect(done, 1);
       expect(SchedulerBinding.instance.transientCallbackCount, base);
@@ -164,9 +175,14 @@ void main() {
 
     for (final lang in AppLanguage.values) {
       testWidgets('320dp · ${lang.code} taşmıyor', (tester) async {
-        await pumpFinale(tester, WelcomeBurstPage(onDone: () {}),
-            language: lang, size: const Size(320, 800));
-        await tester.pumpAndSettle();
+        await pumpFinale(
+          tester,
+          WelcomeBurstPage(onDone: () {}),
+          language: lang,
+          size: const Size(320, 800),
+          reduceMotion: true, // süzülme saati durmuyor, kare kare beklemeyiz
+        );
+        await tester.pump();
         expect(tester.takeException(), isNull);
       });
     }

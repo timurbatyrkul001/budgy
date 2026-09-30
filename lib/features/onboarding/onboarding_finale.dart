@@ -1,8 +1,10 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/formatters.dart';
 import '../../core/redesign_l10n.dart';
 import '../../core/motion.dart';
 import 'onboarding_palette.dart';
@@ -35,10 +37,10 @@ class OnboardingWorld {
   final bool dark;
 
   LinearGradient get gradient => LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [top, bottom],
-      );
+    begin: Alignment.topCenter,
+    end: Alignment.bottomCenter,
+    colors: [top, bottom],
+  );
 
   /// Bu zeminde okunur ana renk.
   Color get ink => dark ? Poster.paper : Poster.ink;
@@ -77,17 +79,18 @@ const kOnboardingWorlds = <OnboardingWorld>[
   ),
 ];
 
-/// Arka planın bir dünyadan diğerine akış süresi.
-const _worldSwitch = Duration(milliseconds: 420);
+/// Arka planın bir dünyadan diğerine akış süresi. Akış da aynı süreyi
+/// kullanıyor: zemini o boyuyor (tam sayfa), sayfa yalnız içeriği.
+const kWorldSwitch = Duration(milliseconds: 420);
 
 /// Dünya kimliği → RS'deki adı.
 String _worldName(RS rs, String id) => switch (id) {
-      'night' => rs.worldNight,
-      'dawn' => rs.worldDawn,
-      'forest' => rs.worldForest,
-      'ocean' => rs.worldOcean,
-      _ => id,
-    };
+  'night' => rs.worldNight,
+  'dawn' => rs.worldDawn,
+  'forest' => rs.worldForest,
+  'ocean' => rs.worldOcean,
+  _ => id,
+};
 
 // ---------------------------------------------------------------------------
 // Tema seçimi
@@ -100,9 +103,17 @@ String _worldName(RS rs, String id) => switch (id) {
 /// "Hadi başlayalım" [onNext]'e seçilen dünyanın kimliğini verir
 /// (`kOnboardingWorlds` içindeki `id`).
 class ThemePickerPage extends ConsumerStatefulWidget {
-  const ThemePickerPage({super.key, required this.onNext});
+  const ThemePickerPage({
+    super.key,
+    required this.onNext,
+    required this.onWorldChanged,
+  });
 
   final void Function(String themeId) onNext;
+
+  /// Seçim değiştikçe akışa haber verir: gökyüzünü akış çiziyor, böylece
+  /// gradyan durum çubuğunun ve alt güvenli alanın arkasına da geçiyor.
+  final void Function(OnboardingWorld world) onWorldChanged;
 
   @override
   ConsumerState<ThemePickerPage> createState() => _ThemePickerPageState();
@@ -116,103 +127,117 @@ class _ThemePickerPageState extends ConsumerState<ThemePickerPage> {
   OnboardingWorld get _world => kOnboardingWorlds[_selected];
 
   @override
+  void initState() {
+    super.initState();
+    // İlk kare çizilmeden akışa haber veremeyiz (setState sırası); açılışta
+    // gökyüzü zaten şafak, akış da onu bekliyor.
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => widget.onWorldChanged(_world),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     final rs = ref.watch(rsProvider);
     final instant = reduceMotion(context);
-    final duration = instant ? Duration.zero : _worldSwitch;
+    final duration = instant ? Duration.zero : kWorldSwitch;
     final world = _world;
     final width = MediaQuery.sizeOf(context).width;
     final narrow = width < 340;
 
-    return AnimatedContainer(
-      duration: duration,
-      curve: Curves.easeOutCubic,
-      decoration: BoxDecoration(gradient: world.gradient),
-      child: LayoutBuilder(
-        builder: (context, box) => SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(0, 8, 0, 8),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: box.maxHeight - 16),
-            child: IntrinsicHeight(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _FinaleTitle(
-                          rs.worldTitle,
-                          color: world.ink,
-                          maxWidth: width - 40,
-                          size: narrow ? 32 : 36,
-                          duration: duration,
-                        ),
-                        const SizedBox(height: 12),
-                        AnimatedDefaultTextStyle(
-                          duration: duration,
-                          style: _bodyStyle.copyWith(color: world.inkSoft),
-                          child: Text(rs.worldSubtitle),
-                        ),
-                      ],
-                    ),
+    // Gökyüzünü akış çiziyor (tam sayfa); burada yalnız içerik var.
+    return LayoutBuilder(
+      builder: (context, box) => SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(0, 8, 0, 8),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(minHeight: box.maxHeight - 16),
+          child: IntrinsicHeight(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _FinaleTitle(
+                        rs.worldTitle,
+                        color: world.ink,
+                        maxWidth: width - 40,
+                        size: narrow ? 32 : 36,
+                        duration: duration,
+                      ),
+                      const SizedBox(height: 12),
+                      AnimatedDefaultTextStyle(
+                        duration: duration,
+                        style: _bodyStyle.copyWith(color: world.inkSoft),
+                        child: Text(rs.worldSubtitle),
+                      ),
+                    ],
                   ),
-                  const Spacer(),
-                  SizedBox(
-                    height: _WorldCard.height + 24,
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 20, vertical: 12),
-                      physics: const BouncingScrollPhysics(),
-                      itemCount: kOnboardingWorlds.length,
-                      separatorBuilder: (_, _) => const SizedBox(width: 12),
-                      itemBuilder: (context, i) {
-                        final w = kOnboardingWorlds[i];
-                        return _WorldCard(
-                          key: ValueKey('world-${w.id}'),
-                          world: w,
-                          label: _worldName(rs, w.id),
-                          selected: i == _selected,
-                          ringColor: world.ink,
-                          duration: duration,
-                          onTap: () => setState(() => _selected = i),
-                        );
-                      },
+                ),
+                const Spacer(),
+                SizedBox(
+                  height: _WorldCard.height + 24,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
                     ),
+                    physics: const BouncingScrollPhysics(),
+                    itemCount: kOnboardingWorlds.length,
+                    separatorBuilder: (_, _) => const SizedBox(width: 12),
+                    itemBuilder: (context, i) {
+                      final w = kOnboardingWorlds[i];
+                      return _WorldCard(
+                        key: ValueKey('world-${w.id}'),
+                        world: w,
+                        label: _worldName(rs, w.id),
+                        selected: i == _selected,
+                        ringColor: world.ink,
+                        duration: duration,
+                        onTap: () {
+                          setState(() => _selected = i);
+                          widget.onWorldChanged(_world);
+                        },
+                      );
+                    },
                   ),
-                  const Spacer(),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    child: Column(
-                      children: [
-                        AnimatedDefaultTextStyle(
-                          duration: duration,
-                          style: TextStyle(
-                            fontFamily: 'Inter',
-                            fontSize: 13,
-                            height: 1.35,
-                            color: world.ink.withValues(alpha: 0.55),
-                          ),
+                ),
+                const Spacer(),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Column(
+                    children: [
+                      AnimatedDefaultTextStyle(
+                        duration: duration,
+                        style: TextStyle(
+                          fontFamily: 'Inter',
+                          fontSize: 13,
+                          height: 1.35,
+                          color: world.ink.withValues(alpha: 0.55),
+                        ),
+                        textAlign: TextAlign.center,
+                        child: Text(
+                          rs.worldFootnote,
                           textAlign: TextAlign.center,
-                          child: Text(rs.worldFootnote, textAlign: TextAlign.center),
                         ),
-                        const SizedBox(height: 14),
-                        Center(
-                          child: _FinalePillButton(
-                            label: rs.worldGo,
-                            fill: world.ink,
-                            textColor: world.dark ? Poster.ink : Poster.paper,
-                            duration: duration,
-                            onTap: () => widget.onNext(world.id),
-                          ),
+                      ),
+                      const SizedBox(height: 14),
+                      Center(
+                        child: _FinalePillButton(
+                          label: rs.worldGo,
+                          fill: world.ink,
+                          textColor: world.dark ? Poster.ink : Poster.paper,
+                          duration: duration,
+                          onTap: () => widget.onNext(world.id),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
@@ -342,7 +367,12 @@ class _WorldPainter extends CustomPainter {
     final r = w * 0.13;
     final moon = Path()..addOval(Rect.fromCircle(center: c, radius: r));
     final bite = Path()
-      ..addOval(Rect.fromCircle(center: c.translate(r * 0.45, -r * 0.2), radius: r * 0.88));
+      ..addOval(
+        Rect.fromCircle(
+          center: c.translate(r * 0.45, -r * 0.2),
+          radius: r * 0.88,
+        ),
+      );
     canvas.drawPath(
       Path.combine(PathOperation.difference, moon, bite),
       Paint()..color = const Color(0xFFF3E9C8),
@@ -476,9 +506,17 @@ class _WorldPainter extends CustomPainter {
 /// [AnimationController], ~1,8 s. Hareket azaltmada paralar yerleşik son
 /// karede çizilir ve [onDone] ilk kareden sonra çağrılır.
 class WelcomeBurstPage extends ConsumerStatefulWidget {
-  const WelcomeBurstPage({super.key, required this.onDone});
+  const WelcomeBurstPage({
+    super.key,
+    required this.onDone,
+    this.currencyCode = 'TRY',
+  });
 
   final VoidCallback onDone;
+
+  /// Uçan banknotların üstündeki simge, kullanıcının az önce seçtiği para
+  /// biriminden gelir: kendi parası uçuyor, yabancı bir dolar değil.
+  final String currencyCode;
 
   /// Toplam süre (yerleşme + kısa bekleme).
   static const duration = Duration(milliseconds: 1800);
@@ -493,7 +531,7 @@ class _WelcomeBurstPageState extends ConsumerState<WelcomeBurstPage>
     vsync: this,
     duration: WelcomeBurstPage.duration,
   );
-  late final List<_Coin> _coins = _Coin.scatter(16);
+
   bool _finished = false;
 
   @override
@@ -506,7 +544,7 @@ class _WelcomeBurstPageState extends ConsumerState<WelcomeBurstPage>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       if (reduceMotion(context)) {
-        _ctrl.value = 1; // yerleşik son kare
+        _ctrl.value = 1; // yerleşik son kare, süzülme yok
         _finish();
       } else {
         _ctrl.forward();
@@ -537,11 +575,30 @@ class _WelcomeBurstPageState extends ConsumerState<WelcomeBurstPage>
         fit: StackFit.expand,
         children: [
           // Paralar: tüm sayfa üstünde, metnin arkasında.
-          RepaintBoundary(
-            child: AnimatedBuilder(
-              animation: _ctrl,
-              builder: (_, _) => CustomPaint(
-                painter: _CoinRainPainter(coins: _coins, t: _ctrl.value),
+          BillRain(currencyCode: widget.currencyCode, fall: _ctrl),
+          // Paralar artık sayfanın tamamına dağıldığı için yazının arkasına
+          // kâğıt renginde yumuşak bir hale konuyor: başlık paraların
+          // üstünde okunur kalsın, ama kesik bir kutu görünmesin.
+          IgnorePointer(
+            child: Center(
+              child: SizedBox(
+                height: 320,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: RadialGradient(
+                      radius: 0.95,
+                      colors: [
+                        Poster.paper,
+                        Poster.paper.withValues(alpha: 0.92),
+                        Poster.paper.withValues(alpha: 0),
+                      ],
+                      // Geçiş erken başlayıp uzun sürüyor: kenarda yarım
+                      // silinmiş para değil, yumuşak bir sis kalıyor.
+                      stops: const [0, 0.3, 1],
+                    ),
+                  ),
+                  child: const SizedBox.expand(),
+                ),
               ),
             ),
           ),
@@ -552,8 +609,11 @@ class _WelcomeBurstPageState extends ConsumerState<WelcomeBurstPage>
               child: AnimatedBuilder(
                 animation: _ctrl,
                 builder: (context, child) {
-                  final p = const Interval(0.35, 0.75, curve: Curves.easeOut)
-                      .transform(_ctrl.value);
+                  final p = const Interval(
+                    0.35,
+                    0.75,
+                    curve: Curves.easeOut,
+                  ).transform(_ctrl.value);
                   return Opacity(
                     opacity: p,
                     child: Transform.translate(
@@ -590,120 +650,267 @@ class _WelcomeBurstPageState extends ConsumerState<WelcomeBurstPage>
   }
 }
 
-/// Bir paranın hareket parametreleri; hepsi 0..1 aralığında, ekran boyutu
-/// çizimde uygulanır.
-class _Coin {
-  const _Coin({
+/// Ekranı kaplayan banknot yağmuru — kutlama ve kapanış sayfalarının ortak
+/// zemini. İkisinde de aynı tohumla (42) dizildiği için banknotlar aynı
+/// yerde duruyor: sayfa değişince yağmur baştan başlamış gibi olmuyor.
+///
+/// [fall] giriş animasyonu; tamamlanmış bir animasyon verilirse (kapanış
+/// sayfası) banknotlar yerleşmiş hâlde açılır. Yerleştikten sonra hepsi
+/// yavaşça süzülmeye devam eder — süzülme bu widget'ın kendi saatinden
+/// geliyor ve o saat asla durmuyor, bu yüzden testlerde `pumpAndSettle`
+/// yerine ölçülü `pump` kullanılmalı.
+class BillRain extends StatefulWidget {
+  const BillRain({super.key, required this.currencyCode, required this.fall});
+
+  /// Banknotların üstündeki simge bu koddan gelir.
+  final String currencyCode;
+
+  /// Düşüş ilerlemesi 0..1.
+  final Animation<double> fall;
+
+  @override
+  State<BillRain> createState() => _BillRainState();
+}
+
+class _BillRainState extends State<BillRain>
+    with SingleTickerProviderStateMixin {
+  /// Süzülme saati: 60 sn'de bir başa sarar, değeri saniyeye çevrilip faz
+  /// olarak kullanılır.
+  late final AnimationController _idle = AnimationController(
+    vsync: this,
+    duration: const Duration(seconds: 60),
+  );
+
+  late final List<_Bill> _bills = _Bill.scatter(30);
+  late final ui.Paragraph _symbol = _buildSymbol(
+    kCurrencies[widget.currencyCode] ?? '₺',
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    // reduceMotion MediaQuery ister; ilk kareden sonra bakılır. Hareket
+    // azaltmada banknotlar yerinde durur.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !reduceMotion(context)) _idle.repeat();
+    });
+  }
+
+  @override
+  void dispose() {
+    _idle.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: Listenable.merge([widget.fall, _idle]),
+        builder: (_, _) => CustomPaint(
+          painter: _BillRainPainter(
+            bills: _bills,
+            symbol: _symbol,
+            t: widget.fall.value,
+            idle: _idle.value * 60,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Uçan bir banknotun hareket parametreleri; hepsi 0..1 aralığında, ekran
+/// boyutu çizimde uygulanır.
+class _Bill {
+  const _Bill({
     required this.x,
     required this.rest,
     required this.delay,
-    required this.size,
+    required this.width,
     required this.spin,
     required this.tilt,
+    required this.phase,
+    required this.drift,
   });
 
   /// Yatay konum (genişliğin oranı).
   final double x;
 
-  /// Yerleşeceği yükseklik (yüksekliğin oranı, alt bölgede dağınık).
+  /// Yerleşeceği yükseklik (yüksekliğin oranı). Alt şeride değil, sayfanın
+  /// tamamına yayılır: banknotlar arkada duran bir doku gibi kalır.
   final double rest;
 
   /// Düşmeye başlama anı (toplam sürenin oranı).
   final double delay;
 
-  /// Çap (px).
-  final double size;
+  /// Banknot genişliği (px); yükseklik [_kBillRatio] ile türetilir.
+  final double width;
 
-  /// Toplam dönüş (radyan) — para düşerken kendi ekseninde döner. π'nin
-  /// katı: yere yüzü yukarı iner, kenar üstünde durmaz.
+  /// Toplam dönüş (radyan) — banknot düşerken kendi ekseninde takla atar.
   final double spin;
 
   /// Düz duruşta ufak eğim (radyan), hepsi aynı hizada durmasın.
   final double tilt;
 
-  /// [n] para, sabit tohumla dağıtılır: her açılışta aynı, testte kararlı.
-  static List<_Coin> scatter(int n) {
+  /// Yerleştikten sonraki süzülmenin faz kayması — hepsi aynı anda aynı
+  /// yöne gitmesin diye.
+  final double phase;
+
+  /// Süzülme genliği (px).
+  final double drift;
+
+  /// [n] banknot, sabit tohumla dağıtılır: her açılışta aynı, testte kararlı.
+  ///
+  /// Aynı satıra denk gelmesinler diye yükseklik sırayla taranır (i/n) ve
+  /// üstüne ufak sapma biner.
+  static List<_Bill> scatter(int n) {
     final rnd = math.Random(42);
     return [
       for (var i = 0; i < n; i++)
-        _Coin(
-          // Genişliğe düzgün yay, hafif rastgele kaydır.
-          x: ((i + 0.5) / n + (rnd.nextDouble() - 0.5) * 0.08).clamp(0.05, 0.95),
-          rest: 0.80 + rnd.nextDouble() * 0.14,
-          delay: rnd.nextDouble() * 0.3,
-          size: 18 + rnd.nextDouble() * 12,
+        _Bill(
+          x: (rnd.nextDouble() * 0.86 + 0.07).clamp(0.07, 0.93),
+          rest: (((i + 0.5) / n) * 0.9 + 0.05 + (rnd.nextDouble() - 0.5) * 0.06)
+              .clamp(0.04, 0.96),
+          delay: rnd.nextDouble() * 0.45,
+          width: 46 + rnd.nextDouble() * 30,
           spin: (rnd.nextBool() ? 1 : -1) * math.pi * (2 + rnd.nextInt(2)),
-          tilt: (rnd.nextDouble() - 0.5) * 0.4,
+          tilt: (rnd.nextDouble() - 0.5) * 0.5,
+          phase: rnd.nextDouble() * math.pi * 2,
+          drift: 5 + rnd.nextDouble() * 8,
         ),
     ];
   }
 }
 
-/// Paraları çizer: her para kendi gecikmesinden sonra, yerçekimi hissi için
-/// [Curves.bounceOut] ile düşüp sekerek yerleşir; düşerken Y ekseninde döner
-/// (ölçek = cos), böylece madeni para "takla atıyor" hissi verir.
-class _CoinRainPainter extends CustomPainter {
-  const _CoinRainPainter({required this.coins, required this.t});
+/// Banknot en/boy oranı (gerçek kâğıt paraya yakın).
+const _kBillRatio = 0.46;
 
-  final List<_Coin> coins;
+/// Marka yeşili ailesi: beyaz afiş burada bitiyor, uygulama bu renkle
+/// açılıyor — finalin işi o geçişi hazırlamak.
+const _kBillFill = Color(0xFF3FA97C);
+const _kBillEdge = Color(0xFF1F7B57);
+const _kBillInk = Color(0xFF0E3F2D);
+
+/// Para birimi simgesini bir kez dizer; çizimde banknot genişliğine göre
+/// ölçekleniyor, böylece her karede TextPainter kurulmuyor.
+ui.Paragraph _buildSymbol(String symbol) {
+  final builder =
+      ui.ParagraphBuilder(
+          ui.ParagraphStyle(
+            fontFamily: 'InterDisplay',
+            fontSize: 100,
+            fontWeight: FontWeight.w900,
+            textAlign: TextAlign.center,
+          ),
+        )
+        ..pushStyle(ui.TextStyle(color: _kBillInk.withValues(alpha: 0.55)))
+        ..addText(symbol);
+  return builder.build()..layout(const ui.ParagraphConstraints(width: 120));
+}
+
+/// Banknotları çizer: her biri kendi gecikmesinden sonra [Curves.bounceOut]
+/// ile süzülüp yerleşir, düşerken kendi ekseninde takla atar (yatay ölçek =
+/// cos), yerleştikten sonra da yavaşça salınmaya devam eder.
+class _BillRainPainter extends CustomPainter {
+  const _BillRainPainter({
+    required this.bills,
+    required this.symbol,
+    required this.t,
+    required this.idle,
+  });
+
+  final List<_Bill> bills;
+  final ui.Paragraph symbol;
+
+  /// Giriş ilerlemesi 0..1 (düşüş).
   final double t;
+
+  /// Yerleştikten sonra duran saniye — süzülme buradan geliyor, sayfa açık
+  /// kaldığı sürece artar.
+  final double idle;
 
   /// Düşüşün toplam sürede kapladığı pay (gerisi bekleme).
   static const _fallShare = 0.62;
 
   @override
   void paint(Canvas canvas, Size size) {
-    for (final c in coins) {
-      final local = ((t - c.delay) / _fallShare).clamp(0.0, 1.0);
+    for (final b in bills) {
+      final local = ((t - b.delay) / _fallShare).clamp(0.0, 1.0);
       if (local <= 0) continue; // henüz düşmeye başlamadı
       final fall = Curves.bounceOut.transform(local);
-      final startY = -c.size;
-      final endY = size.height * c.rest;
-      final y = startY + (endY - startY) * fall;
-      final x = size.width * c.x;
-      // Dönüş düşüşle biter, yerde sabit eğim kalır.
-      final angle = c.spin * Curves.easeOut.transform(local) + c.tilt;
+      final startY = -b.width;
+      final endY = size.height * b.rest;
+      // Yerleştikten sonra yerinde durmuyor: dikeyde tam, yatayda yarım
+      // periyot salınım — sayfa canlı kalıyor, hepsi aynı yöne gitmiyor.
+      final settled = local >= 1 ? 1.0 : 0.0;
+      final w = idle * 0.9 + b.phase;
+      final y =
+          startY + (endY - startY) * fall + settled * math.sin(w) * b.drift;
+      final x = size.width * b.x + settled * math.cos(w * 0.5) * b.drift * 0.7;
+      // Takla düşüşle biter; yerleşince çok yavaş salınarak sürer.
+      final angle =
+          b.spin * Curves.easeOut.transform(local) +
+          b.tilt +
+          settled * math.sin(w * 0.35) * 0.5;
       canvas.save();
       canvas.translate(x, y);
-      // Yatay ölçek cos(açı): kenar görünümünde incelir, yüzde tam daire.
-      final flip = math.cos(angle).abs().clamp(0.18, 1.0);
-      canvas.scale(flip, 1);
-      _drawCoin(canvas, c.size / 2);
+      canvas.rotate(b.tilt + settled * math.sin(w * 0.4) * 0.12);
+      // Yatay ölçek cos(açı): kenarından görününce incelir, yüzde tam boy.
+      canvas.scale(math.cos(angle).abs().clamp(0.12, 1.0), 1);
+      _drawBill(canvas, b.width, symbol);
       canvas.restore();
     }
   }
 
-  /// Tek para: altın dolgu, koyu kenar, iç halka, sol üstte parlama.
-  static void _drawCoin(Canvas canvas, double r) {
-    canvas.drawCircle(Offset.zero, r, Paint()..color = const Color(0xFFF2C14E));
-    canvas.drawCircle(
-      Offset.zero,
-      r - 1,
-      Paint()
-        ..color = const Color(0xFFC8962B)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2,
+  /// Tek banknot: yeşil dolgu, koyu kenar, iç çerçeve, ortada para birimi
+  /// simgesi ve iki yanında ufak çizgiler.
+  static void _drawBill(Canvas canvas, double w, ui.Paragraph symbol) {
+    final h = w * _kBillRatio;
+    final rect = RRect.fromRectAndRadius(
+      Rect.fromCenter(center: Offset.zero, width: w, height: h),
+      Radius.circular(w * 0.05),
     );
-    canvas.drawCircle(
-      Offset.zero,
-      r * 0.62,
+    canvas.drawRRect(rect, Paint()..color = _kBillFill);
+    canvas.drawRRect(
+      rect,
       Paint()
-        ..color = const Color(0xFFC8962B).withValues(alpha: 0.7)
+        ..color = _kBillEdge
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2,
+        ..strokeWidth = w * 0.025,
     );
-    canvas.drawOval(
-      Rect.fromCenter(
-        center: Offset(-r * 0.32, -r * 0.36),
-        width: r * 0.55,
-        height: r * 0.32,
+    // İç çerçeve: gerçek banknotlardaki ince kenar süsü.
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromCenter(center: Offset.zero, width: w * 0.86, height: h * 0.74),
+        Radius.circular(w * 0.03),
       ),
-      Paint()..color = Colors.white.withValues(alpha: 0.55),
+      Paint()
+        ..color = _kBillEdge.withValues(alpha: 0.55)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = w * 0.014,
     );
+    // İki yanda üçer çizgi — uzaktan "yazı" hissi, okunacak bir şey yok.
+    final line = Paint()
+      ..color = _kBillEdge.withValues(alpha: 0.45)
+      ..strokeWidth = h * 0.045
+      ..strokeCap = StrokeCap.round;
+    for (var i = -1; i <= 1; i++) {
+      final dy = i * h * 0.16;
+      canvas.drawLine(Offset(-w * 0.36, dy), Offset(-w * 0.22, dy), line);
+      canvas.drawLine(Offset(w * 0.22, dy), Offset(w * 0.36, dy), line);
+    }
+    // Simge: 100 punto dizildi, banknot boyuna indiriliyor.
+    final scale = h * 0.62 / 100;
+    canvas.save();
+    canvas.scale(scale);
+    canvas.drawParagraph(symbol, Offset(-60, -symbol.height / 2));
+    canvas.restore();
   }
 
   @override
-  bool shouldRepaint(_CoinRainPainter old) => old.t != t || old.coins != coins;
+  bool shouldRepaint(_BillRainPainter old) =>
+      old.t != t || old.idle != idle || old.bills != bills;
 }
 
 // ---------------------------------------------------------------------------
@@ -711,11 +918,7 @@ class _CoinRainPainter extends CustomPainter {
 // ---------------------------------------------------------------------------
 
 /// Gövde metni: Inter.
-const _bodyStyle = TextStyle(
-  fontFamily: 'Inter',
-  fontSize: 16,
-  height: 1.4,
-);
+const _bodyStyle = TextStyle(fontFamily: 'Inter', fontSize: 16, height: 1.4);
 
 /// İç sayfa display başlığı: Inter Display Black 36/32 px, sıkı harfler.
 /// En uzun sözcük satıra sığmıyorsa punto o sözcük sığana kadar küçülür
@@ -740,13 +943,13 @@ class _FinaleTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     TextStyle styleAt(double s) => TextStyle(
-          fontFamily: 'InterDisplay',
-          fontWeight: FontWeight.w900,
-          fontSize: s,
-          height: 0.98,
-          letterSpacing: -1.5 * (s / size),
-          color: color,
-        );
+      fontFamily: 'InterDisplay',
+      fontWeight: FontWeight.w900,
+      fontSize: s,
+      height: 0.98,
+      letterSpacing: -1.5 * (s / size),
+      color: color,
+    );
     final longest = text
         .split(RegExp(r'\s+'))
         .reduce((a, b) => a.length >= b.length ? a : b);

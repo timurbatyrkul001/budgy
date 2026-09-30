@@ -7,6 +7,7 @@ import 'package:kopilka_app/core/category_catalog.dart';
 import 'package:kopilka_app/core/category_rules.dart';
 import 'package:kopilka_app/core/l10n.dart';
 import 'package:kopilka_app/core/redesign_l10n.dart';
+import 'package:kopilka_app/features/onboarding/onboarding_finale.dart';
 import 'package:kopilka_app/features/onboarding/onboarding_flow.dart';
 import 'package:kopilka_app/features/profile/privacy_policy_screen.dart';
 import 'package:kopilka_app/features/profile/terms_of_use_screen.dart';
@@ -276,10 +277,14 @@ void main() {
     await tester.pumpAndSettle();
     await next(RS.en.firstDayConfirm);
     await next();
-    // Patlama (hareket kapalı → anında biter) → yazma tamamlanır.
-    expect(find.text(RS.en.welcomeBurstTitle), findsOneWidget);
+    // Patlama (hareket kapalı → anında biter, o yüzden başlığı yakalamaya
+    // çalışmıyoruz) → yazma tamamlanır → hesabı bağlama sayfası.
+    // "Şimdi değil" onboarding'i kapatır.
     await tester.pumpAndSettle();
     await tester.pump();
+    await tester.pumpAndSettle();
+    expect(find.text(RS.en.saveTitle), findsOneWidget);
+    await tester.tap(find.text(RS.en.saveSkip));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
 
@@ -344,6 +349,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.pump();
     await tester.pumpAndSettle();
+    // Kapanış sayfası: hesap bağlamadan geçiliyor.
+    await next(RS.tr.saveSkip);
 
     final settings =
         (await db.doc('users/$testUid/settings/main').get()).data()!;
@@ -357,6 +364,52 @@ void main() {
     expect((await db.doc('users/$testUid/accounts/cash').get()).exists, isFalse);
     expect(
         (await db.collection('users/$testUid/workDays').get()).docs, isEmpty);
+  });
+
+  // Tema sayfasında gökyüzü ekranın tamamını kaplamalı: kullanıcı durum
+  // çubuğunun altında kâğıt şerit kalınca "kaymış" diye bildirmişti.
+  testWidgets('tema sayfası · gökyüzü durum çubuğunun arkasına da geçer',
+      (tester) async {
+    const screen = Size(390, 844);
+    await pumpBudgyScreen(
+      tester,
+      const OnboardingFlow(preview: true, initialStep: 14),
+      db: FakeFirebaseFirestore(),
+      language: AppLanguage.tr,
+      logicalSize: screen,
+      safeArea: const EdgeInsets.only(top: 47, bottom: 34),
+    );
+    await tester.pumpAndSettle();
+
+    // Zemini Scaffold'un gövdesindeki AnimatedContainer çiziyor: SafeArea'nın
+    // dışında olduğu için ölçüsü ekranın tamamı.
+    final sky = find.descendant(
+      of: find.byType(Scaffold),
+      matching: find.byType(AnimatedContainer),
+    );
+    final box = tester.getRect(sky.first);
+    expect(box.size, screen);
+
+    final dawn = kOnboardingWorlds.firstWhere((w) => w.id == 'dawn');
+    final decoration = tester.widget<AnimatedContainer>(sky.first).decoration!;
+    expect(
+      ((decoration as BoxDecoration).gradient! as LinearGradient).colors,
+      [dawn.top, dawn.bottom],
+    );
+
+    // Gece seçilince gökyüzü de geri oku da koyu zemine göre döner.
+    await tester.tap(find.byKey(const ValueKey('world-night')));
+    await tester.pumpAndSettle();
+    final night = kOnboardingWorlds.firstWhere((w) => w.id == 'night');
+    final after = tester.widget<AnimatedContainer>(sky.first).decoration!;
+    expect(
+      ((after as BoxDecoration).gradient! as LinearGradient).colors,
+      [night.top, night.bottom],
+    );
+    expect(
+      tester.widget<Icon>(find.byIcon(Icons.arrow_back_rounded)).color,
+      night.ink,
+    );
   });
 }
 

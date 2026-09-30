@@ -33,6 +33,7 @@ import 'onboarding_firstday.dart';
 import 'onboarding_palette.dart';
 import 'onboarding_questions.dart';
 import 'onboarding_response.dart';
+import 'onboarding_save.dart';
 
 // ── Sayfa sırası ─────────────────────────────────────────────────────────
 // Geri düğmesi, önizleme (PREVIEW_STEP) ve testler bu indekslere göre.
@@ -53,9 +54,10 @@ const _pNotif = 13;
 const _pWorld = 14;
 const _pFirstDay = 15;
 const _pBurst = 16;
+const _pSave = 17;
 
 /// Son sayfanın indeksi (PREVIEW_STEP üst sınırı).
-const kOnboardingLastStep = _pBurst;
+const kOnboardingLastStep = _pSave;
 
 /// 17 sayfalı onboarding: karşılama → tanıtım ×3 → anket (duygu, en zor
 /// gelen, cevaba karşılık, mevcut yöntem) → balonlar (giderler, gelirler) →
@@ -116,8 +118,9 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
   @override
   void initState() {
     super.initState();
-    _currency =
-        currencyForRegion(PlatformDispatcher.instance.locale.countryCode);
+    _currency = currencyForRegion(
+      PlatformDispatcher.instance.locale.countryCode,
+    );
     // Önizlemede PREVIEW_AUTOPLAY: 1,6 s sonra kendiliğinden ileri gider —
     // sayfa geçişini ekran görüntüleriyle kare kare doğrulamak için.
     if (widget.preview && kPreviewOnboardingAutoplay && _page < _pBurst) {
@@ -130,7 +133,13 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
     if (widget.preview) {
       if (widget.initialStep >= _pReply) _hardest = 'income';
       if (widget.initialStep >= _pSummary) {
-        _expenseKeys = const {'groceries', 'rent', 'coffee', 'taxi', 'utilities'};
+        _expenseKeys = const {
+          'groceries',
+          'rent',
+          'coffee',
+          'taxi',
+          'utilities',
+        };
         _incomeKeys = const {'salary', 'tips'};
       }
       if (widget.initialStep == _pWallet) {
@@ -151,26 +160,35 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
 
   /// Ana para birimi değişince aynı koddaki ek cüzdan anlamsızlaşır.
   void _setCurrency(String code) => setState(() {
-        _currency = code;
-        _extras.removeWhere((e) => e.code == code);
-      });
+    _currency = code;
+    _extras.removeWhere((e) => e.code == code);
+  });
 
   Future<void> _addExtra() async {
-    final draft = await showCurrencyWalletSheet(context,
-        exclude: {_currency, for (final e in _extras) e.code});
+    final draft = await showCurrencyWalletSheet(
+      context,
+      exclude: {_currency, for (final e in _extras) e.code},
+    );
     if (draft != null) setState(() => _extras.add(draft));
   }
 
   /// Taslak cüzdan: dil değişirse varsayılan ad da değişsin diye tembel.
   SpaceInfo _space(RS rs) => _draft ??= SpaceInfo(
-        name: rs.defaultWalletName,
-        color: Ex.spaceColors.first.toARGB32(),
-      );
+    name: rs.defaultWalletName,
+    color: Ex.spaceColors.first.toARGB32(),
+  );
+
+  /// Tema sayfasındayken ekranı baştan aşağı kaplayan gökyüzü; diğer
+  /// sayfalarda null (kâğıt zemin). Gradyanı sayfa değil akış çiziyor ki
+  /// durum çubuğunun ve alt güvenli alanın arkasına da geçsin.
+  OnboardingWorld? _sky;
 
   void _go(int page) => setState(() {
-        _forward = page > _page;
-        _page = page;
-      });
+    _forward = page > _page;
+    _page = page;
+    // Tema sayfasından çıkıldı: gökyüzü kâğıda döner.
+    if (page != _pWorld) _sky = null;
+  });
 
   Future<void> _changeCurrency() async {
     final code = await showCurrencyPicker(context, selected: _currency);
@@ -178,8 +196,11 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
   }
 
   Future<void> _customize(RS rs) async {
-    final result = await showSpaceEditor(context,
-        initial: _space(rs), currency: _currency);
+    final result = await showSpaceEditor(
+      context,
+      initial: _space(rs),
+      currency: _currency,
+    );
     if (result != null) {
       setState(() => _draft = result.info);
       _setCurrency(result.currency);
@@ -205,33 +226,51 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
 
   /// Karşılama patlamasına geç; gerçek akışta yazma ANİMASYONLA PARALEL
   /// başlar (1,8 s'lik patlama ağ gecikmesini örter). `ignore()`: hata
-  /// [_finish]'te yakalanır, o zamana kadar "unhandled" sayılmasın.
+  /// [_burstDone]'da yakalanır, o zamana kadar "unhandled" sayılmasın.
   void _enterBurst(RS rs) {
     if (!widget.preview) _commit ??= _writeAll(rs)..ignore();
     _go(_pBurst);
   }
 
-  /// Patlama bitti: yazma tamamlanmışsa `onboardingDone` — auth kapısı ana
-  /// ekrana geçer. Hata olursa ilk gün sayfasına dönülür; tekrar denemede
-  /// [_writeAll] var olanı yeniden yazmaz (anahtar/preset kontrolü).
-  Future<void> _finish() async {
+  /// Patlama bitti: yazma tamamlandıysa son sayfaya (hesabı bağla) geçilir.
+  /// Onboarding orada kapanır — kullanıcı bağlasa da atlasa da.
+  ///
+  /// Kutlama ile yazma paralel gidiyor; buraya gelindiğinde yazma bitmiş
+  /// olmalı, bitmediyse bekleniyor. Hata olursa ilk gün sayfasına dönülür;
+  /// tekrar denemede [_writeAll] var olanı yeniden yazmaz (anahtar/preset
+  /// kontrolü).
+  Future<void> _burstDone() async {
     if (widget.preview) {
-      Navigator.of(context).maybePop();
+      _go(_pSave);
       return;
     }
-    // Repo'yu ÖNCE al: yazma sırasında auth kapısı bu widget'ı değiştirebilir,
-    // sonra ref okumak güvenli olmaz.
-    final repo = ref.read(budgetRepositoryProvider);
     final str = ref.read(strProvider);
     try {
       await _commit;
-      await repo.setOnboardingDone();
     } catch (_) {
       _commit = null;
       if (mounted) {
         showErrorSnack(context, str.errorSaveFailed);
         _go(_pFirstDay);
       }
+      return;
+    }
+    if (mounted) _go(_pSave);
+  }
+
+  /// Son sayfadaki üç çıkıştan biri (bağlandı / atlandı / bağlanamadı):
+  /// onboarding kapanır, auth kapısı ana ekrana geçer.
+  Future<void> _closeOnboarding() async {
+    if (widget.preview) {
+      Navigator.of(context).maybePop();
+      return;
+    }
+    final repo = ref.read(budgetRepositoryProvider);
+    final str = ref.read(strProvider);
+    try {
+      await repo.setOnboardingDone();
+    } catch (_) {
+      if (mounted) showErrorSnack(context, str.errorSaveFailed);
     }
   }
 
@@ -268,15 +307,15 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
     final expenseKeys = _expenseKeys.isNotEmpty
         ? _expenseKeys.toList()
         : [for (final p in presetEnvelopes) p.key];
-    final keys = [...expenseKeys, ..._incomeKeys]
-        .where((k) => !have.contains(k))
-        .toList();
+    final keys = [
+      ...expenseKeys,
+      ..._incomeKeys,
+    ].where((k) => !have.contains(k)).toList();
     var sortOrder = existing.length;
     if (keys.isNotEmpty) {
-      await repo.addEnvelopes(
-        [for (final k in keys) _categoryFor(k, str)],
-        startSortOrder: sortOrder,
-      );
+      await repo.addEnvelopes([
+        for (final k in keys) _categoryFor(k, str),
+      ], startSortOrder: sortOrder);
       sortOrder += keys.length;
     }
 
@@ -307,7 +346,9 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
   /// önce hazır set çevirisi, sonra katalog; emoji katalogdan, yoksa hazır
   /// setten (food/transport gibi eski anahtarlar katalogda yok).
   ({String key, String emoji, String name}) _categoryFor(
-      String key, Strings str) {
+    String key,
+    Strings str,
+  ) {
     final item = catalogItem(key);
     final preset = presetEnvelopes.where((p) => p.key == key).firstOrNull;
     return (
@@ -323,11 +364,7 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
     final str = ref.watch(strProvider);
     final locale = str.localeCode;
     final pages = [
-      _WelcomePage(
-        rs: rs,
-        onNext: () => _go(_pIntroFast),
-        onSignIn: _signIn,
-      ),
+      _WelcomePage(rs: rs, onNext: () => _go(_pIntroFast), onSignIn: _signIn),
       // Tanıtım sayfaları: maket üstte, ortalı başlık + alt başlık, Devam.
       _IntroPage(
         title: rs.introFastTitle,
@@ -338,8 +375,9 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
       ),
       _IntroPage(
         title: rs.introRulesTitle,
-        subtitle: tpl(rs.introRulesSubtitleTpl,
-            {'n': '${kBuiltinRuleCount ~/ 10 * 10}'}),
+        subtitle: tpl(rs.introRulesSubtitleTpl, {
+          'n': '${kBuiltinRuleCount ~/ 10 * 10}',
+        }),
         buttonLabel: rs.continueLabel,
         onNext: () => _go(_pIntroBudget),
         mockup: RulesMock(locale: locale),
@@ -487,6 +525,9 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
         onNext: (_) => _go(_pWorld),
       ),
       ThemePickerPage(
+        onWorldChanged: (world) {
+          if (_sky?.id != world.id) setState(() => _sky = world);
+        },
         onNext: (id) {
           _worldId = id;
           _go(_pFirstDay);
@@ -508,25 +549,29 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
           _enterBurst(rs);
         },
       ),
-      WelcomeBurstPage(onDone: _finish),
+      WelcomeBurstPage(onDone: _burstDone, currencyCode: _currency),
+      SaveBookPage(onDone: _closeOnboarding),
     ];
     assert(pages.length == kOnboardingLastStep + 1);
 
     // Tüm akış beyaz afiş dilinde; durum çubuğu simgeleri koyu. Karşılama
     // (0) üst şeritsiz poster, diğer adımlarda yalnız sol üstte geri oku
     // (ilerleme çubuğu bilinçli olarak yok — referansta da yok). Patlama
-    // sayfasında geri yok: yazma başladı, yarıda dönülmez.
+    // ve kaydetme sayfalarında geri yok: yazma başladı, yarıda dönülmez.
     final Widget body = _page == _pWelcome
         ? KeyedSubtree(key: const ValueKey('welcome'), child: pages[0])
         : Column(
             key: const ValueKey('flow'),
             children: [
-              if (_page != _pBurst)
+              if (_page != _pBurst && _page != _pSave)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
                   child: Align(
                     alignment: Alignment.centerLeft,
-                    child: _PaperBackButton(onTap: () => _go(_page - 1)),
+                    child: _PaperBackButton(
+                      ink: _sky?.ink ?? Poster.ink,
+                      onTap: () => _go(_page - 1),
+                    ),
                   ),
                 ),
               Expanded(
@@ -535,7 +580,10 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
                   switchInCurve: Curves.easeOutCubic,
                   switchOutCurve: Curves.easeInCubic,
                   transitionBuilder: (child, anim) => _slideFade(
-                      child, anim, forward: (child.key == ValueKey(_page)) == _forward),
+                    child,
+                    anim,
+                    forward: (child.key == ValueKey(_page)) == _forward,
+                  ),
                   child: KeyedSubtree(
                     key: ValueKey(_page),
                     child: pages[_page],
@@ -546,18 +594,34 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
           );
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.dark,
+      // Koyu gökyüzünde (gece, orman) saat ve pil simgeleri beyaza döner.
+      value: (_sky?.dark ?? false)
+          ? SystemUiOverlayStyle.light
+          : SystemUiOverlayStyle.dark,
       child: Scaffold(
         // Zemin geçiş boyunca kâğıt kalır: hiçbir karede boş/siyah flaş yok.
         backgroundColor: Poster.paper,
-        body: SafeArea(
-          child: AnimatedSwitcher(
-            duration: _pageSwitch,
-            switchInCurve: Curves.easeOutCubic,
-            switchOutCurve: Curves.easeInCubic,
-            transitionBuilder: (child, anim) => _slideFade(
-                child, anim, forward: (child.key == const ValueKey('flow')) == _forward),
-            child: body,
+        // Gökyüzü SafeArea'nın DIŞINDA: durum çubuğunun ve alt çentiğin
+        // arkasına da geçsin, ekran ortasında bir şerit gibi durmasın.
+        body: AnimatedContainer(
+          duration: kWorldSwitch,
+          curve: Curves.easeOutCubic,
+          decoration: BoxDecoration(
+            gradient: _sky?.gradient,
+            color: _sky == null ? Poster.paper : null,
+          ),
+          child: SafeArea(
+            child: AnimatedSwitcher(
+              duration: _pageSwitch,
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              transitionBuilder: (child, anim) => _slideFade(
+                child,
+                anim,
+                forward: (child.key == const ValueKey('flow')) == _forward,
+              ),
+              child: body,
+            ),
           ),
         ),
       ),
@@ -572,7 +636,11 @@ const _pageSwitch = Duration(milliseconds: 360);
 /// kayıp belirir (geri giderken yönler ters). Kayma mütevazı — genişliğin
 /// ~%22'si, ekran dışına itilmez. [anim] AnimatedSwitcher'ın animasyonu:
 /// gelen için 0→1, çıkan için 1→0; [forward] gelen ile akış yönü aynı mı.
-Widget _slideFade(Widget child, Animation<double> anim, {required bool forward}) {
+Widget _slideFade(
+  Widget child,
+  Animation<double> anim, {
+  required bool forward,
+}) {
   final dx = forward ? 0.22 : -0.22;
   return FadeTransition(
     opacity: anim,
@@ -583,29 +651,41 @@ Widget _slideFade(Widget child, Animation<double> anim, {required bool forward})
   );
 }
 
-/// Beyaz zeminde geri düğmesi: ince mürekkep çerçeveli yuvarlak kare.
+/// Geri düğmesi: ince çerçeveli yuvarlak kare. [ink] zemine göre gelir —
+/// kâğıtta mürekkep, koyu gökyüzünde kâğıt.
 class _PaperBackButton extends StatelessWidget {
-  const _PaperBackButton({required this.onTap});
+  const _PaperBackButton({required this.onTap, this.ink = Poster.ink});
 
   final VoidCallback onTap;
+  final Color ink;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(Ex.iconRadius),
-        side: BorderSide(color: Poster.ink.withValues(alpha: 0.14)),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: const SizedBox(
-          width: 40,
-          height: 40,
-          child: Icon(Icons.arrow_back_rounded, color: Poster.ink, size: 22),
-        ),
-      ),
+    // Renk gökyüzüyle birlikte akar; zemin bir anda değişip düğme geride
+    // kalmasın diye aynı süre.
+    return TweenAnimationBuilder<Color?>(
+      duration: kWorldSwitch,
+      curve: Curves.easeOutCubic,
+      tween: ColorTween(end: ink),
+      builder: (context, color, child) {
+        final c = color ?? ink;
+        return Material(
+          color: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(Ex.iconRadius),
+            side: BorderSide(color: c.withValues(alpha: 0.28)),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: SizedBox(
+              width: 40,
+              height: 40,
+              child: Icon(Icons.arrow_back_rounded, color: c, size: 22),
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -664,8 +744,10 @@ class _Title extends StatelessWidget {
           dropFrom: Duration.zero,
         ),
         const SizedBox(height: 12),
-        Text(subtitle, style: _bodyStyle)
-            .dropIn(context, const Duration(milliseconds: 200), dy: -10),
+        Text(
+          subtitle,
+          style: _bodyStyle,
+        ).dropIn(context, const Duration(milliseconds: 200), dy: -10),
       ],
     );
   }
@@ -751,7 +833,9 @@ class _WelcomePage extends StatelessWidget {
         return Stack(
           children: [
             const Positioned.fill(
-              child: IgnorePointer(child: CustomPaint(painter: _CalendarGridPainter())),
+              child: IgnorePointer(
+                child: CustomPaint(painter: _CalendarGridPainter()),
+              ),
             ),
             SingleChildScrollView(
               padding: const EdgeInsets.only(bottom: 10),
@@ -789,7 +873,9 @@ class _WelcomePage extends StatelessWidget {
                                   const BudgyIcon(size: 36, radiusFactor: 0.5),
                                   const SizedBox(width: 10),
                                   ConstrainedBox(
-                                    constraints: BoxConstraints(maxWidth: w * 0.56),
+                                    constraints: BoxConstraints(
+                                      maxWidth: w * 0.56,
+                                    ),
                                     child: _AudienceBadge(rs.onbBadge),
                                   ),
                                 ],
@@ -807,7 +893,9 @@ class _WelcomePage extends StatelessWidget {
                                   rs.onbNote,
                                   style: TextStyle(
                                     fontFamily: 'Caveat',
-                                    fontVariations: const [FontVariation('wght', 650)],
+                                    fontVariations: const [
+                                      FontVariation('wght', 650),
+                                    ],
                                     fontSize: narrow ? 19 : 22,
                                     height: 1.08,
                                     color: Poster.ink,
@@ -819,11 +907,16 @@ class _WelcomePage extends StatelessWidget {
                             Positioned(
                               right: -engraving * 0.06,
                               top: -4,
-                              child: _CollageImage(
-                                'assets/onboarding/engraving_calendar.png',
-                                size: engraving,
-                                angle: 6,
-                              ).dropIn(context, const Duration(milliseconds: 240), dy: -12),
+                              child:
+                                  _CollageImage(
+                                    'assets/onboarding/engraving_calendar.png',
+                                    size: engraving,
+                                    angle: 6,
+                                  ).dropIn(
+                                    context,
+                                    const Duration(milliseconds: 240),
+                                    dy: -12,
+                                  ),
                             ),
                           ],
                         ),
@@ -834,9 +927,12 @@ class _WelcomePage extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _DisplayTitle(rs.onbTitle,
-                                    maxWidth: w - 40, narrow: narrow, narrowSpacing: -2.4)
-                                .enterUp(context, index: 3),
+                            _DisplayTitle(
+                              rs.onbTitle,
+                              maxWidth: w - 40,
+                              narrow: narrow,
+                              narrowSpacing: -2.4,
+                            ).enterUp(context, index: 3),
                             const SizedBox(height: 18),
                             Text(
                               rs.onbSubtitle,
@@ -858,11 +954,16 @@ class _WelcomePage extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             Center(
-                              child: _InkPillButton(label: rs.getStarted, onTap: onNext),
+                              child: _InkPillButton(
+                                label: rs.getStarted,
+                                onTap: onNext,
+                              ),
                             ).enterUp(context, index: 5),
                             const SizedBox(height: 6),
-                            _PaperTextButton(label: rs.haveAccount, onTap: onSignIn)
-                                .enterUp(context, index: 6),
+                            _PaperTextButton(
+                              label: rs.haveAccount,
+                              onTap: onSignIn,
+                            ).enterUp(context, index: 6),
                             const SizedBox(height: 6),
                             _LegalNote(rs: rs).enterUp(context, index: 7),
                           ],
@@ -920,19 +1021,21 @@ class _DisplayTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final base = narrow ? narrowSize : size;
-    final spacingAt =
-        narrow ? (narrowSpacing ?? spacing * narrowSize / size) : spacing;
+    final spacingAt = narrow
+        ? (narrowSpacing ?? spacing * narrowSize / size)
+        : spacing;
     TextStyle styleAt(double s) => TextStyle(
-          fontFamily: 'InterDisplay',
-          fontWeight: FontWeight.w900,
-          fontSize: s,
-          height: lineHeight,
-          letterSpacing: spacingAt * (s / base),
-          color: Poster.ink,
-        );
+      fontFamily: 'InterDisplay',
+      fontWeight: FontWeight.w900,
+      fontSize: s,
+      height: lineHeight,
+      letterSpacing: spacingAt * (s / base),
+      color: Poster.ink,
+    );
     var fitted = base;
-    final longest = text.split(RegExp(r'\s+')).reduce(
-        (a, b) => a.length >= b.length ? a : b);
+    final longest = text
+        .split(RegExp(r'\s+'))
+        .reduce((a, b) => a.length >= b.length ? a : b);
     final painter = TextPainter(
       text: TextSpan(text: longest, style: styleAt(fitted)),
       textDirection: TextDirection.ltr,
@@ -969,8 +1072,12 @@ class _DisplayTitle extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         for (final (i, line) in lines.indexed)
-          Text(line, maxLines: 1, softWrap: false, style: style)
-              .dropIn(context, from + _dropStep * i, dy: -12),
+          Text(
+            line,
+            maxLines: 1,
+            softWrap: false,
+            style: style,
+          ).dropIn(context, from + _dropStep * i, dy: -12),
       ],
     );
   }
@@ -1133,7 +1240,11 @@ class _LegalNoteState extends State<_LegalNote> {
   Widget build(BuildContext context) {
     final rs = widget.rs;
     const base = TextStyle(
-        fontFamily: 'Inter', fontSize: 11.5, height: 1.35, color: Poster.inkFaint);
+      fontFamily: 'Inter',
+      fontSize: 11.5,
+      height: 1.35,
+      color: Poster.inkFaint,
+    );
     const link = TextStyle(
       color: Poster.inkSoft,
       decoration: TextDecoration.underline,
@@ -1141,17 +1252,21 @@ class _LegalNoteState extends State<_LegalNote> {
     );
     // Şablonu yer tutuculardan böl; sıra dile göre değişebilir.
     final parts = rs.onbLegalTpl.split(RegExp(r'(\{terms\}|\{privacy\})'));
-    final matches = RegExp(r'\{terms\}|\{privacy\}').allMatches(rs.onbLegalTpl).toList();
+    final matches = RegExp(
+      r'\{terms\}|\{privacy\}',
+    ).allMatches(rs.onbLegalTpl).toList();
     final spans = <InlineSpan>[];
     for (var i = 0; i < parts.length; i++) {
       if (parts[i].isNotEmpty) spans.add(TextSpan(text: parts[i]));
       if (i < matches.length) {
         final isTerms = matches[i].group(0) == '{terms}';
-        spans.add(TextSpan(
-          text: isTerms ? rs.onbLegalTerms : rs.onbLegalPrivacy,
-          style: link,
-          recognizer: isTerms ? _terms : _privacy,
-        ));
+        spans.add(
+          TextSpan(
+            text: isTerms ? rs.onbLegalTerms : rs.onbLegalPrivacy,
+            style: link,
+            recognizer: isTerms ? _terms : _privacy,
+          ),
+        );
       }
     }
     return Text.rich(
@@ -1187,8 +1302,10 @@ class _SketchArrowState extends State<_SketchArrow>
     vsync: this,
     duration: const Duration(milliseconds: 520),
   );
-  late final Animation<double> _progress =
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic);
+  late final Animation<double> _progress = CurvedAnimation(
+    parent: _controller,
+    curve: Curves.easeOutCubic,
+  );
   bool _started = false;
 
   @override
@@ -1285,7 +1402,9 @@ class _SketchArrowPainter extends CustomPainter {
       final partial = Path();
       for (final metric in path.computeMetrics()) {
         partial.addPath(
-            metric.extractPath(0, metric.length * progress), Offset.zero);
+          metric.extractPath(0, metric.length * progress),
+          Offset.zero,
+        );
       }
       canvas.drawPath(partial, paint);
     } else {
@@ -1421,14 +1540,17 @@ class _IntroPage extends StatelessWidget {
                 dropFrom: const Duration(milliseconds: 140),
               ),
               const SizedBox(height: 12),
-              Text(subtitle, style: _bodyStyle)
-                  .dropIn(context, const Duration(milliseconds: 340), dy: -10),
+              Text(
+                subtitle,
+                style: _bodyStyle,
+              ).dropIn(context, const Duration(milliseconds: 340), dy: -10),
             ],
           ),
           const Spacer(flex: 3),
           const SizedBox(height: 28),
-          Center(child: _InkPillButton(label: buttonLabel, onTap: onNext))
-              .dropIn(context, const Duration(milliseconds: 460), dy: -8),
+          Center(
+            child: _InkPillButton(label: buttonLabel, onTap: onNext),
+          ).dropIn(context, const Duration(milliseconds: 460), dy: -8),
           // Karşılamadaki "hesabım var" + yasal notla aynı alt boşluk.
           const SizedBox(height: 40),
         ],
@@ -1460,17 +1582,22 @@ class _CurrencyPage extends StatelessWidget {
         _Title(rs.currencyTitle, rs.currencySubtitle),
         const SizedBox(height: 32),
         const Spacer(),
-        _PaperCurrencyCard(code: code)
-            .dropIn(context, const Duration(milliseconds: 300), dy: -12),
+        _PaperCurrencyCard(
+          code: code,
+        ).dropIn(context, const Duration(milliseconds: 300), dy: -12),
         const Spacer(flex: 2),
         const SizedBox(height: 20),
         Center(
           child: _InkPillButton(
-              label: tpl(rs.continueWithTpl, {'code': code}), onTap: onUse),
+            label: tpl(rs.continueWithTpl, {'code': code}),
+            onTap: onUse,
+          ),
         ).dropIn(context, const Duration(milliseconds: 420), dy: -8),
         const SizedBox(height: 4),
-        _PaperTextButton(label: rs.chooseAnother, onTap: onChange)
-            .dropIn(context, const Duration(milliseconds: 480), dy: -8),
+        _PaperTextButton(
+          label: rs.chooseAnother,
+          onTap: onChange,
+        ).dropIn(context, const Duration(milliseconds: 480), dy: -8),
       ],
     );
   }
@@ -1528,7 +1655,10 @@ class _PaperCurrencyCard extends StatelessWidget {
                 Text(
                   '${currencyFlag(code)}  $code',
                   style: const TextStyle(
-                      fontFamily: 'Inter', fontSize: 14, color: Poster.inkSoft),
+                    fontFamily: 'Inter',
+                    fontSize: 14,
+                    color: Poster.inkSoft,
+                  ),
                 ),
               ],
             ),
@@ -1546,27 +1676,33 @@ class _PaperCurrencyCard extends StatelessWidget {
 /// Beyaz zeminde metin alanı dekorasyonu: temanın koyu dolgusu yerine
 /// çok soluk mürekkep dolgu, çerçevesiz.
 InputDecoration _paperInput({String? hint, String? suffix}) => InputDecoration(
-      hintText: hint,
-      hintStyle: const TextStyle(color: Poster.inkFaint, fontWeight: FontWeight.w600),
-      filled: true,
-      fillColor: Poster.ink.withValues(alpha: 0.05),
-      suffixText: suffix,
-      suffixStyle: const TextStyle(
-          fontFamily: 'Inter', color: Poster.inkSoft, fontSize: 16),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide.none,
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Poster.ink, width: 1.5),
-      ),
-    );
+  hintText: hint,
+  hintStyle: const TextStyle(
+    color: Poster.inkFaint,
+    fontWeight: FontWeight.w600,
+  ),
+  filled: true,
+  fillColor: Poster.ink.withValues(alpha: 0.05),
+  suffixText: suffix,
+  suffixStyle: const TextStyle(
+    fontFamily: 'Inter',
+    color: Poster.inkSoft,
+    fontSize: 16,
+  ),
+  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+  border: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(14),
+    borderSide: BorderSide.none,
+  ),
+  enabledBorder: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(14),
+    borderSide: BorderSide.none,
+  ),
+  focusedBorder: OutlineInputBorder(
+    borderRadius: BorderRadius.circular(14),
+    borderSide: const BorderSide(color: Poster.ink, width: 1.5),
+  ),
+);
 
 class _WalletPage extends StatelessWidget {
   const _WalletPage({
@@ -1635,7 +1771,9 @@ class _WalletPage extends StatelessWidget {
                           const SizedBox(height: 10),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: Poster.ink.withValues(alpha: 0.06),
                               borderRadius: BorderRadius.circular(10),
@@ -1643,30 +1781,39 @@ class _WalletPage extends StatelessWidget {
                             child: Text(
                               '${currencyFlag(currency)}  $currency',
                               style: const TextStyle(
-                                  fontFamily: 'InterDisplay',
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: Poster.inkSoft),
+                                fontFamily: 'InterDisplay',
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Poster.inkSoft,
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ),
                     const SizedBox(width: 8),
-                    const Icon(Icons.edit_rounded, size: 20, color: Poster.inkFaint),
+                    const Icon(
+                      Icons.edit_rounded,
+                      size: 20,
+                      color: Poster.inkFaint,
+                    ),
                   ],
                 ),
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 14),
-                child: Divider(height: 1, color: Poster.ink.withValues(alpha: 0.10)),
+                child: Divider(
+                  height: 1,
+                  color: Poster.ink.withValues(alpha: 0.10),
+                ),
               ),
               Text(rs.startingAmount, style: label),
               const SizedBox(height: 8),
               TextField(
                 controller: amount,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 cursorColor: Poster.ink,
                 style: const TextStyle(
                   fontFamily: 'InterDisplay',
@@ -1675,43 +1822,55 @@ class _WalletPage extends StatelessWidget {
                   fontSize: 20,
                 ),
                 decoration: _paperInput(
-                    hint: '0', suffix: kCurrencies[currency] ?? currency),
+                  hint: '0',
+                  suffix: kCurrencies[currency] ?? currency,
+                ),
               ),
             ],
           ),
         ).dropIn(context, const Duration(milliseconds: 300), dy: -12),
         const SizedBox(height: 22),
         // Ek döviz cüzdanları.
-        Text(rs.otherCurrencies,
-            style: const TextStyle(
-                fontFamily: 'InterDisplay',
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                letterSpacing: -0.2,
-                color: Poster.ink)).dropIn(context, const Duration(milliseconds: 380), dy: -8),
+        Text(
+          rs.otherCurrencies,
+          style: const TextStyle(
+            fontFamily: 'InterDisplay',
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            letterSpacing: -0.2,
+            color: Poster.ink,
+          ),
+        ).dropIn(context, const Duration(milliseconds: 380), dy: -8),
         const SizedBox(height: 4),
-        Text(rs.otherCurrenciesHint,
-                style: const TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 13,
-                    height: 1.35,
-                    color: Poster.inkSoft))
-            .dropIn(context, const Duration(milliseconds: 380), dy: -8),
+        Text(
+          rs.otherCurrenciesHint,
+          style: const TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 13,
+            height: 1.35,
+            color: Poster.inkSoft,
+          ),
+        ).dropIn(context, const Duration(milliseconds: 380), dy: -8),
         const SizedBox(height: 10),
         for (final (i, e) in extras.indexed)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: _ExtraRow(draft: e, onRemove: () => onRemoveExtra(i)),
           ).dropIn(context, Duration(milliseconds: 440 + i * 60), dy: -8),
-        _PaperTextButton(label: rs.addCurrencyWallet, onTap: onAddExtra)
-            .dropIn(context, const Duration(milliseconds: 520), dy: -8),
+        _PaperTextButton(
+          label: rs.addCurrencyWallet,
+          onTap: onAddExtra,
+        ).dropIn(context, const Duration(milliseconds: 520), dy: -8),
         const Spacer(),
         const SizedBox(height: 16),
-        Center(child: _InkPillButton(label: rs.continueLabel, onTap: onStart))
-            .dropIn(context, const Duration(milliseconds: 600), dy: -8),
+        Center(
+          child: _InkPillButton(label: rs.continueLabel, onTap: onStart),
+        ).dropIn(context, const Duration(milliseconds: 600), dy: -8),
         const SizedBox(height: 4),
-        _PaperTextButton(label: rs.customize, onTap: onCustomize)
-            .dropIn(context, const Duration(milliseconds: 660), dy: -8),
+        _PaperTextButton(
+          label: rs.customize,
+          onTap: onCustomize,
+        ).dropIn(context, const Duration(milliseconds: 660), dy: -8),
       ],
     );
   }
@@ -1738,24 +1897,30 @@ class _ExtraRow extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                  fontFamily: 'InterDisplay',
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: Poster.ink),
+                fontFamily: 'InterDisplay',
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: Poster.ink,
+              ),
             ),
           ),
           const SizedBox(width: 8),
           Text(
             formatMoneyIn(draft.amount, draft.code),
             style: const TextStyle(
-                fontFamily: 'InterDisplay',
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: Poster.ink),
+              fontFamily: 'InterDisplay',
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: Poster.ink,
+            ),
           ),
           IconButton(
             onPressed: onRemove,
-            icon: const Icon(Icons.close_rounded, size: 20, color: Poster.inkFaint),
+            icon: const Icon(
+              Icons.close_rounded,
+              size: 20,
+              color: Poster.inkFaint,
+            ),
           ),
         ],
       ),
