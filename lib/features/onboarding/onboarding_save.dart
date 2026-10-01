@@ -7,7 +7,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/redesign_l10n.dart';
 import '../auth/auth_service.dart';
+import '../../core/formatters.dart';
 import 'onboarding_palette.dart';
+import 'widgets/budgy_money_envelope.dart';
 
 /// Onboarding'in son sayfası: anonim hesabı Apple/Google'a bağlama daveti.
 ///
@@ -20,10 +22,17 @@ import 'onboarding_palette.dart';
 /// Üç çıkış da aynı yere gider: [onDone]. Bağlanamasa bile onboarding biter —
 /// kullanıcıyı kapıda tutmuyoruz, uyarıyı gösterip içeri alıyoruz.
 class SaveBookPage extends ConsumerStatefulWidget {
-  const SaveBookPage({super.key, required this.onDone});
+  const SaveBookPage({
+    super.key,
+    required this.onDone,
+    this.currencyCode = 'TRY',
+  });
 
   /// Bağlandı, atlandı ya da başarısız oldu — her hâlde onboarding biter.
   final VoidCallback onDone;
+
+  /// Katlanmadan önceki düz sayfanın üstünde duran simge.
+  final String currencyCode;
 
   @override
   ConsumerState<SaveBookPage> createState() => _SaveBookPageState();
@@ -31,6 +40,10 @@ class SaveBookPage extends ConsumerStatefulWidget {
 
 class _SaveBookPageState extends ConsumerState<SaveBookPage> {
   bool _busy = false;
+
+  /// Bağlantı başarılı: zarf mühürlenirken ekran bir an duruyor, sonra
+  /// onboarding kapanıyor.
+  bool _sealed = false;
   String? _error;
 
   /// Apple ile giriş yalnız Apple platformlarında görünür; Android'de o düğme
@@ -45,6 +58,11 @@ class _SaveBookPageState extends ConsumerState<SaveBookPage> {
     });
     try {
       await run();
+      if (!mounted) return;
+      // Zarf kapanıp onay işaretini gösterene kadar bekle; kullanıcı neyin
+      // olduğunu görmeden ekran değişmesin.
+      setState(() => _sealed = true);
+      await Future<void>.delayed(BudgyMoneyEnvelope.sealDuration);
       if (mounted) widget.onDone();
     } catch (_) {
       // Hata metni sağlayıcıdan geliyor ve kullanıcıya bir şey anlatmıyor;
@@ -86,10 +104,17 @@ class _SaveBookPageState extends ConsumerState<SaveBookPage> {
                   ),
                 ),
                 const Spacer(),
-                // Sayfanın ortası: Budgy'nin kendi işareti — uygulama
-                // simgesindeki zarf, afişin mürekkebiyle büyütülmüş.
+                // Sayfanın ortası: Budgy'nin zarfı, içinde para. Kapak
+                // sakin sakin aralanıp kapanıyor; hesap bağlanınca sıkıca
+                // mühürlenip onay işareti veriyor.
                 Center(
-                  child: _BudgyMark(size: (width * 0.42).clamp(120.0, 180.0)),
+                  child: BudgyMoneyEnvelope(
+                    size: (width * 0.42).clamp(120.0, 180.0),
+                    semanticsLabel: rs.saveMarkLabel,
+                    currencySymbol:
+                        kCurrencies[widget.currencyCode] ?? widget.currencyCode,
+                    sealed: _sealed,
+                  ),
                 ),
                 const Spacer(),
                 if (_error != null) ...[
@@ -261,72 +286,4 @@ class _SaveTitle extends StatelessWidget {
     letterSpacing: size >= 34 ? -3 : -2.5,
     color: Poster.ink,
   );
-}
-
-/// Budgy işareti: uygulama simgesindeki zarf, afiş dilinde.
-///
-/// Asset değil çizim — `assets/icon/budgy_icon_fg.svg` ile aynı geometri
-/// (592x384 gövde, r=72 köşe, 52 kalınlık, kapak 244,384 → 512,576 → 780,384),
-/// 592 birimlik kutuya normalize edilmiş. Böylece her ölçekte keskin kalıyor
-/// ve simge değişirse tek yerden güncelleniyor.
-class _BudgyMark extends StatelessWidget {
-  const _BudgyMark({required this.size});
-
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: size,
-      height: size * 384 / 592,
-      child: CustomPaint(painter: _BudgyMarkPainter()),
-    );
-  }
-}
-
-class _BudgyMarkPainter extends CustomPainter {
-  /// Simgedeki gövde genişliği — tüm koordinatlar buna göre oranlanıyor
-  /// (yükseklik 384, oran widget tarafında uygulanıyor).
-  static const _w = 592.0;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final k = size.width / _w;
-    final stroke = Paint()
-      ..color = Poster.ink
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 52 * k
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    // Gövde: çizgi kalınlığının yarısı kadar içeri alınıyor ki kontur
-    // kutunun dışına taşmasın.
-    final inset = 26 * k;
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(
-          inset,
-          inset,
-          size.width - inset * 2,
-          size.height - inset * 2,
-        ),
-        Radius.circular(72 * k - inset / 2),
-      ),
-      stroke,
-    );
-
-    // Kapak: simgedeki mutlak koordinatlar gövdenin sol üstüne taşınıyor
-    // (rect x=216, y=336 → 0,0).
-    Offset p(double x, double y) => Offset((x - 216) * k, (y - 336) * k);
-    canvas.drawPath(
-      Path()
-        ..moveTo(p(244, 384).dx, p(244, 384).dy)
-        ..lineTo(p(512, 576).dx, p(512, 576).dy)
-        ..lineTo(p(780, 384).dx, p(780, 384).dy),
-      stroke,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_BudgyMarkPainter old) => false;
 }

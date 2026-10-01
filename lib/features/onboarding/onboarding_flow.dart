@@ -550,7 +550,7 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
         },
       ),
       WelcomeBurstPage(onDone: _burstDone, currencyCode: _currency),
-      SaveBookPage(onDone: _closeOnboarding),
+      SaveBookPage(onDone: _closeOnboarding, currencyCode: _currency),
     ];
     assert(pages.length == kOnboardingLastStep + 1);
 

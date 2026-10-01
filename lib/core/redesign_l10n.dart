@@ -334,6 +334,7 @@ class RS {
     required this.saveRowFirstDay,
     required this.saveRowWhere,
     required this.saveRowWhereValue,
+    required this.saveMarkLabel,
     required this.notifTitle,
     required this.notifBody,
     required this.notifAllow,
@@ -687,6 +688,9 @@ class RS {
   final String saveRowFirstDay;
   final String saveRowWhere;
   final String saveRowWhereValue;
+
+  /// Kapanış sayfasındaki origami animasyonunun ekran okuyucu açıklaması.
+  final String saveMarkLabel;
   final String notifTitle;
   final String notifBody;
   final String notifAllow;
@@ -1059,6 +1063,7 @@ class RS {
     saveRowFirstDay: "First day",
     saveRowWhere: "Stored on",
     saveRowWhereValue: "This phone only",
+    saveMarkLabel: "Your book, safely stored",
     notifTitle: "Don't forget to mark the day",
     notifBody:
         'One tap in the evening: "What did you earn today?" Miss a day and the month won\'t add up — let us remind you.',
@@ -1424,6 +1429,7 @@ class RS {
     saveRowFirstDay: "İlk gün",
     saveRowWhere: "Kayıtlı yer",
     saveRowWhereValue: "Yalnızca bu telefon",
+    saveMarkLabel: "Defterin güvende saklanıyor",
     notifTitle: 'Günü işaretlemeyi unutma',
     notifBody:
         'Akşam tek bir dokunuş: "Bugün ne kazandın?" Bir kez unutursan ay sonu hesabı tutmaz — hatırlatalım.',
@@ -1790,6 +1796,7 @@ class RS {
     saveRowFirstDay: "Первый день",
     saveRowWhere: "Хранится",
     saveRowWhereValue: "Только на телефоне",
+    saveMarkLabel: "Твой блокнот надёжно сохранён",
     notifTitle: 'Не забывай отмечать день',
     notifBody:
         'Одно касание вечером: «Сколько заработал сегодня?» Пропустишь день — месяц не сойдётся. Мы напомним.',

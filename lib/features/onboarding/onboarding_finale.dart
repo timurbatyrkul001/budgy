@@ -788,9 +788,13 @@ const _kBillRatio = 0.46;
 
 /// Marka yeşili ailesi: beyaz afiş burada bitiyor, uygulama bu renkle
 /// açılıyor — finalin işi o geçişi hazırlamak.
-const _kBillFill = Color(0xFF3FA97C);
-const _kBillEdge = Color(0xFF1F7B57);
-const _kBillInk = Color(0xFF0E3F2D);
+///
+/// Kapanış sayfasındaki zarfın içinden görünen banknot da aynı üçlüyü
+/// kullanıyor (`widgets/budgy_money_envelope.dart`): iki sayfadaki kâğıt
+/// para tek bir yerden renk alsın.
+const kBillFill = Color(0xFF3FA97C);
+const kBillEdge = Color(0xFF1F7B57);
+const kBillInk = Color(0xFF0E3F2D);
 
 /// Para birimi simgesini bir kez dizer; çizimde banknot genişliğine göre
 /// ölçekleniyor, böylece her karede TextPainter kurulmuyor.
@@ -804,7 +808,7 @@ ui.Paragraph _buildSymbol(String symbol) {
             textAlign: TextAlign.center,
           ),
         )
-        ..pushStyle(ui.TextStyle(color: _kBillInk.withValues(alpha: 0.55)))
+        ..pushStyle(ui.TextStyle(color: kBillInk.withValues(alpha: 0.55)))
         ..addText(symbol);
   return builder.build()..layout(const ui.ParagraphConstraints(width: 120));
 }
@@ -871,11 +875,11 @@ class _BillRainPainter extends CustomPainter {
       Rect.fromCenter(center: Offset.zero, width: w, height: h),
       Radius.circular(w * 0.05),
     );
-    canvas.drawRRect(rect, Paint()..color = _kBillFill);
+    canvas.drawRRect(rect, Paint()..color = kBillFill);
     canvas.drawRRect(
       rect,
       Paint()
-        ..color = _kBillEdge
+        ..color = kBillEdge
         ..style = PaintingStyle.stroke
         ..strokeWidth = w * 0.025,
     );
@@ -886,13 +890,13 @@ class _BillRainPainter extends CustomPainter {
         Radius.circular(w * 0.03),
       ),
       Paint()
-        ..color = _kBillEdge.withValues(alpha: 0.55)
+        ..color = kBillEdge.withValues(alpha: 0.55)
         ..style = PaintingStyle.stroke
         ..strokeWidth = w * 0.014,
     );
     // İki yanda üçer çizgi — uzaktan "yazı" hissi, okunacak bir şey yok.
     final line = Paint()
-      ..color = _kBillEdge.withValues(alpha: 0.45)
+      ..color = kBillEdge.withValues(alpha: 0.45)
       ..strokeWidth = h * 0.045
       ..strokeCap = StrokeCap.round;
     for (var i = -1; i <= 1; i++) {
