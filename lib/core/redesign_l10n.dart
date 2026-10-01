@@ -335,6 +335,8 @@ class RS {
     required this.saveRowWhere,
     required this.saveRowWhereValue,
     required this.saveMarkLabel,
+    required this.saveErrDifferent,
+    required this.saveErrOffline,
     required this.notifTitle,
     required this.notifBody,
     required this.notifAllow,
@@ -691,6 +693,12 @@ class RS {
 
   /// Kapanış sayfasındaki origami animasyonunun ekran okuyucu açıklaması.
   final String saveMarkLabel;
+
+  /// Bu e-posta başka bir yöntemle kayıtlı.
+  final String saveErrDifferent;
+
+  /// Ağ yok.
+  final String saveErrOffline;
   final String notifTitle;
   final String notifBody;
   final String notifAllow;
@@ -1064,6 +1072,8 @@ class RS {
     saveRowWhere: "Stored on",
     saveRowWhereValue: "This phone only",
     saveMarkLabel: "Your book, safely stored",
+    saveErrDifferent: "This email is already registered with another sign-in method. Use that one instead.",
+    saveErrOffline: "No connection. Try again once you are back online.",
     notifTitle: "Don't forget to mark the day",
     notifBody:
         'One tap in the evening: "What did you earn today?" Miss a day and the month won\'t add up — let us remind you.',
@@ -1430,6 +1440,8 @@ class RS {
     saveRowWhere: "Kayıtlı yer",
     saveRowWhereValue: "Yalnızca bu telefon",
     saveMarkLabel: "Defterin güvende saklanıyor",
+    saveErrDifferent: "Bu e-posta başka bir giriş yöntemiyle kayıtlı. Onunla girmen gerekiyor.",
+    saveErrOffline: "Bağlantı yok. İnternete bağlanınca tekrar dene.",
     notifTitle: 'Günü işaretlemeyi unutma',
     notifBody:
         'Akşam tek bir dokunuş: "Bugün ne kazandın?" Bir kez unutursan ay sonu hesabı tutmaz — hatırlatalım.',
@@ -1797,6 +1809,8 @@ class RS {
     saveRowWhere: "Хранится",
     saveRowWhereValue: "Только на телефоне",
     saveMarkLabel: "Твой блокнот надёжно сохранён",
+    saveErrDifferent: "Эта почта уже зарегистрирована другим способом входа. Войди через него.",
+    saveErrOffline: "Нет соединения. Попробуй ещё раз, когда появится интернет.",
     notifTitle: 'Не забывай отмечать день',
     notifBody:
         'Одно касание вечером: «Сколько заработал сегодня?» Пропустишь день — месяц не сойдётся. Мы напомним.',

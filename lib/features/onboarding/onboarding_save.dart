@@ -64,13 +64,21 @@ class _SaveBookPageState extends ConsumerState<SaveBookPage> {
       setState(() => _sealed = true);
       await Future<void>.delayed(BudgyMoneyEnvelope.sealDuration);
       if (mounted) widget.onDone();
-    } catch (_) {
-      // Hata metni sağlayıcıdan geliyor ve kullanıcıya bir şey anlatmıyor;
-      // kendi cümlemizi gösterip yolu açık bırakıyoruz.
+    } catch (e) {
       if (!mounted) return;
+      final rs = ref.read(rsProvider);
+      final failure = classifySocialAuthError(e);
       setState(() {
         _busy = false;
-        _error = ref.read(rsProvider).saveFailed;
+        // İptal hata değil: kullanıcı sağlayıcı sayfasını kapattı, ekran
+        // sessizce eski hâline dönüyor. Kırmızı uyarı göstermek yanlış olur.
+        _error = switch (failure) {
+          SocialAuthFailure.canceled => null,
+          SocialAuthFailure.differentMethod => rs.saveErrDifferent,
+          SocialAuthFailure.network => rs.saveErrOffline,
+          SocialAuthFailure.notEnabled || SocialAuthFailure.unknown =>
+            rs.saveFailed,
+        };
       });
     }
   }

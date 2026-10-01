@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/l10n.dart';
+import '../../core/redesign_l10n.dart';
 import '../../core/tokens.dart';
 import 'auth_service.dart';
 import 'forget_password_screen.dart';
@@ -39,11 +40,23 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       await signIn();
       if (mounted) widget.onSignedIn();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$e')),
-        );
-      }
+      if (!mounted) return;
+      final failure = classifySocialAuthError(e);
+      // İptal hata değil — kullanıcı sağlayıcı sayfasını kapattı.
+      if (failure == SocialAuthFailure.canceled) return;
+      final rs = ref.read(rsProvider);
+      final str = ref.read(strProvider);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(switch (failure) {
+            SocialAuthFailure.differentMethod => rs.saveErrDifferent,
+            SocialAuthFailure.network => rs.saveErrOffline,
+            // Ham sağlayıcı hatasını ekrana basmak kullanıcıya bir şey
+            // anlatmıyordu; üstelik mağaza sürümünde kötü görünüyor.
+            _ => str.errorGeneric,
+          }),
+        ),
+      );
     }
   }
 
