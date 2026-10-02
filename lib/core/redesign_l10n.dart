@@ -337,6 +337,8 @@ class RS {
     required this.saveMarkLabel,
     required this.saveErrDifferent,
     required this.saveErrOffline,
+    required this.startupFailed,
+    required this.retry,
     required this.heroGreetingTpl,
     required this.heroGreetingPlain,
     required this.heroSpentTpl,
@@ -399,6 +401,21 @@ class RS {
     required this.hubProRestoreTpl,
     required this.hubProRestore,
     required this.hubVersion,
+    required this.hubPersonalDetails,
+    required this.hubLoginSecurity,
+    required this.hubDataNoteMember,
+    required this.hubDataNoteAnon,
+    required this.hubExportData,
+    required this.hubEditAvatar,
+    required this.hubNotSet,
+    required this.hubSectionIdentity,
+    required this.hubSectionData,
+    required this.hubSectionDanger,
+    required this.resetTooMany,
+    required this.resetResent,
+    required this.accountFromTitle,
+    required this.accountFxNoteTpl,
+    required this.fxFreezeUnavailable,
   });
 
   final String onbTitle;
@@ -751,6 +768,11 @@ class RS {
   /// Ağ yok.
   final String saveErrOffline;
 
+  /// Açılışta anonim oturum kurulamadı — ağ yok ya da Firebase'e
+  /// ulaşılamıyor. Kullanıcı sonsuz açılış ekranında kalmasın.
+  final String startupFailed;
+  final String retry;
+
   /// Ana ekrandaki siyah karşılama kartı. `{name}` kullanıcının adı;
   /// adı bilmiyorsak [heroGreetingPlain] kullanılır. [heroSpentTpl] içinde
   /// `{amount}` beyaz, gerisi soluk çizilir — tutar cümlenin içinde öne
@@ -829,6 +851,39 @@ class RS {
   final String hubProRestoreTpl;
   final String hubProRestore;
   final String hubVersion;
+
+  // ── Hesabım + Kişisel bilgiler (2026-10 ikinci tur) ───────────────────
+  // [hubDataNoteMember] / [hubDataNoteAnon]: "Hesabım" ekranındaki bilgi
+  // kartı. Üye ve anonim için AYRI metin: veri Firestore'da, hesaba bağlı —
+  // anonim kullanıcı hesabını bağlamazsa telefonla birlikte erişimi de
+  // kaybeder. Bu ikisini tek cümleye indirgemek kullanıcıya verisinin
+  // nerede durduğu konusunda yanlış bilgi verir.
+  final String hubPersonalDetails;
+  final String hubLoginSecurity;
+  final String hubDataNoteMember;
+  final String hubDataNoteAnon;
+  final String hubExportData;
+  final String hubEditAvatar;
+  final String hubNotSet;
+
+  // Alt ekran kart etiketleri: hub'da bölüm başlığı yok ama alt ekranlarda
+  // kartların üstünde küçük gri etiket var (referans düzen).
+  final String hubSectionIdentity;
+  final String hubSectionData;
+  final String hubSectionDanger;
+
+  /// Şifre sıfırlama: too-many-requests ve tekrar gönderim onayı.
+  final String resetTooMany;
+  final String resetResent;
+
+  // ── Hızlı girişte hesap seçimi (2026-10) ──────────────────────────────
+  // [accountFxNoteTpl] `{from}` (kartın birimi) ve `{to}` (ana birim) alır.
+  // [fxFreezeUnavailable] kayıt ANINDA kur bulunamayınca gösterilir — işlem
+  // kaydedilmez, form dolu kalır; metin bunu açıkça söylemeli ki kullanıcı
+  // "kaydoldu mu?" diye tereddüt etmesin.
+  final String accountFromTitle;
+  final String accountFxNoteTpl;
+  final String fxFreezeUnavailable;
 
   static RS of(String code) => switch (code) {
     'tr' => tr,
@@ -1193,6 +1248,8 @@ class RS {
     saveMarkLabel: "Your book, safely stored",
     saveErrDifferent: "This email is already registered with another sign-in method. Use that one instead.",
     saveErrOffline: "No connection. Try again once you are back online.",
+    startupFailed: "Couldn't start. Check your connection and try again.",
+    retry: "Try again",
     heroGreetingTpl: "Hey {name}!",
     heroGreetingPlain: "Hey there!",
     heroSpentTpl: "You spent {amount} this month",
@@ -1259,6 +1316,25 @@ class RS {
     hubProRestoreTpl: 'Already Pro? {restore}',
     hubProRestore: 'Restore purchase',
     hubVersion: 'Version',
+    hubPersonalDetails: 'Personal details',
+    hubLoginSecurity: 'Sign-in & security',
+    hubDataNoteMember:
+        'Your data is stored in the cloud and tied to your account. Switch phones or reinstall Budgy — it comes back with you.',
+    hubDataNoteAnon:
+        'Your data is stored in the cloud under this anonymous account. Until you link an account, losing this phone means losing the data too.',
+    hubExportData: 'Export my data',
+    hubEditAvatar: 'Edit avatar',
+    hubNotSet: 'Not set',
+    hubSectionIdentity: 'Identity & sign-in',
+    hubSectionData: 'Your data',
+    hubSectionDanger: 'Danger zone',
+    resetTooMany: 'Too many attempts. Try again in a few minutes.',
+    resetResent: 'Email sent again.',
+    accountFromTitle: 'Which account?',
+    accountFxNoteTpl:
+        'This card uses {from}; your main currency is {to}. The amount will be converted at today\'s rate.',
+    fxFreezeUnavailable:
+        'Couldn\'t get the exchange rate — try again in a moment. The expense was not saved.',
   );
 
   static const tr = RS(
@@ -1614,6 +1690,8 @@ class RS {
     saveMarkLabel: "Defterin güvende saklanıyor",
     saveErrDifferent: "Bu e-posta başka bir giriş yöntemiyle kayıtlı. Onunla girmen gerekiyor.",
     saveErrOffline: "Bağlantı yok. İnternete bağlanınca tekrar dene.",
+    startupFailed: "Başlatılamadı. Bağlantını kontrol edip tekrar dene.",
+    retry: "Tekrar dene",
     heroGreetingTpl: "Merhaba {name}!",
     heroGreetingPlain: "Merhaba!",
     heroSpentTpl: "Bu ay {amount} harcadın",
@@ -1680,6 +1758,25 @@ class RS {
     hubProRestoreTpl: 'Zaten Pro üyesi misin? {restore}',
     hubProRestore: 'Satın alımı geri yükle',
     hubVersion: 'Sürüm',
+    hubPersonalDetails: 'Kişisel bilgiler',
+    hubLoginSecurity: 'Giriş ve güvenlik',
+    hubDataNoteMember:
+        'Verilerin hesabına bağlı olarak bulutta saklanır. Telefon değişse ya da Budgy\'yi yeniden kursan da seninle gelir.',
+    hubDataNoteAnon:
+        'Verilerin bu anonim hesap altında bulutta duruyor. Hesabını bağlamazsan telefonu kaybettiğinde veriler de gider.',
+    hubExportData: 'Verilerimi dışa aktar',
+    hubEditAvatar: 'Avatarı düzenle',
+    hubNotSet: 'Belirtilmedi',
+    hubSectionIdentity: 'Kimlik ve giriş',
+    hubSectionData: 'Verilerin',
+    hubSectionDanger: 'Tehlikeli işlemler',
+    resetTooMany: 'Çok fazla deneme oldu. Birkaç dakika sonra tekrar dene.',
+    resetResent: 'E-posta tekrar gönderildi.',
+    accountFromTitle: 'Hangi hesaptan?',
+    accountFxNoteTpl:
+        'Bu kart {from} ile çalışıyor; ana para biriminiz {to}. Tutar günün kuruyla çevrilecek.',
+    fxFreezeUnavailable:
+        'Kur alınamadı — birazdan tekrar dene. Harcama kaydedilmedi.',
   );
 
   static const ru = RS(
@@ -2036,6 +2133,8 @@ class RS {
     saveMarkLabel: "Твой блокнот надёжно сохранён",
     saveErrDifferent: "Эта почта уже зарегистрирована другим способом входа. Войди через него.",
     saveErrOffline: "Нет соединения. Попробуй ещё раз, когда появится интернет.",
+    startupFailed: "Не удалось запустить. Проверь соединение и попробуй снова.",
+    retry: "Повторить",
     heroGreetingTpl: "Привет, {name}!",
     heroGreetingPlain: "Привет!",
     heroSpentTpl: "В этом месяце ты потратил {amount}",
@@ -2102,5 +2201,24 @@ class RS {
     hubProRestoreTpl: 'Уже Pro? {restore}',
     hubProRestore: 'Восстановить покупку',
     hubVersion: 'Версия',
+    hubPersonalDetails: 'Личные данные',
+    hubLoginSecurity: 'Вход и безопасность',
+    hubDataNoteMember:
+        'Твои данные хранятся в облаке и привязаны к аккаунту. Смени телефон или переустанови Budgy — они вернутся вместе с тобой.',
+    hubDataNoteAnon:
+        'Твои данные хранятся в облаке под этим анонимным аккаунтом. Пока ты не привяжешь аккаунт, потеря телефона означает и потерю данных.',
+    hubExportData: 'Экспорт моих данных',
+    hubEditAvatar: 'Изменить аватар',
+    hubNotSet: 'Не указано',
+    hubSectionIdentity: 'Профиль и вход',
+    hubSectionData: 'Твои данные',
+    hubSectionDanger: 'Опасная зона',
+    resetTooMany: 'Слишком много попыток. Попробуй через пару минут.',
+    resetResent: 'Письмо отправлено ещё раз.',
+    accountFromTitle: 'С какого счёта?',
+    accountFxNoteTpl:
+        'Эта карта в {from}, основная валюта — {to}. Сумма будет пересчитана по курсу на сегодня.',
+    fxFreezeUnavailable:
+        'Курс не получен — попробуй чуть позже. Трата не сохранена.',
   );
 }

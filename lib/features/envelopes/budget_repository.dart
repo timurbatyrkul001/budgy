@@ -109,11 +109,6 @@ final profileProvider = StreamProvider<Map<String, dynamic>>((ref) {
   return ref.watch(budgetRepositoryProvider).watchProfile();
 });
 
-/// Face ID / parmak izi kilidi açık mı? (settings/main → biometric)
-final biometricEnabledProvider = Provider<bool>((ref) {
-  return ref.watch(profileProvider).value?['biometric'] == true;
-});
-
 /// Журнал: последние операции, новые сверху. Ana ekrandaki "son işlemler"
 /// için — kısa liste. Hesaplamalarda KULLANMA: [limit] yüzünden eksik olur,
 /// bunun yerine tarih aralıklı [recentTxsProvider] / [monthTxsProvider].

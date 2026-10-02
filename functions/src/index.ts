@@ -82,9 +82,20 @@ export const aiCall = onCall<unknown, Promise<AiCallResponse>>(
     // Maliyet emniyeti: ani bir kötüye kullanımda fonksiyon sınırsız
     // ölçeklenmesin. Gerçek trafik büyüyünce yükselt.
     maxInstances: 10,
-    // App Check zorlaması konsoldan açılınca burayı true yap; şimdilik
-    // kapalı, çünkü debug/simülatör derlemeleri token üretemeyebiliyor.
-    enforceAppCheck: false,
+    // App Check ZORUNLU: istek yalnız gerçek Budgy kurulumundan gelebilir.
+    //
+    // Kapalıyken giriş yapmış HERKES bu fonksiyonu herhangi bir istemciden
+    // çağırabiliyordu. Anonim hesap açmak bedava ve sınırsız olduğu için
+    // kullanıcı başına aylık sayaçlar da koruma sağlamıyordu: bir betik bin
+    // anonim kimlik açıp her biri için kotayı harcayabilir, faturayı biz
+    // öderdik.
+    //
+    // Debug derlemeleri token üretebilsin diye `main.dart` debug
+    // sağlayıcılarını etkinleştiriyor; ilk çalıştırmada konsolda beliren
+    // debug token'ı Firebase Console → App Check → Apps → Manage debug
+    // tokens altına eklemek gerekiyor, yoksa geliştirme derlemesinde AI
+    // çağrıları "unauthenticated" döner.
+    enforceAppCheck: true,
   },
   async (request) => {
     // 1) Kimlik: yalnız giriş yapmış kullanıcı (anonim dahil).

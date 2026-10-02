@@ -1,50 +1,26 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
-import 'package:local_auth/local_auth.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
-import '../../core/brand.dart';
 import '../../core/ex_style.dart';
-import '../../core/gradient_icon.dart';
 import '../../core/feedback.dart';
+import '../../core/gradient_icon.dart';
 import '../../core/l10n.dart';
 import '../../core/redesign_l10n.dart';
-import '../auth/complete_profile_screen.dart';
-import '../auth/forget_password_screen.dart';
-import '../auth/sign_in_screen.dart';
-import '../auth/sign_up_screen.dart';
+import '../accounts/accounts_screen.dart';
 import '../automation/automation_screen.dart';
 import '../categories/categories_screen.dart';
-import '../envelopes/budget_repository.dart';
 import '../goals/goals_screen.dart';
-import '../accounts/accounts_screen.dart';
-import '../home/accounts_screen.dart';
-import '../home/fx_providers.dart';
+import '../pro/paywall_sheet.dart';
+import '../pro/pro_state.dart';
 import '../profile/contact_screen.dart';
-import '../profile/currency_screen.dart';
-import '../profile/help_screen.dart';
-import '../profile/language_screen.dart';
 import '../profile/notification_preferences_screen.dart';
-import '../profile/privacy_policy_screen.dart';
-import '../profile/terms_of_use_screen.dart';
 import '../recurring/recurring_screen.dart';
 import '../reminders/reminders_screen.dart';
-import '../space/space.dart';
 import '../workdays/calendar_screen.dart';
-import 'app_settings.dart';
-import 'data_management_screen.dart';
-import 'voice_language_screen.dart';
-
-/// Geçerli kullanıcı; Firebase kurulu değilse (widget testi) null.
-User? _currentUser() {
-  try {
-    return FirebaseAuth.instance.currentUser;
-  } catch (_) {
-    return null;
-  }
-}
+import 'settings_about_screen.dart';
+import 'settings_account_screen.dart';
+import 'settings_appearance_screen.dart';
 
 /// Uygulama sürümü (package_info) — testte/önizlemede boş kalabilir.
 final appVersionProvider = FutureProvider<String>((ref) async {
@@ -56,89 +32,26 @@ final appVersionProvider = FutureProvider<String>((ref) async {
   }
 });
 
-/// Ayarlar merkezi — cüzdan çipinden açılan tam ekran: cüzdan başlığı,
-/// Yönet · Uygulama · Hesap · Yardım bölümleri, altta Hakkında.
-/// Tek bir ayar yüzeyi: eski profil ekranının satırları buraya taşındı.
+/// Ayarlar merkezi — cüzdan çipinden açılan tam ekran.
+///
+/// 2026-10 yeniden yapı: eskiden 25 satır tek listede, dört bölüm başlığıyla
+/// akıyordu ve bunaltıcıydı. Şimdi bölüm BAŞLIĞI yok; gruplama kısa beyaz
+/// kartlar ve aralarındaki boşlukla anlatılıyor. Hesap, görünüm ve yasal
+/// satırlar kendi alt ekranlarına indi ([SettingsAccountScreen],
+/// [SettingsAppearanceScreen], [SettingsAboutScreen]); ana ekranda yalnız
+/// giriş kapıları kaldı. Üstte Pro tanıtım kartı.
 class SettingsHubScreen extends ConsumerWidget {
   const SettingsHubScreen({super.key, this.initialScroll = 0});
 
   /// Önizleme: açılışta kaydırılmış konum (ekran görüntüsü için).
   final double initialScroll;
 
-  void _push(BuildContext context, Widget screen) =>
-      Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
-
-  Future<void> _editSpace(BuildContext context, WidgetRef ref) async {
-    final code = ref.read(currencyCodeProvider);
-    final result = await showSpaceEditor(context,
-        initial: ref.read(spaceInfoProvider), currency: code);
-    if (result == null || !context.mounted) return;
-    final repo = ref.read(budgetRepositoryProvider);
-    await guardWrite(context, ref.read(strProvider), () async {
-      await repo.saveProfile(result.info.toProfile());
-      if (result.currency != code) await repo.setCurrency(result.currency);
-    }, reason: 'saveSpace');
-  }
-
-  Future<void> _pickKeypad(BuildContext context, WidgetRef ref) async {
-    final rs = ref.read(rsProvider);
-    final onTop = ref.read(keypadOneTwoThreeOnTopProvider);
-    final picked = await showExSheet<bool>(
-      context,
-      SheetFrame(
-        title: rs.keypadLayout,
-        child: Column(
-          children: [
-            _OptionRow(
-                label: rs.keypadBottom,
-                selected: !onTop,
-                onTap: () => Navigator.of(context).pop(false)),
-            _OptionRow(
-                label: rs.keypadTop,
-                selected: onTop,
-                onTap: () => Navigator.of(context).pop(true)),
-          ],
-        ),
-      ),
-    );
-    if (picked == null) return;
-    await ref
-        .read(budgetRepositoryProvider)
-        .saveProfile({'keypadLayout': picked ? 'top' : 'bottom'});
-  }
-
-  Future<void> _toggleBiometric(
-      BuildContext context, WidgetRef ref, bool v) async {
-    final str = ref.read(strProvider);
-    if (v) {
-      try {
-        // biometricOnly:false → Face ID yoksa cihaz passcode'una düşer.
-        final ok = await LocalAuthentication().authenticate(
-          localizedReason: str.lockTitle,
-          options: const AuthenticationOptions(stickyAuth: true),
-        );
-        if (!ok) return;
-      } catch (_) {
-        if (context.mounted) showErrorSnack(context, str.biometricUnavailable);
-        return;
-      }
-    }
-    await ref.read(budgetRepositoryProvider).saveProfile({'biometric': v});
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final rs = ref.watch(rsProvider);
     final str = ref.watch(strProvider);
-    final space = ref.watch(spaceInfoProvider);
-    final user = _currentUser();
-    final anonymous = user?.isAnonymous ?? true;
-    final language = ref.watch(languageProvider).value ?? AppLanguage.en;
-    final currency = ref.watch(currencyCodeProvider);
     final categoryCount = ref.watch(categoryCountProvider);
-    final keypadTop = ref.watch(keypadOneTwoThreeOnTopProvider);
-    final voice = ref.watch(voiceLocaleProvider) ?? rs.voiceAppLanguage;
-    final version = ref.watch(appVersionProvider).value ?? '';
+    final isPro = ref.watch(isProProvider);
 
     return Scaffold(
       backgroundColor: Ex.bg,
@@ -162,512 +75,372 @@ class SettingsHubScreen extends ConsumerWidget {
                 const SizedBox(width: 40),
               ],
             ),
-            const SizedBox(height: 22),
-            Center(
-              child: Column(
-                children: [
-                  SpaceAvatar(space: space, size: 84),
-                  const SizedBox(height: 12),
-                  Text(space.name,
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.5,
-                          color: Ex.text)),
-                  const SizedBox(height: 2),
-                  Text(rs.spaceSubtitle,
-                      style: const TextStyle(fontSize: 13.5, color: Ex.textMuted)),
-                  const SizedBox(height: 12),
-                  TintChipButton(
-                    label: rs.customizeWallet,
-                    onTap: () => _editSpace(context, ref),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 26),
+            const SizedBox(height: 18),
 
-            // ── Yönet ───────────────────────────────────────────────────
-            _Section(title: rs.manage, rows: [
-              _HubRow(
-                icon: Icons.wallet_rounded,
-                title: rs.accounts,
-                onTap: () => _push(context, const AccountsScreen()),
+            // ── Pro tanıtımı ────────────────────────────────────────────
+            // Kullanıcı zaten Pro ise kart HİÇ çizilmez: sahip olduğu şeyi
+            // ona satmaya çalışmak hem güven kırar hem de ekranın en değerli
+            // yerini (ilk görünen alan) boşa harcar. Pro olan için burada
+            // gösterilecek bir şey yok — abonelik yönetimi mağazanın işi.
+            if (!isPro) ...[
+              _ProCard(
+                rs: rs,
+                onUpgrade: () => showPaywall(context, ProFeature.analytics),
+                // Satın alım geri yükleme RevenueCat ile gelecek; paywall'ın
+                // satın alma düğmesiyle aynı dürüst mesajı veriyoruz — sessiz
+                // bir düğme "bozuk" sanılır.
+                onRestore: () => showErrorSnack(context, rs.paywallSoon),
               ),
-              // Kart yönetimi ayrı bir ekran: yukarıdaki "Hesaplar" nakit ve
-              // döviz kumbaralarını listeliyor, bu ise harcama yapılan
-              // kartları (Enpara ₺, Azeri kart ₼) ekleyip sıralıyor. İkisi
-              // ileride tek ekranda birleşecek; şimdilik ikisi de erişilebilir
-              // kalsın ki mevcut döviz cüzdanı akışı kopmasın.
-              _HubRow(
+              const SizedBox(height: 14),
+            ],
+
+            // ── Kart 1: kişisel ─────────────────────────────────────────
+            // Cüzdan (avatar + ad) satırı artık burada DEĞİL: cüzdan
+            // düzenleyici Hesabım › Kişisel bilgiler ekranına taşındı
+            // ([SettingsPersonalDetailsScreen]). Hub'da iki "kimlik" girişi
+            // (cüzdan + hesap) yan yana durunca kullanıcı hangisine
+            // dokunacağını bilemiyordu; tek kapı "Hesabım".
+            SettingsCard(rows: [
+              SettingsRow(
+                icon: Icons.person_rounded,
+                title: rs.hubMyAccount,
+                onTap: () => pushSettings(context, const SettingsAccountScreen()),
+              ),
+              SettingsRow(
+                icon: Icons.notifications_rounded,
+                title: rs.hubNotifications,
+                onTap: () => pushSettings(
+                    context, const NotificationPreferencesScreen()),
+              ),
+              SettingsRow(
+                icon: Icons.tune_rounded,
+                title: rs.hubAppearance,
+                onTap: () =>
+                    pushSettings(context, const SettingsAppearanceScreen()),
+              ),
+            ]),
+            const SizedBox(height: 14),
+
+            // ── Kart 2: para ────────────────────────────────────────────
+            SettingsCard(rows: [
+              // Eski "Hesaplar" (döviz kumbaraları, home/accounts_screen) ile
+              // "Hesaplarım" (kart yönetimi, accounts/accounts_screen) tek
+              // satırda birleşti. Hedef KART YÖNETİMİ: ayarlardan beklenen şey
+              // hesap ekleyip düzenlemek, bakiye bakmak değil. Döviz
+              // kumbaraları kaybolmadı — ana ekrandaki "Hesaplar › Tümünü
+              // gör" zaten o listeyi açıyor; ayarlarda ikinci bir kapı
+              // fazlalıktı.
+              SettingsRow(
                 icon: Icons.credit_card_rounded,
-                title: rs.accountsTitle,
-                onTap: () => _push(context, const ManageAccountsScreen()),
+                title: rs.accounts,
+                onTap: () => pushSettings(context, const ManageAccountsScreen()),
               ),
-              _HubRow(
+              SettingsRow(
                 icon: Icons.grid_view_rounded,
                 title: rs.categories,
                 value: '$categoryCount',
-                onTap: () => _push(context, const CategoriesScreen()),
+                onTap: () => pushSettings(context, const CategoriesScreen()),
               ),
-              _HubRow(
-                icon: Icons.repeat_rounded,
-                title: rs.recurringTitle,
-                onTap: () => _push(context, const RecurringScreen()),
-              ),
-              _HubRow(
-                icon: Icons.auto_fix_high_rounded,
-                title: rs.automation,
-                onTap: () => _push(context, const AutomationScreen()),
-              ),
-              _HubRow(
+              SettingsRow(
                 icon: Icons.calendar_month_rounded,
                 title: rs.calendar,
-                onTap: () => _push(context, const CalendarScreen()),
+                onTap: () => pushSettings(context, const CalendarScreen()),
               ),
-              _HubRow(
+            ]),
+            const SizedBox(height: 14),
+
+            // ── Kart 3: otomasyon ───────────────────────────────────────
+            SettingsCard(rows: [
+              SettingsRow(
+                icon: Icons.repeat_rounded,
+                title: rs.recurringTitle,
+                onTap: () => pushSettings(context, const RecurringScreen()),
+              ),
+              SettingsRow(
+                icon: Icons.auto_fix_high_rounded,
+                title: rs.automation,
+                onTap: () => pushSettings(context, const AutomationScreen()),
+              ),
+              SettingsRow(
                 icon: Icons.flag_rounded,
                 title: rs.goals,
-                onTap: () => _push(context, const GoalsScreen()),
+                onTap: () => pushSettings(context, const GoalsScreen()),
               ),
-              _HubRow(
-                icon: Icons.notifications_active_outlined,
+              SettingsRow(
+                icon: Icons.notifications_active_rounded,
                 title: rs.paymentReminders,
-                onTap: () => _push(context, const RemindersScreen()),
+                onTap: () => pushSettings(context, const RemindersScreen()),
               ),
             ]),
-            const SizedBox(height: 18),
+            const SizedBox(height: 14),
 
-            // ── Uygulama ────────────────────────────────────────────────
-            _Section(title: rs.appSection, rows: [
-              _HubRow(
-                icon: Icons.dialpad_rounded,
-                title: rs.keypadLayout,
-                value: keypadTop ? rs.keypadTop : rs.keypadBottom,
-                onTap: () => _pickKeypad(context, ref),
+            // ── Kart 4: destek ve yasal ─────────────────────────────────
+            SettingsCard(rows: [
+              // SSS + Yardım Merkezi tek satırda. Yardım Merkezi (iletişim)
+              // zaten içinde SSS'e kısayol taşıyor; SSS'in içinde iletişim
+              // yok. Bu yüzden kapı iletişim ekranı — her ikisine de tek
+              // dokunuşla ulaşılıyor.
+              SettingsRow(
+                icon: Icons.help_rounded,
+                title: rs.hubHelp,
+                subtitle: '${str.faqs} · ${str.helpCenter}',
+                onTap: () => pushSettings(context, const ContactScreen()),
               ),
-              _HubRow(
-                icon: Icons.mic_rounded,
-                title: rs.voiceLanguage,
-                value: voice,
-                onTap: () => _push(context, const VoiceLanguageScreen()),
-              ),
-              _HubRow(
-                icon: Icons.language_rounded,
-                title: str.languageTitle,
-                value: language.title,
-                onTap: () => _push(context, const LanguageScreen()),
-              ),
-              _HubRow(
-                icon: Icons.payments_outlined,
-                title: str.currencyTitle,
-                value: currency,
-                onTap: () => _push(context, const CurrencyScreen()),
-              ),
-              _HubRow(
-                icon: Icons.notifications_none_rounded,
-                title: str.notificationPreferences,
-                onTap: () => _push(context, const NotificationPreferencesScreen()),
-              ),
-              _HubRow(
-                icon: Icons.fingerprint_rounded,
-                title: str.biometricAuth,
-                trailing: Switch(
-                  value: ref.watch(biometricEnabledProvider),
-                  activeThumbColor: Ex.brand,
-                  onChanged: (v) => _toggleBiometric(context, ref, v),
-                ),
-              ),
-              _HubRow(
-                icon: Icons.storage_rounded,
-                title: rs.dataManagement,
-                onTap: () => _push(context, const DataManagementScreen()),
+              SettingsRow(
+                icon: Icons.info_rounded,
+                title: rs.hubAbout,
+                onTap: () => pushSettings(context, const SettingsAboutScreen()),
               ),
             ]),
-            const SizedBox(height: 18),
-
-            // ── Hesap ───────────────────────────────────────────────────
-            _Section(title: rs.accountSection, rows: [
-              if (anonymous)
-                _HubRow(
-                  icon: Icons.person_add_alt_1_rounded,
-                  title: str.createAccount,
-                  subtitle: str.createAccountHint,
-                  accent: true,
-                  onTap: () => _push(
-                    context,
-                    SignUpScreen(
-                        onSignedUp: () =>
-                            Navigator.of(context).popUntil((r) => r.isFirst)),
-                  ),
-                ),
-              // Zaten hesabı olan kullanıcı için giriş yolu. Bu satır
-              // olmadan onboarding'i geçmiş biri kendi hesabına dönemiyor;
-              // "Hesap oluştur" ise email-already-in-use ile patlıyor.
-              if (anonymous)
-                _HubRow(
-                  icon: Icons.login_rounded,
-                  title: str.signInTitle,
-                  onTap: () => _push(
-                    context,
-                    SignInScreen(
-                        onSignedIn: () =>
-                            Navigator.of(context).popUntil((r) => r.isFirst)),
-                  ),
-                ),
-              _HubRow(
-                icon: Icons.badge_outlined,
-                title: str.personalInfo,
-                onTap: () => _push(
-                  context,
-                  CompleteProfileScreen(
-                      onComplete: () => Navigator.of(context).maybePop()),
-                ),
-              ),
-              _HubRow(
-                icon: Icons.account_circle_outlined,
-                title: str.accountInformation,
-                subtitle: anonymous ? str.anonymousTitle : user?.email,
-                onTap: () => _accountInfo(context, ref, str, user),
-              ),
-              if (!anonymous)
-                _HubRow(
-                  icon: Icons.lock_outline_rounded,
-                  title: str.passwordSecurity,
-                  onTap: () => _push(
-                    context,
-                    ForgetPasswordScreen(
-                        onDone: () => Navigator.of(context).maybePop()),
-                  ),
-                ),
-              if (!anonymous)
-                _HubRow(
-                  icon: Icons.logout_rounded,
-                  title: str.signOutWord,
-                  onTap: () => _signOut(context, ref),
-                ),
-              _HubRow(
-                icon: Icons.delete_outline_rounded,
-                title: str.deleteAccount,
-                danger: true,
-                onTap: () => _deleteAccount(context, ref),
-              ),
-            ]),
-            const SizedBox(height: 18),
-
-            // ── Yardım ──────────────────────────────────────────────────
-            _Section(title: rs.helpSection, rows: [
-              _HubRow(
-                icon: Icons.help_outline_rounded,
-                title: str.faqs,
-                onTap: () => _push(context, const HelpScreen()),
-              ),
-              _HubRow(
-                icon: Icons.support_agent_rounded,
-                title: str.helpCenter,
-                onTap: () => _push(context, const ContactScreen()),
-              ),
-              _HubRow(
-                icon: Icons.privacy_tip_outlined,
-                title: rs.privacyPolicy,
-                onTap: () => _push(context, const PrivacyPolicyScreen()),
-              ),
-              // Apple, abonelik satan uygulamalarda paywall'dan bu ekrana
-              // bağlantı zorunlu tutuyor; ayrıca burada da erişilebilir.
-              _HubRow(
-                icon: Icons.gavel_rounded,
-                title: rs.termsTitle,
-                onTap: () => _push(context, const TermsOfUseScreen()),
-              ),
-            ]),
-            const SizedBox(height: 28),
-
-            // ── Hakkında ────────────────────────────────────────────────
-            Center(
-              child: Column(
-                children: [
-                  const BudgyWordmark(iconSize: 34, fontSize: 22, gap: 10),
-                  if (version.isNotEmpty) ...[
-                    const SizedBox(height: 6),
-                    Text(tpl(rs.versionTpl, {'v': version}),
-                        style: const TextStyle(fontSize: 12.5, color: Ex.textFaint)),
-                  ],
-                ],
-              ),
-            ),
           ],
         ),
       ),
     );
   }
+}
 
-  // ── hesap yardımcıları (eski profil ekranından) ───────────────────────
+/// Ayarlar içinden alt ekran açar — hub ve üç alt ekran aynı geçişi kullansın.
+void pushSettings(BuildContext context, Widget screen) =>
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
 
-  Future<void> _signOut(BuildContext context, WidgetRef ref) async {
-    final str = ref.read(strProvider);
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Ex.surface,
-        title: Text(str.signOutWord),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: Text(str.cancel)),
-          TextButton(
-              onPressed: () => Navigator.of(ctx).pop(true),
-              child: Text(str.signOutWord, style: const TextStyle(color: Ex.red))),
-        ],
+// ── Pro tanıtım kartı ──────────────────────────────────────────────────────
+
+/// Koyu zeminli Pro kartı: başlık, bir cümle, beyaz düğme, altta geri yükleme.
+///
+/// Zemin mürekkep rengi ([Ex.text]) — kâğıt üstündeki tek koyu blok olduğu
+/// için gözün ilk gittiği yer. Yeşil kullanılmadı: yeşil bu dilde "para ve
+/// eylem", kartın tamamını yeşile boyamak düğmeyi silikleştirirdi.
+class _ProCard extends StatelessWidget {
+  const _ProCard({
+    required this.rs,
+    required this.onUpgrade,
+    required this.onRestore,
+  });
+
+  final RS rs;
+  final VoidCallback onUpgrade;
+  final VoidCallback onRestore;
+
+  @override
+  Widget build(BuildContext context) {
+    // "{restore}" şablonu: tıklanabilir parça cümlenin neresindeyse oraya
+    // konur; TR/EN/RU'da sonda ama bu varsayıma dayanmıyoruz.
+    final parts = rs.hubProRestoreTpl.split('{restore}');
+    final before = parts.first;
+    final after = parts.length > 1 ? parts[1] : '';
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+      decoration: BoxDecoration(
+        color: Ex.text,
+        borderRadius: BorderRadius.circular(Ex.cardRadius),
       ),
-    );
-    if (ok == true) {
-      await FirebaseAuth.instance.signOut();
-      await FirebaseAuth.instance.signInAnonymously();
-      if (context.mounted) Navigator.of(context).popUntil((r) => r.isFirst);
-    }
-  }
-
-  Future<void> _deleteAccount(BuildContext context, WidgetRef ref) async {
-    final str = ref.read(strProvider);
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Ex.surface,
-        title: Text(str.deleteAccount),
-        content: Text(str.deleteAccountBody),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: Text(str.cancel)),
-          TextButton(
-              onPressed: () => Navigator.of(ctx).pop(true),
-              child: Text(str.deleteAccount, style: const TextStyle(color: Ex.red))),
-        ],
-      ),
-    );
-    if (ok != true) return;
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null || !context.mounted) return;
-    // Sıra: doğrula → veriyi sil → hesabı sil (yarı silme olmasın).
-    try {
-      await _reauthenticateIfNeeded(context, ref, user);
-    } on _ReauthCancelled {
-      return;
-    } catch (_) {
-      if (context.mounted) showErrorSnack(context, str.deleteAccountReauthFailed);
-      return;
-    }
-    try {
-      await ref.read(budgetRepositoryProvider).deleteAccountData();
-      await FirebaseAuth.instance.currentUser?.delete();
-    } catch (_) {
-      if (context.mounted) showErrorSnack(context, str.deleteAccountFailed);
-      return;
-    }
-    await FirebaseAuth.instance.signInAnonymously();
-    if (context.mounted) Navigator.of(context).popUntil((r) => r.isFirst);
-  }
-
-  /// `requires-recent-login`: gerekiyorsa yeniden doğrulat; anonimde gerekmez.
-  Future<void> _reauthenticateIfNeeded(
-      BuildContext context, WidgetRef ref, User user) async {
-    if (user.isAnonymous) return;
-    final lastSignIn = user.metadata.lastSignInTime;
-    if (lastSignIn != null &&
-        DateTime.now().difference(lastSignIn) < const Duration(minutes: 5)) {
-      return;
-    }
-    final providers = user.providerData.map((p) => p.providerId).toList();
-    if (providers.contains('google.com')) {
-      await user.reauthenticateWithProvider(GoogleAuthProvider());
-    } else if (providers.contains('apple.com')) {
-      await user.reauthenticateWithProvider(AppleAuthProvider());
-    } else if (providers.contains('password')) {
-      if (!context.mounted) throw const _ReauthCancelled();
-      final password = await _askPassword(context, ref);
-      if (password == null) throw const _ReauthCancelled();
-      await user.reauthenticateWithCredential(
-        EmailAuthProvider.credential(email: user.email!, password: password),
-      );
-    }
-  }
-
-  Future<String?> _askPassword(BuildContext context, WidgetRef ref) async {
-    final str = ref.read(strProvider);
-    final controller = TextEditingController();
-    try {
-      return await showDialog<String>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          backgroundColor: Ex.surface,
-          title: Text(str.confirmPasswordTitle),
-          content: TextField(
-            controller: controller,
-            obscureText: true,
-            autofocus: true,
-            decoration: InputDecoration(hintText: str.passwordHint),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(rs.hubProTitle,
+              style: const TextStyle(
+                  fontFamily: 'InterDisplay',
+                  fontSize: 22,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.6,
+                  height: 1.1,
+                  color: Colors.white)),
+          const SizedBox(height: 6),
+          Text(rs.hubProBody,
+              style: const TextStyle(
+                  fontSize: 14.5, height: 1.35, color: Color(0xB3FFFFFF))),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: FilledButton(
+              onPressed: onUpgrade,
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Ex.text,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(Ex.buttonRadius)),
+                textStyle:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+              ),
+              child: Text(rs.hubProCta,
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
           ),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: Text(str.cancel)),
-            TextButton(
-              onPressed: () {
-                final text = controller.text;
-                Navigator.of(ctx).pop(text.isEmpty ? null : text);
-              },
-              child: Text(str.verifyDone),
-            ),
-          ],
-        ),
-      );
-    } finally {
-      controller.dispose();
-    }
-  }
-
-  Future<void> _accountInfo(
-      BuildContext context, WidgetRef ref, Strings str, User? user) async {
-    final loc = str.localeCode;
-    String lbl(String tr, String en, String ru) =>
-        loc == 'tr' ? tr : (loc == 'ru' ? ru : en);
-    final profile = ref.read(profileProvider).value ?? const {};
-    final name = (profile['name'] as String?)?.trim() ?? '';
-    final anon = user?.isAnonymous ?? true;
-    final created = user?.metadata.creationTime;
-    final rows = <(String, String)>[
-      if (name.isNotEmpty) (lbl('İsim', 'Name', 'Имя'), name),
-      (str.emailLabel, anon ? '—' : (user?.email ?? '—')),
-      (
-        lbl('Hesap', 'Account', 'Аккаунт'),
-        anon ? lbl('Anonim', 'Anonymous', 'Анонимный') : lbl('E-posta', 'Email', 'Email')
-      ),
-      if (created != null)
-        (lbl('Üyelik', 'Member since', 'С нами с'),
-            DateFormat('d MMM yyyy', loc).format(created)),
-    ];
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: Ex.surface,
-        title: Text(str.accountInformation),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (final (k, v) in rows)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 5),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(
-                        width: 110,
-                        child: Text(k, style: const TextStyle(color: Ex.textMuted))),
-                    Expanded(
-                      child: Text(v,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.w600, color: Ex.text)),
-                    ),
-                  ],
+          const SizedBox(height: 12),
+          Center(
+            child: Wrap(
+              crossAxisAlignment: WrapCrossAlignment.center,
+              alignment: WrapAlignment.center,
+              children: [
+                if (before.isNotEmpty)
+                  Text(before,
+                      style: const TextStyle(
+                          fontSize: 12.5, color: Color(0x99FFFFFF))),
+                // InkWell yerine GestureDetector: koyu zeminde mürekkep
+                // dalgası beyaz leke gibi görünüyor.
+                GestureDetector(
+                  onTap: onRestore,
+                  behavior: HitTestBehavior.opaque,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Text(rs.hubProRestore,
+                        style: const TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                            decoration: TextDecoration.underline,
+                            decorationColor: Colors.white,
+                            color: Colors.white)),
+                  ),
                 ),
-              ),
-          ],
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.of(ctx).pop(), child: Text(str.cancel)),
+                if (after.isNotEmpty)
+                  Text(after,
+                      style: const TextStyle(
+                          fontSize: 12.5, color: Color(0x99FFFFFF))),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class _ReauthCancelled implements Exception {
-  const _ReauthCancelled();
-}
+// ── Paylaşılan ayar bileşenleri ────────────────────────────────────────────
+// Hub ve üç alt ekran aynı kart/satır/kahraman bloğunu kullanır; kopyala-
+// yapıştır olmasın diye kamuya açık.
 
-/// Bölüm: küçük etiket + gruplu kart (satırlar ince çizgiyle ayrık).
-class _Section extends StatelessWidget {
-  const _Section({required this.title, required this.rows});
+/// İkon sütunu genişliği + boşluk: ayırıcı çizgi tam buradan başlar ki
+/// "ikonun bittiği yerden" kuralı tutsun.
+const _kRowIconWidth = 34.0;
+const _kRowIconGap = 12.0;
 
-  final String title;
+/// Beyaz kart: satırlar ince çizgiyle ayrık, çizgi ikonun bittiği yerden.
+///
+/// Bölüm başlığı YOK — gruplama kartın kendisiyle ve kartlar arası boşlukla
+/// anlatılır. Eski `_Section` küçük gri etiket taşıyordu; kalabalık ekranda
+/// o etiketler birer satır daha gibi okunuyordu.
+class SettingsCard extends StatelessWidget {
+  const SettingsCard({super.key, this.label, required this.rows});
+
+  /// Kartın ÜSTÜNDE küçük gri etiket ("Kimlik ve giriş", "Verilerin").
+  ///
+  /// Yalnız alt ekranlar verir: orada gruplar adlandırılıyor. Hub'da
+  /// verilmez — hub'da bölüm başlığı olmaması bilinçli karar, kalabalık
+  /// ekranda etiketler birer satır daha gibi okunuyordu.
+  final String? label;
   final List<Widget> rows;
 
   @override
   Widget build(BuildContext context) {
+    final card = ExCard(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+      child: Column(
+        children: [
+          for (final (i, r) in rows.indexed) ...[
+            if (i > 0)
+              const Divider(
+                  height: 1,
+                  color: Ex.border,
+                  indent: _kRowIconWidth + _kRowIconGap),
+            r,
+          ],
+        ],
+      ),
+    );
+    if (label == null || label!.isEmpty) return card;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(2, 0, 2, 8),
-          child: Text(title,
+          // Soldan 4: etiket kart kenarlığıyla değil, içindeki metinle
+          // hizalansın — kenarlıkla aynı hizada "dışarıda" duruyordu.
+          padding: const EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(label!,
               style: const TextStyle(
-                  fontSize: 13, fontWeight: FontWeight.w700, color: Ex.textMuted)),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Ex.textMuted)),
         ),
-        ExCard(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-          child: Column(
-            children: [
-              for (final (i, r) in rows.indexed) ...[
-                if (i > 0) const Divider(height: 1, color: Ex.border),
-                r,
-              ],
-            ],
-          ),
-        ),
+        card,
       ],
     );
   }
 }
 
-class _HubRow extends StatelessWidget {
-  const _HubRow({
-    required this.icon,
+/// Ayar satırı: 28 px gradyan ikon, 17 px etiket, sağda değer/ok/anahtar.
+///
+/// İkon soluk kutusuz, doğrudan beyaz kartın üstünde ([GradientIcon] kararı:
+/// kutu içindeki küçük ikonda gradyan okunmuyordu). [danger] satırlar
+/// ([Ex.red]) düz renk: uyarı rengi süslenmez, aksi hâlde "çıkış yap" de
+/// yeşil bir eylem gibi davet eder.
+class SettingsRow extends StatelessWidget {
+  const SettingsRow({
+    super.key,
+    this.icon,
+    this.leading,
     required this.title,
     this.subtitle,
+    this.description,
     this.value,
     this.trailing,
     this.onTap,
     this.accent = false,
     this.danger = false,
-  });
+  }) : assert(icon != null || leading != null, 'icon ya da leading gerekli');
 
-  final IconData icon;
+  /// Gradyanla çizilecek Material ikonu.
+  final IconData? icon;
+
+  /// İkon yerine özel öncü (cüzdan avatarı). Verilirse [icon] yok sayılır.
+  final Widget? leading;
   final String title;
+
+  /// Tek satır, kesilir — e-posta, "Anonim hesap" gibi kısa ek bilgi.
   final String? subtitle;
+
+  /// Başlığın altında ÇOK SATIRLI açıklama (bildirim türünün ne yaptığı
+  /// gibi 2-4 satır). [subtitle]'dan farkı: sarar, kesilmez; sağdaki
+  /// anahtarla birlikte "ayar + açıklama + anahtar" satırını kurar.
+  final String? description;
+
+  /// Sağda soluk değer (dil, para birimi, sayı).
   final String? value;
+
+  /// Sağda ok yerine kendi bileşeni (anahtar).
   final Widget? trailing;
   final VoidCallback? onTap;
+
+  /// Davet satırı (hesap oluştur) — yeşil etiket.
   final bool accent;
+
+  /// Tehlikeli eylem — kırmızı etiket ve DÜZ kırmızı ikon.
   final bool danger;
 
   @override
   Widget build(BuildContext context) {
     final color = danger ? Ex.red : (accent ? Ex.mint : Ex.text);
+    final Widget lead = leading ??
+        (danger
+            ? Icon(icon, size: 28, color: Ex.red)
+            : GradientIcon(icon!, size: 28));
     return InkWell(
       onTap: onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 9),
+        padding: const EdgeInsets.symmetric(vertical: 13),
         child: Row(
+          // Uzun açıklamalı satırda ikon ve ok ortaya değil başlığa
+          // hizalanır; aksi hâlde 4 satırlık metnin ortasında asılı kalır.
+          crossAxisAlignment: description == null
+              ? CrossAxisAlignment.center
+              : CrossAxisAlignment.start,
           children: [
-            // DENEME: soluk kutu kaldırıldı, ikon büyütüldü. 34 px'lik
-            // kutunun içindeki 18 px ikonda gradyan okunmuyordu — göz onu
-            // düz renk sanıyor. Referanstaki hava ikonun doğrudan beyaz
-            // kâğıdın üstünde ve iki kat büyük olmasından geliyor.
             SizedBox(
-              width: 34,
-              height: 34,
-              child: Center(
-                child: danger
-                    ? Icon(icon, size: 26, color: Ex.red)
-                    : GradientIcon(icon, size: 28),
-              ),
-            ),
-            const SizedBox(width: 12),
+                width: _kRowIconWidth,
+                height: _kRowIconWidth,
+                child: Center(child: lead)),
+            const SizedBox(width: _kRowIconGap),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -676,12 +449,28 @@ class _HubRow extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                          fontSize: 15, fontWeight: FontWeight.w600, color: color)),
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: -0.2,
+                          color: color)),
                   if (subtitle != null && subtitle!.isNotEmpty)
-                    Text(subtitle!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 12, color: Ex.textMuted)),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 1),
+                      child: Text(subtitle!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontSize: 12.5, color: Ex.textMuted)),
+                    ),
+                  if (description != null && description!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 3),
+                      child: Text(description!,
+                          style: const TextStyle(
+                              fontSize: 13.5,
+                              height: 1.35,
+                              color: Ex.textSoft)),
+                    ),
                 ],
               ),
             ),
@@ -692,13 +481,16 @@ class _HubRow extends StatelessWidget {
                 child: Text(value!,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 13, color: Ex.textMuted)),
+                    style: const TextStyle(fontSize: 14, color: Ex.textMuted)),
               ),
             ],
             if (trailing != null)
               trailing!
             else if (onTap != null)
-              const Icon(Icons.chevron_right_rounded, color: Ex.textMuted),
+              const Padding(
+                padding: EdgeInsets.only(left: 4),
+                child: Icon(Icons.chevron_right_rounded, color: Ex.textFaint),
+              ),
           ],
         ),
       ),
@@ -706,35 +498,135 @@ class _HubRow extends StatelessWidget {
   }
 }
 
-class _OptionRow extends StatelessWidget {
-  const _OptionRow({
-    required this.label,
-    required this.selected,
+/// İkonsuz eylem satırı: metin vurgu renginde ([Ex.mint]), sağda ok yok.
+///
+/// "Tümünü aç", "Bildirim ayarlarına git" gibi kartın SONUNDAKİ tek eylem
+/// için. Normal [SettingsRow] ikon zorunlu tutar; burada ikon olsaydı eylem
+/// diğer ayar satırlarından ayırt edilemezdi. Metin ikon sütununun bittiği
+/// yerden başlar ki ayırıcı çizgiyle hizası bozulmasın.
+class SettingsActionRow extends StatelessWidget {
+  const SettingsActionRow({
+    super.key,
+    required this.title,
     required this.onTap,
+    this.danger = false,
   });
 
-  final String label;
-  final bool selected;
+  final String title;
   final VoidCallback onTap;
 
+  /// Kırmızı eylem (kartın sonunda "Tümünü sil" gibi) — yine düz renk.
+  final bool danger;
+
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 8),
-        child: ExCard(
-          onTap: onTap,
-          padding: const EdgeInsets.fromLTRB(14, 13, 12, 13),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(label,
-                    style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: selected ? Ex.mint : Ex.text)),
-              ),
-              if (selected) const Icon(Icons.check_rounded, size: 20, color: Ex.mint),
-            ],
-          ),
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 13),
+        child: Row(
+          children: [
+            const SizedBox(width: _kRowIconWidth + _kRowIconGap),
+            Expanded(
+              child: Text(title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.2,
+                      color: danger ? Ex.red : Ex.mint)),
+            ),
+          ],
         ),
-      );
+      ),
+    );
+  }
+}
+
+/// Alt ekran başı: yuvarlak kare rozet içinde gradyan ikon, başlık, paragraf.
+///
+/// Kullanıcı hub'dan "Hesabım" deyip geldi; buradaki paragraf ekranın neyi
+/// kapsadığını tek bakışta söyler — satırları tek tek okumadan "aradığım
+/// burada mı" sorusunu yanıtlasın diye.
+class SettingsHero extends StatelessWidget {
+  const SettingsHero({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.body,
+  });
+
+  final IconData icon;
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // Yuvarlak kare rozet (daire değil): yeşilin düşük alfalı zemini
+        // üstünde gradyan ikon. Beyaz daire kâğıt üstünde "boş yuvarlak"
+        // gibi duruyordu; renkli rozet ekranın kimliğini tek bakışta verir.
+        Container(
+          width: 72,
+          height: 72,
+          decoration: BoxDecoration(
+            color: Ex.brand.withValues(alpha: 0.12),
+            borderRadius: Ex.squircle(72),
+          ),
+          child: Center(child: GradientIcon(icon, size: 34)),
+        ),
+        const SizedBox(height: 14),
+        Text(title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+                fontFamily: 'InterDisplay',
+                fontSize: 26,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.9,
+                height: 1.1,
+                color: Ex.text)),
+        const SizedBox(height: 6),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Text(body,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                  fontSize: 14.5, height: 1.4, color: Ex.textMuted)),
+        ),
+      ],
+    );
+  }
+}
+
+/// Alt ekran iskeleti: geri düğmesi, [SettingsHero], ardından kartlar.
+/// Üç alt ekranın aynı kenar boşluğu ve ritmi paylaşması için tek yerde.
+class SettingsPage extends StatelessWidget {
+  const SettingsPage({super.key, required this.hero, required this.children});
+
+  final SettingsHero hero;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Ex.bg,
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+          children: [
+            const BudgyBackButton(),
+            const SizedBox(height: 8),
+            hero,
+            const SizedBox(height: 24),
+            for (final (i, c) in children.indexed) ...[
+              if (i > 0) const SizedBox(height: 14),
+              c,
+            ],
+          ],
+        ),
+      ),
+    );
+  }
 }

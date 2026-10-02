@@ -108,7 +108,7 @@ class _EmailVerifyScreenState extends ConsumerState<EmailVerifyScreen> {
               child: _BackButton(),
             ),
             const SizedBox(height: 20),
-            // İkon rozeti — posta zarfı (OtpScreen tasarımındaki 60×60 kare).
+            // İkon rozeti — posta zarfı, 60×60 kare.
             Container(
               width: 60,
               height: 60,

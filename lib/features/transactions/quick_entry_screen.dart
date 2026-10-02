@@ -11,8 +11,15 @@ import '../../core/ex_style.dart';
 import '../../core/motion.dart';
 import '../../core/feedback.dart';
 import '../../core/formatters.dart';
+import '../../core/fx.dart';
+import '../../core/fx_freeze.dart';
 import '../../core/l10n.dart';
 import '../../core/redesign_l10n.dart';
+import '../accounts/account.dart';
+import '../accounts/account_editor_sheet.dart';
+import '../accounts/account_picker.dart';
+import '../accounts/account_suggestion.dart';
+import '../accounts/accounts_repository.dart';
 import '../envelopes/budget_repository.dart';
 import '../envelopes/envelope.dart';
 import '../envelopes/envelope_l10n.dart';
@@ -102,6 +109,11 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
   String? _lastTxId;
   bool _saving = false;
 
+  /// Kullanıcının ELLE seçtiği hesap. null = hiç dokunmadı, form öneriyle
+  /// gider (bkz. [_currentAccount]). Ayrı bir bool yerine id tutuyoruz:
+  /// "elle seçildi mi" ve "hangisi" tek alanda, ikisi tutarsız olamaz.
+  String? _pickedAccountId;
+
   static DateTime _today() {
     final n = DateTime.now();
     return DateTime(n.year, n.month, n.day);
@@ -178,6 +190,43 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
   /// Kategori yalnız nakit hesapta anlamlı: giderde harcama kategorisi,
   /// gelirde kaynak (maaş, hediye…). Döviz cüzdanında hedef cüzdanın kendisi.
   bool get _categoryApplies => _wallet == null;
+
+  /// Hesap (kart) seçimi yalnız YENİ GİDERDE ve nakit yolundayken devrede.
+  ///
+  /// * Döviz zarfı (eski "cüzdan") seçiliyse para o zarftan düşer; hesap
+  ///   kavramı oraya karışmaz.
+  /// * Gelirde `addCashIncome`, düzenlemede `updateTx` hesap almıyor —
+  ///   orada çip göstermek "seçtim ama etkisi yok" olurdu.
+  /// * İki hesaptan azı varsa seçecek şey yok: akış hesaplardan ÖNCEKİ
+  ///   hâliyle birebir aynı kalır, `addExpense` yeni alanları hiç görmez.
+  ///   Kart eklememiş kullanıcı için hiçbir şey değişmemeli.
+  bool _accountsApply(List<Account> accounts) =>
+      !_isEditing &&
+      _mode == QuickMode.expense &&
+      _wallet == null &&
+      accounts.length >= 2;
+
+  /// Formun şu anki hesabı: kullanıcı dokunduysa onun seçimi (liste hâlâ
+  /// içeriyorsa), yoksa kategori + geçmişe göre öneri.
+  ///
+  /// Saklanan bir "seçili hesap" alanı yok, her build'de türetiliyor:
+  /// böylece kategori değişince öneri kendiliğinden yenilenir, elle seçim
+  /// ise [_pickedAccountId] dolu olduğu sürece önerinin önüne geçer — iki
+  /// kaynağı senkron tutmaya çalışan setState zinciri gerekmez.
+  Account? _currentAccount(List<Account> accounts, List<Tx> recent) {
+    if (!_accountsApply(accounts)) return null;
+    final picked = _pickedAccountId;
+    if (picked != null) {
+      final match = accounts.where((a) => a.id == picked).firstOrNull;
+      if (match != null) return match;
+    }
+    final id = suggestAccount(
+      accounts: accounts,
+      recent: recent,
+      categoryId: _category?.id,
+    );
+    return accounts.where((a) => a.id == id).firstOrNull;
+  }
 
   // ── tuşlar ────────────────────────────────────────────────────────────
 
@@ -292,6 +341,67 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
     });
   }
 
+  /// Kart çipi: hangi hesaptan? Seçim [_pickedAccountId]'ye yazılır ve
+  /// bundan sonra öneri onu ezmez.
+  Future<void> _pickCard(List<Account> accounts, Account current) async {
+    final rs = ref.read(rsProvider);
+    final main = ref.read(currencyCodeProvider);
+    final id = await showAccountPicker(
+      context,
+      selectedId: current.id,
+      accounts: accounts,
+      title: rs.accountFromTitle,
+      addLabel: rs.accountAdd,
+      // Sheet önce kapanır, sonra bu çağrılır; editör formun üstüne açılır.
+      onAddAccount: () => showAccountEditor(context),
+      // Yabancı kartta kullanıcı kurun uygulanacağını baştan bilsin.
+      warning: current.currency == main
+          ? null
+          : tpl(rs.accountFxNoteTpl, {'from': current.currency, 'to': main}),
+    );
+    if (id != null) setState(() => _pickedAccountId = id);
+  }
+
+  /// [from] birimindeki [amount]'u ana birime DONDURUR; kur yoksa null.
+  ///
+  /// Kur tablosu [fxSnapshotProvider] ile asenkron gelir. `.value` değil
+  /// `.future` bekliyoruz: ilk açılışta (önbellek boş, ağ yavaş) tablo
+  /// henüz yüklenmemiş olabilir; "yüklenmedi"yi "kur yok" sanıp kullanıcıyı
+  /// boşuna geri çevirmeyelim. Tablo gelmezse (çevrimdışı + önbellek yok)
+  /// ya da çift tabloda yoksa null.
+  ///
+  /// NEDEN KURSUZ KAYDETMİYORUZ: `Tx.baseAmount` bir kez yazılır, bir daha
+  /// değişmez. 0 ya da uydurma bir kurla kaydedersek o ayın toplamı kalıcı
+  /// yanlış olur; kaydetmemek yanlış kaydetmekten ucuz — form dolu kalır,
+  /// kullanıcı birazdan tekrar dener.
+  Future<({double baseAmount, String baseCurrency, double rate})?> _freezeFor({
+    required double amount,
+    required String from,
+  }) async {
+    final main = ref.read(currencyCodeProvider);
+    try {
+      // Aynı birimde çevrim yok; ağa hiç çıkmıyoruz ki tek birimli kart
+      // sahibi çevrimdışıyken de kaydedebilsin. `freezeToBase` aynı birimde
+      // tabloya bakmaz, imzası istediği için boş tablo veriyoruz.
+      final fx = from == main
+          ? FxSnapshot(base: main, rates: const {}, fetchedAt: DateTime.now())
+          : await ref.read(fxSnapshotProvider(main).future);
+      if (fx == null) return null;
+      final frozen = freezeToBase(amount: amount, from: from, to: main, fx: fx);
+      return (
+        baseAmount: frozen.baseAmount,
+        baseCurrency: main,
+        rate: frozen.rate,
+      );
+    } on FxUnavailable {
+      return null;
+    } catch (_) {
+      // Kur yükleyicisinin beklenmedik hatası da "kur yok" demektir;
+      // kullanıcıya aynı mesaj, kayıt yine yapılmaz.
+      return null;
+    }
+  }
+
   /// "…" menüsü: hesap makinesi / çoklu giriş.
   /// Gider-gelir seçimi artık panelin üstünde görünür anahtar.
   Future<void> _menu() async {
@@ -336,7 +446,13 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
         : DateTime(_date.year, _date.month, _date.day, 12);
     final wallet = _wallet;
     final isExpense = _mode == QuickMode.expense;
-    final currency = wallet?.currency ?? 'TRY';
+    // İşlemin birimi SEÇİLİ HESABIN birimi (manat kartından manat çıkar),
+    // hesap yoksa eski kural: döviz zarfının birimi ya da ₺.
+    final account = _currentAccount(
+      ref.read(accountsProvider).value ?? const <Account>[],
+      ref.read(recentTxsProvider).value ?? const <Tx>[],
+    );
+    final currency = account?.currency ?? wallet?.currency ?? 'TRY';
     // Kategori: giderde harcama kategorisi, gelirde kaynak etiketi.
     var envelopeId = wallet?.id ?? _category?.id;
     var envelopeName = wallet?.displayName(str) ?? _category?.name;
@@ -383,6 +499,20 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
       return;
     }
 
+    // Hesaplı giderde kuru KAYITTAN ÖNCE dondur. Kur yoksa hiç yazmıyoruz:
+    // guardWrite'a girmeden dönüyoruz ki Crashlytics'e "yazma hatası" diye
+    // düşmesin — bu bir hata değil, bilinçli ret. Form olduğu gibi kalır.
+    ({double baseAmount, String baseCurrency, double rate})? frozen;
+    if (account != null) {
+      frozen = await _freezeFor(amount: amount, from: account.currency);
+      if (!mounted) return;
+      if (frozen == null) {
+        showErrorSnack(context, ref.read(rsProvider).fxFreezeUnavailable);
+        setState(() => _saving = false);
+        return;
+      }
+    }
+
     String? id;
     final ok = await guardWrite(context, str, () async {
       if (isExpense) {
@@ -393,6 +523,11 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
           currency: currency,
           note: note,
           date: date,
+          // Hesap yoksa dördü de null: depo eski tek-kasa yolunda kalır.
+          accountId: account?.id,
+          baseAmount: frozen?.baseAmount,
+          baseCurrency: frozen?.baseCurrency,
+          fxRate: frozen?.rate,
         );
       } else if (wallet == null) {
         id = await repo.addCashIncome(
@@ -466,7 +601,12 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
     final rs = ref.watch(rsProvider);
     final str = ref.watch(strProvider);
     final code = ref.watch(currencyCodeProvider);
-    final accountCode = _wallet?.currency ?? code;
+    final accounts = ref.watch(accountsProvider).value ?? const <Account>[];
+    final recent = ref.watch(recentTxsProvider).value ?? const <Tx>[];
+    final account = _currentAccount(accounts, recent);
+    // Tutarın yanındaki simge girilen paranın birimi: manat kartı seçiliyse
+    // ₼ görünmeli, yoksa kullanıcı ₺ sanıp yanlış rakam girer.
+    final accountCode = account?.currency ?? _wallet?.currency ?? code;
     final symbol = kCurrencies[accountCode] ?? accountCode;
     final canSave = _amount > 0 && !_saving;
     final bottom = MediaQuery.paddingOf(context).bottom;
@@ -606,6 +746,21 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
                             ),
                           ),
 
+                          // Hangi karttan? Tek kompakt çip; yalnız iki+ hesapta
+                          // ve yeni giderde (bkz. _accountsApply). Kendi satırında:
+                          // tarih satırına sıkışsaydı 320dp'de ad kesilirdi.
+                          if (account != null)
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                              child: Align(
+                                alignment: Alignment.centerLeft,
+                                child: AccountChip(
+                                  key: const ValueKey('quick-entry-account'),
+                                  account: account,
+                                  onTap: () => _pickCard(accounts, account),
+                                ),
+                              ),
+                            ),
                           // Tarih solda; tekrar yanında, not en sağda.
                           // Açılışta solup yukarı kayar (tuş takımı değil).
                           Padding(

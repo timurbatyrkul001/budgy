@@ -121,7 +121,6 @@ class Strings {
     required this.passwordsDontMatch,
     required this.lockTitle,
     required this.unlockButton,
-    required this.biometricUnavailable,
     required this.quickAddTitle,
     required this.detailedEntry,
     required this.dailyReminderLabel,
@@ -197,7 +196,6 @@ class Strings {
     required this.changePassword,
     required this.confidentialityPolicy,
     required this.passwordSecurity,
-    required this.biometricAuth,
     required this.faqs,
     required this.helpCenter,
     required this.settingsWord,
@@ -433,7 +431,6 @@ class Strings {
   final String passwordsDontMatch;
   final String lockTitle;
   final String unlockButton;
-  final String biometricUnavailable;
   final String quickAddTitle;
   final String detailedEntry;
   final String dailyReminderLabel;
@@ -509,7 +506,6 @@ class Strings {
   final String changePassword;
   final String confidentialityPolicy;
   final String passwordSecurity;
-  final String biometricAuth;
   final String faqs;
   final String helpCenter;
   final String settingsWord;
@@ -761,7 +757,6 @@ class Strings {
     passwordsDontMatch: 'Passwords don\'t match',
     lockTitle: 'Budgy is locked',
     unlockButton: 'Unlock',
-    biometricUnavailable: 'No Face ID / fingerprint set up on this device',
     quickAddTitle: 'Quick expense',
     detailedEntry: 'More options',
     dailyReminderLabel: 'Daily reminder',
@@ -839,7 +834,6 @@ class Strings {
     changePassword: 'Change password',
     confidentialityPolicy: 'Confidentiality policy',
     passwordSecurity: 'Password & Security',
-    biometricAuth: 'Biometric Authentication',
     faqs: 'FAQs',
     helpCenter: 'Help Center',
     settingsWord: 'Settings',
@@ -1124,7 +1118,6 @@ class Strings {
     passwordsDontMatch: 'Şifreler eşleşmiyor',
     lockTitle: 'Budgy kilitli',
     unlockButton: 'Kilidi aç',
-    biometricUnavailable: 'Bu cihazda Face ID / parmak izi tanımlı değil',
     quickAddTitle: 'Hızlı harcama',
     detailedEntry: 'Detaylı giriş',
     dailyReminderLabel: 'Günlük hatırlatma',
@@ -1202,7 +1195,6 @@ class Strings {
     changePassword: 'Şifre değiştir',
     confidentialityPolicy: 'Gizlilik politikası',
     passwordSecurity: 'Şifre & Güvenlik',
-    biometricAuth: 'Biyometrik Giriş',
     faqs: 'SSS',
     helpCenter: 'Yardım Merkezi',
     settingsWord: 'Ayarlar',
@@ -1484,7 +1476,6 @@ class Strings {
     passwordsDontMatch: 'Пароли не совпадают',
     lockTitle: 'Budgy заблокирован',
     unlockButton: 'Разблокировать',
-    biometricUnavailable: 'На устройстве не настроены Face ID / отпечаток',
     quickAddTitle: 'Быстрый расход',
     detailedEntry: 'Подробный ввод',
     dailyReminderLabel: 'Ежедневное напоминание',
@@ -1562,7 +1553,6 @@ class Strings {
     changePassword: 'Сменить пароль',
     confidentialityPolicy: 'Политика конфиденциальности',
     passwordSecurity: 'Пароль и безопасность',
-    biometricAuth: 'Биометрия',
     faqs: 'Вопросы',
     helpCenter: 'Поддержка',
     settingsWord: 'Настройки',
