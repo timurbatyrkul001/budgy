@@ -10,6 +10,7 @@ import 'package:kopilka_app/core/theme.dart';
 import 'package:kopilka_app/features/home/fx_providers.dart';
 import 'package:kopilka_app/features/envelopes/budget_repository.dart';
 import 'package:kopilka_app/features/envelopes/envelope.dart';
+import 'package:kopilka_app/features/recurring/recurring.dart';
 import 'package:kopilka_app/features/reminders/reminders_repository.dart';
 import 'package:kopilka_app/features/settings/app_settings.dart';
 import 'package:kopilka_app/features/settings/settings_hub.dart';
@@ -76,6 +77,16 @@ Future<void> pumpBudgyScreen(
 
   /// Pro aboneliği açık mı (kilitli ekranların Pro hâlini test etmek).
   bool pro = false,
+
+  /// Tekrarlayan kurallar (Tekrarlayan işlemler ekranı; bekleyen kural
+  /// uyarılarını sınamak için).
+  List<RecurringRule> recurringRules = const [],
+
+  /// Ekranın kendi sağlayıcıları için ek override'lar (ör. sahte fotoğraf
+  /// seçici, sahte sesli giriş). Buradaki varsayılanlarla ÇAKIŞMAMALI.
+  /// Tür `dynamic`: Riverpod 3 `Override` sınıfını dışa açmıyor; liste
+  /// ProviderScope'a yayılırken örtük olarak daraltılır.
+  List<dynamic> extraOverrides = const [],
 }) async {
   // Varsayılan test yüzeyi 800x600 — Budgy ekranları uzun, alt çubuktaki
   // Kaydet düğmesi bu boyutta görünürün dışında kalıp dokunulamıyor.
@@ -117,13 +128,15 @@ Future<void> pumpBudgyScreen(
         // no-op'a çeviriyoruz (yoksa MissingPluginException fırlar).
         reminderSchedulerProvider.overrideWithValue(null),
         remindersProvider.overrideWith((ref) => Stream.value(const [])),
-        recurringRulesProvider.overrideWith((ref) => Stream.value(const [])),
+        recurringRulesProvider
+            .overrideWith((ref) => Stream.value(recurringRules)),
         recurringMaterializerProvider.overrideWith((ref) async => 0),
         userRulesProvider.overrideWith((ref) => Stream.value(const [])),
         disabledBuiltinsProvider.overrideWith((ref) => Stream.value(const {})),
         appVersionProvider.overrideWith((ref) async => '1.0.0 (1)'),
         fxSnapshotProvider.overrideWith((ref, base) async => fxSnapshot),
         isProProvider.overrideWith(() => _TestProStatus(pro)),
+        ...extraOverrides,
       ],
       child: MaterialApp(
         theme: buildTheme(),

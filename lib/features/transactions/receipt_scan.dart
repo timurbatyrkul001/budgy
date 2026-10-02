@@ -1,8 +1,11 @@
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 
 import '../../core/ai/expense_parser.dart';
 import '../../core/category_avatar.dart';
@@ -15,24 +18,48 @@ import '../envelopes/budget_repository.dart';
 import '../envelopes/envelope.dart';
 import '../envelopes/envelope_l10n.dart';
 
+/// Fotoğraf seçici — gerçekte image_picker; testte sahte (izin reddi,
+/// kamerasız cihaz gibi hâlleri taklit etmek için).
+final imagePickerProvider = Provider<ImagePicker>((_) => ImagePicker());
+
+/// Fiş okuyucu — gerçekte [ExpenseParser]; testte sahte (hak bitti, ağ
+/// yok gibi hataları fırlatmak için).
+final receiptParserProvider = Provider<ExpenseParser>((_) => ExpenseParser());
+
 /// Fiş tarama: kaynak seç (kamera/galeri) → fotoğraf → AI ile oku →
-/// önizle → kaydet. Anahtar yoksa kısa bir uyarı gösterip çıkar.
+/// önizle → kaydet. Giriş yoksa kısa bir uyarı gösterip çıkar.
 Future<void> startReceiptScan(BuildContext context, WidgetRef ref) async {
   final rs = ref.read(rsProvider);
   if (!ExpenseParser.aiAvailable) {
     showErrorSnack(context, rs.aiKeyMissing);
     return;
   }
+  await pickAndScanReceipt(context, ref);
+}
+
+/// [startReceiptScan]'ın giriş kapısından sonraki kısmı: kaynak seç →
+/// fotoğraf al → tarama sayfası. Ayrı tutuldu ki testte AI girişi
+/// olmadan da akış (izin reddi metinleri, AI hataları) sınanabilsin.
+@visibleForTesting
+Future<void> pickAndScanReceipt(BuildContext context, WidgetRef ref) async {
   final source =
       await showExSheet<ImageSource>(context, const _SourcePicker());
   if (source == null || !context.mounted) return;
 
   XFile? file;
   try {
-    file = await ImagePicker()
+    file = await ref
+        .read(imagePickerProvider)
         .pickImage(source: source, maxWidth: 1600, imageQuality: 80);
-  } catch (_) {
-    if (context.mounted) showErrorSnack(context, rs.scanFailed);
+  } catch (e) {
+    // İzin reddi "fiş okunamadı" DEĞİL — kullanıcı fişi yeniden çekmesin,
+    // ayara gitsin. Hangi izin, hangi platform: metin ona göre.
+    if (context.mounted) {
+      showErrorSnack(
+        context,
+        pickerErrorMessage(ref.read(rsProvider), e, source),
+      );
+    }
     return;
   }
   if (file == null || !context.mounted) return;
@@ -41,6 +68,49 @@ Future<void> startReceiptScan(BuildContext context, WidgetRef ref) async {
       file.path.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
   if (!context.mounted) return;
   await showExSheet(context, _ReceiptSheet(bytes: bytes, mediaType: mediaType));
+}
+
+/// image_picker hatasını insan diline çevirir. Kodlar eklentinin kendi
+/// kodları (iOS: camera/photo_access_denied|restricted, no_available_camera;
+/// Android: camera_access_denied — galeri izin istemez). Tanınmayan hata
+/// eski genel metne düşer.
+///
+/// Ayar yolu platforma göre: iOS'ta "Ayarlar → Budgy → Kamera", Android'de
+/// "Ayarlar → Uygulamalar → Budgy → İzinler". [platform] testte verilir.
+String pickerErrorMessage(
+  RS rs,
+  Object error,
+  ImageSource source, {
+  TargetPlatform? platform,
+}) {
+  final android = (platform ?? defaultTargetPlatform) == TargetPlatform.android;
+  final code = error is PlatformException ? error.code : '';
+  return switch (code) {
+    'camera_access_denied' =>
+      android ? rs.cameraDeniedAndroid : rs.cameraDenied,
+    'camera_access_restricted' => rs.cameraRestricted,
+    'no_available_camera' => rs.cameraUnavailable,
+    'photo_access_denied' =>
+      android ? rs.photosDeniedAndroid : rs.photosDenied,
+    'photo_access_restricted' => rs.photosRestricted,
+    _ => rs.scanFailed,
+  };
+}
+
+/// AI çağrısının hatasını insan diline çevirir. Üç ayrı şey üç ayrı metin:
+/// hak bitti (yeniden çekmek işe yaramaz, tarih verilir), ağ/sunucu
+/// (sonra dene), giriş yok. Yalnız bilinmeyen hata "fiş okunamadı" olur.
+String receiptErrorMessage(RS rs, Object error, String localeCode) {
+  if (error is AiLimitReached) {
+    final resetsAt = error.resetsAt;
+    if (resetsAt == null) return rs.aiLimitReached;
+    return tpl(rs.aiLimitResetTpl, {
+      'date': DateFormat('d MMMM', localeCode).format(resetsAt.toLocal()),
+    });
+  }
+  if (error is AiNetworkError) return rs.aiNetworkError;
+  if (error is AiUnavailable) return rs.aiKeyMissing;
+  return rs.scanFailed;
 }
 
 class _SourcePicker extends ConsumerWidget {
@@ -99,7 +169,14 @@ class _ReceiptSheet extends ConsumerStatefulWidget {
 
 class _ReceiptSheetState extends ConsumerState<_ReceiptSheet> {
   List<ParsedItem>? _items;
-  bool _failed = false;
+
+  /// Okuma bitmedi ya da başarılıysa null; aksi hâlde kullanıcıya
+  /// gösterilecek metin (sebebe göre farklı).
+  String? _error;
+
+  /// Hata kullanıcının fotoğrafından değil (hak bitti, ağ yok, giriş yok):
+  /// kırmızı değil kehribar — "yeniden çek" çağrışımı yapmasın.
+  bool _errorIsExternal = false;
   bool _saving = false;
 
   @override
@@ -110,11 +187,12 @@ class _ReceiptSheetState extends ConsumerState<_ReceiptSheet> {
 
   Future<void> _run() async {
     final str = ref.read(strProvider);
+    final rs = ref.read(rsProvider);
     final envelopes = ref
         .read(allocatableEnvelopesProvider)
         .forParser((e) => e.displayName(str));
     try {
-      final items = await ExpenseParser().parseReceipt(
+      final items = await ref.read(receiptParserProvider).parseReceipt(
         widget.bytes,
         mediaType: widget.mediaType,
         envelopes: envelopes,
@@ -123,10 +201,22 @@ class _ReceiptSheetState extends ConsumerState<_ReceiptSheet> {
       if (!mounted) return;
       setState(() {
         _items = items;
-        _failed = items.isEmpty;
+        // Boş liste = AI fotoğrafta toplam bulamadı (fiş değil / bulanık):
+        // bu kullanıcının düzeltebileceği bir şey, öyle söylenir.
+        _error = items.isEmpty ? rs.scanNoTotal : null;
+        _errorIsExternal = false;
       });
-    } catch (_) {
-      if (mounted) setState(() => _failed = true);
+    } catch (e) {
+      // Hak bitti / ağ yok / giriş yok — hepsi "fiş okunamadı" DEĞİL.
+      // Özellikle hak bittiğinde kullanıcı fişi tekrar tekrar çekmesin.
+      if (!mounted) return;
+      setState(() {
+        _items = const [];
+        _error = receiptErrorMessage(rs, e, str.localeCode);
+        _errorIsExternal = e is AiLimitReached ||
+            e is AiNetworkError ||
+            e is AiUnavailable;
+      });
     }
   }
 
@@ -179,7 +269,7 @@ class _ReceiptSheetState extends ConsumerState<_ReceiptSheet> {
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: _items == null && !_failed
+                child: _items == null && _error == null
                     ? Row(
                         children: [
                           const SizedBox.square(
@@ -196,8 +286,12 @@ class _ReceiptSheetState extends ConsumerState<_ReceiptSheet> {
                         ],
                       )
                     : Text(
-                        _failed ? rs.scanFailed : '',
-                        style: const TextStyle(fontSize: 15, color: Ex.red),
+                        _error ?? '',
+                        style: TextStyle(
+                          fontSize: 15,
+                          height: 1.35,
+                          color: _errorIsExternal ? Ex.amber : Ex.red,
+                        ),
                       ),
               ),
             ],

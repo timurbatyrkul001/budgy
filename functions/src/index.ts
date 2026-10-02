@@ -52,7 +52,8 @@ initializeApp();
 const anthropicApiKey = defineSecret("ANTHROPIC_API_KEY");
 
 /** İstemci tarafındaki FirebaseFunctions.instanceFor(region:) ile aynı olmalı. */
-export const REGION = "europe-west1";
+export { REGION } from "./region";
+import { REGION } from "./region";
 
 /** İstemcinin gönderdiği araç tanımı; Anthropic'in `Tool` tipine eşlenir. */
 interface ToolSpec {
@@ -295,3 +296,9 @@ function mapError(err: unknown, op: AiOp): HttpsError {
   logger.error("aiCall: beklenmeyen hata", { op, err: String(err) });
   return new HttpsError("internal", "Beklenmeyen hata.");
 }
+
+/**
+ * Hesap silindiğinde `users/{uid}` ağacını tamamen temizleyen tetikleyici.
+ * İstemcinin silemediği `usage` ve `entitlements` burada gidiyor.
+ */
+export { onUserDeleted } from "./account";

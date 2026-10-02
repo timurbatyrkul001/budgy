@@ -204,9 +204,5 @@ Map<String?, List<Envelope>> groupBySection(Iterable<Envelope> envelopes) {
   return m;
 }
 
-/// Her katalog anahtarının bir görseli olduğunu garanti eden yardımcı
-/// (testler için).
-Iterable<String> visualKeys() => _visuals.keys;
-
 bool hasVisualForAllCatalogItems() => kCategoryCatalog
     .every((s) => s.items.every((i) => _visuals.containsKey(i.key)));

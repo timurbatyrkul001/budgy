@@ -1,5 +1,4 @@
 import '../../core/currency_catalog.dart';
-import '../../core/formatters.dart';
 import '../../core/fx.dart';
 
 /// Döviz çeviricinin saf mantığı: çevrim, satır sınırları, yıldız sınırı,
@@ -122,6 +121,3 @@ List<PickerSection> pickerSections({
     for (final e in byLetter.entries) PickerSection(e.key, e.value),
   ];
 }
-
-/// Cüzdan/bakiye seti ile katalog ayrımı: sembol yalnız küçük sette var.
-String symbolOrCode(String code) => kCurrencies[code] ?? code;

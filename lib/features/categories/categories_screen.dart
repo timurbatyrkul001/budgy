@@ -20,8 +20,10 @@ final expenseCategoriesProvider = Provider<List<Envelope>>((ref) {
 });
 
 /// Aktif harcama kategorisi sayısı (ayarlar merkezindeki rozet).
-final categoryCountProvider = Provider<int>((ref) =>
-    ref.watch(expenseCategoriesProvider).where((e) => !e.archived).length);
+final categoryCountProvider = Provider<int>(
+  (ref) =>
+      ref.watch(expenseCategoriesProvider).where((e) => !e.archived).length,
+);
 
 /// Kategoriler: katalog bölümleri altında kullanıcının zarfları (var olanlar
 /// tam, eklenmemiş katalog maddeleri soluk — dokununca eklenir), "Kendi
@@ -37,6 +39,30 @@ class CategoriesScreen extends ConsumerStatefulWidget {
 class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
   String _query = '';
 
+  /// Arama sonucunda ekranda GÖRÜNECEK tek bir satır var mı?
+  ///
+  /// Üç kaynağın üçüne de bakmak şart: kullanıcının kendi kategorileri,
+  /// katalog bölümleri (hem eklenmiş hem eklenmemiş maddeler) ve arşiv.
+  /// Biri bile eşleşiyorsa liste boş değildir.
+  bool _hasMatch(
+    Strings str,
+    List<Envelope> custom,
+    List<Envelope> archived,
+    Map<String?, List<Envelope>> grouped,
+  ) {
+    if (custom.any((e) => _match(e.displayName(str)))) return true;
+    if (archived.any((e) => _match(e.displayName(str)))) return true;
+    for (final section in kCategoryCatalog) {
+      if (section.items.any((i) => _match(i.name(str.localeCode)))) return true;
+      if ((grouped[section.key] ?? const <Envelope>[]).any(
+        (e) => _match(e.displayName(str)),
+      )) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   bool _match(String name) =>
       _query.isEmpty || name.toLowerCase().contains(_query.toLowerCase());
 
@@ -46,7 +72,9 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
     await guardWrite(
       context,
       str,
-      () => ref.read(budgetRepositoryProvider).addPresetEnvelope(
+      () => ref
+          .read(budgetRepositoryProvider)
+          .addPresetEnvelope(
             key: item.key,
             name: item.name(str.localeCode),
             emoji: item.emoji,
@@ -71,7 +99,9 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
               onTap: () => Navigator.of(context).pop('edit'),
             ),
             _ActionRow(
-              icon: e.archived ? Icons.unarchive_rounded : Icons.archive_rounded,
+              icon: e.archived
+                  ? Icons.unarchive_rounded
+                  : Icons.archive_rounded,
               label: e.archived ? rs.unarchive : rs.archive,
               onTap: () => Navigator.of(context).pop('archive'),
             ),
@@ -91,29 +121,43 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
       case 'edit':
         await showEditEnvelopeSheet(context, e);
       case 'archive':
-        await guardWrite(context, str, () => repo.setArchived(e.id, !e.archived),
-            reason: 'archiveCategory');
+        await guardWrite(
+          context,
+          str,
+          () => repo.setArchived(e.id, !e.archived),
+          reason: 'archiveCategory',
+        );
       case 'delete':
         final ok = await showDialog<bool>(
           context: context,
           builder: (ctx) => AlertDialog(
             backgroundColor: Ex.surface,
             title: Text(str.deleteWord),
-            content: Text(tpl(rs.deleteCategoryTpl, {'name': e.displayName(str)})),
+            content: Text(
+              tpl(rs.deleteCategoryTpl, {'name': e.displayName(str)}),
+            ),
             actions: [
               TextButton(
-                  onPressed: () => Navigator.of(ctx).pop(false),
-                  child: Text(str.cancel)),
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: Text(str.cancel),
+              ),
               TextButton(
-                  onPressed: () => Navigator.of(ctx).pop(true),
-                  child: Text(str.deleteWord,
-                      style: const TextStyle(color: Ex.red))),
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: Text(
+                  str.deleteWord,
+                  style: const TextStyle(color: Ex.red),
+                ),
+              ),
             ],
           ),
         );
         if (ok == true && mounted) {
-          await guardWrite(context, str, () => repo.deleteEnvelope(e.id),
-              reason: 'deleteCategory');
+          await guardWrite(
+            context,
+            str,
+            () => repo.deleteEnvelope(e.id),
+            reason: 'deleteCategory',
+          );
         }
     }
   }
@@ -125,7 +169,10 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
     final all = ref.watch(expenseCategoriesProvider);
     final active = all.where((e) => !e.archived).toList();
     final archived = all.where((e) => e.archived).toList();
-    final byKey = {for (final e in active) if (e.presetKey != null) e.presetKey!: e};
+    final byKey = {
+      for (final e in active)
+        if (e.presetKey != null) e.presetKey!: e,
+    };
     final catalogKeys = {
       for (final s in kCategoryCatalog)
         for (final i in s.items) i.key,
@@ -133,7 +180,10 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
     // Bölümüne göre: kullanıcı kategorileri (katalog dışı) seçtiği bölümün
     // kartında, bölümsüzler "Kendi kategorilerin"de.
     final grouped = groupBySection(
-        active.where((e) => e.presetKey == null || !catalogKeys.contains(e.presetKey)));
+      active.where(
+        (e) => e.presetKey == null || !catalogKeys.contains(e.presetKey),
+      ),
+    );
     final custom = grouped[null] ?? const <Envelope>[];
     final total = ref.watch(envelopesProvider).value?.length ?? 0;
 
@@ -151,12 +201,15 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.only(bottom: 12),
-                      child: Text(rs.categories,
-                          style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.7,
-                              color: Ex.text)),
+                      child: Text(
+                        rs.categories,
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.7,
+                          color: Ex.text,
+                        ),
+                      ),
                     ),
                   ),
                   Padding(
@@ -176,7 +229,10 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                 style: const TextStyle(color: Ex.text),
                 decoration: InputDecoration(
                   hintText: rs.searchCategory,
-                  prefixIcon: const Icon(Icons.search_rounded, color: Ex.textMuted),
+                  prefixIcon: const Icon(
+                    Icons.search_rounded,
+                    color: Ex.textMuted,
+                  ),
                 ),
               ),
             ),
@@ -184,7 +240,29 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
                 children: [
-                  if (custom.where((e) => _match(e.displayName(str))).isNotEmpty)
+                  // Arama hiçbir şey bulamazsa her bölüm ayrı ayrı gizleniyor
+                  // ve geriye BOMBOŞ bir liste kalıyordu: kullanıcı yazdığı
+                  // kelimenin mi yanlış olduğunu, ekranın mı bozulduğunu
+                  // anlamıyordu. Tek satır da olsa bir şey yazmalı.
+                  if (_query.isNotEmpty &&
+                      !_hasMatch(str, custom, archived, grouped))
+                    Padding(
+                      padding: const EdgeInsets.only(top: 40),
+                      child: Center(
+                        child: Text(
+                          rs.searchNoMatch,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            height: 1.4,
+                            color: Ex.textMuted,
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (custom
+                      .where((e) => _match(e.displayName(str)))
+                      .isNotEmpty)
                     _Section(
                       title: rs.yourCategories,
                       children: [
@@ -199,13 +277,17 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                       ],
                     ),
                   for (final section in kCategoryCatalog)
-                    if (section.items.any((i) => _match(i.name(str.localeCode))) ||
-                        (grouped[section.key] ?? const [])
-                            .any((e) => _match(e.displayName(str))))
+                    if (section.items.any(
+                          (i) => _match(i.name(str.localeCode)),
+                        ) ||
+                        (grouped[section.key] ?? const []).any(
+                          (e) => _match(e.displayName(str)),
+                        ))
                       _Section(
                         title: section.title(str.localeCode),
                         children: [
-                          for (final e in grouped[section.key] ?? const <Envelope>[])
+                          for (final e
+                              in grouped[section.key] ?? const <Envelope>[])
                             if (_match(e.displayName(str)))
                               _CategoryRow(
                                 envelope: e,
@@ -217,22 +299,25 @@ class _CategoriesScreenState extends ConsumerState<CategoriesScreen> {
                             if (_match(i.name(str.localeCode)))
                               switch (byKey[i.key]) {
                                 final e? => _CategoryRow(
-                                    envelope: e,
-                                    name: e.displayName(str),
-                                    onTap: () => showEditEnvelopeSheet(context, e),
-                                    onLongPress: () => _actions(e),
-                                  ),
+                                  envelope: e,
+                                  name: e.displayName(str),
+                                  onTap: () =>
+                                      showEditEnvelopeSheet(context, e),
+                                  onLongPress: () => _actions(e),
+                                ),
                                 null => _CategoryRow(
-                                    catalogKey: i.key,
-                                    name: i.name(str.localeCode),
-                                    muted: true,
-                                    hint: rs.tapToAdd,
-                                    onTap: () => _addFromCatalog(i),
-                                  ),
+                                  catalogKey: i.key,
+                                  name: i.name(str.localeCode),
+                                  muted: true,
+                                  hint: rs.tapToAdd,
+                                  onTap: () => _addFromCatalog(i),
+                                ),
                               },
                         ],
                       ),
-                  if (archived.where((e) => _match(e.displayName(str))).isNotEmpty)
+                  if (archived
+                      .where((e) => _match(e.displayName(str)))
+                      .isNotEmpty)
                     _Section(
                       title: rs.archived,
                       children: [
@@ -272,9 +357,14 @@ class _Section extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(2, 0, 2, 8),
-            child: Text(title,
-                style: const TextStyle(
-                    fontSize: 13, fontWeight: FontWeight.w700, color: Ex.textMuted)),
+            child: Text(
+              title,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Ex.textMuted,
+              ),
+            ),
           ),
           ExCard(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
@@ -322,29 +412,46 @@ class _CategoryRow extends StatelessWidget {
         child: Row(
           children: [
             CategoryAvatar(
-                envelope: envelope, catalogKey: catalogKey, size: 36, muted: muted),
+              envelope: envelope,
+              catalogKey: catalogKey,
+              size: 36,
+              muted: muted,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(name,
+                  Text(
+                    name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: muted ? Ex.textMuted : Ex.text,
+                    ),
+                  ),
+                  if (hint != null)
+                    Text(
+                      hint!,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600,
-                          color: muted ? Ex.textMuted : Ex.text)),
-                  if (hint != null)
-                    Text(hint!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 11.5, color: Ex.textFaint)),
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        color: Ex.textFaint,
+                      ),
+                    ),
                 ],
               ),
             ),
-            Icon(muted && hint != null ? Icons.add_rounded : Icons.chevron_right_rounded,
-                size: 20, color: muted && hint != null ? Ex.mint : Ex.textMuted),
+            Icon(
+              muted && hint != null
+                  ? Icons.add_rounded
+                  : Icons.chevron_right_rounded,
+              size: 20,
+              color: muted && hint != null ? Ex.mint : Ex.textMuted,
+            ),
           ],
         ),
       ),
@@ -377,11 +484,14 @@ class _ActionRow extends StatelessWidget {
             Icon(icon, size: 20, color: danger ? Ex.red : Ex.mint),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(label,
-                  style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                      color: danger ? Ex.red : Ex.text)),
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: danger ? Ex.red : Ex.text,
+                ),
+              ),
             ),
           ],
         ),

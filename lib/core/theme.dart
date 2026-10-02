@@ -130,5 +130,3 @@ ThemeData _build(BudgyColors c, Brightness brightness) {
 /// olmalı, yoksa Material'in kendi parçaları (takvim, menü, metin seçme)
 /// koyu çizilip açık zeminde okunmaz oluyor.
 ThemeData buildTheme() => _build(BudgyColors.dark, Brightness.light);
-
-ThemeData buildDarkTheme() => buildTheme();

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:speech_to_text/speech_to_text.dart';
@@ -15,6 +16,89 @@ import '../envelopes/envelope_l10n.dart';
 import '../settings/app_settings.dart';
 import '../settings/category_resolver.dart';
 import 'quick_entry_screen.dart';
+
+/// Sesli girişin cihaz katmanı. Gerçekte speech_to_text ([_SpeechVoiceInput]),
+/// testte sahte — izin reddi, ağ hatası gibi hâller ancak böyle sınanıyor.
+abstract class VoiceInput {
+  /// Tanıyıcıyı hazırlar. false = izin yok YA DA cihaz desteklemiyor;
+  /// hangisi olduğunu [hasPermission] söyler.
+  Future<bool> initialize({
+    required void Function(String status) onStatus,
+    required void Function(String errorCode) onError,
+  });
+
+  /// Mikrofon (iOS'ta ayrıca konuşma tanıma) izni verilmiş mi — sormaz.
+  Future<bool> get hasPermission;
+
+  Future<void> listen({
+    required String localeId,
+    required void Function(String words) onResult,
+  });
+
+  Future<void> stop();
+}
+
+class _SpeechVoiceInput implements VoiceInput {
+  final _speech = SpeechToText();
+
+  @override
+  Future<bool> initialize({
+    required void Function(String status) onStatus,
+    required void Function(String errorCode) onError,
+  }) => _speech.initialize(
+    onStatus: onStatus,
+    onError: (e) => onError(e.errorMsg),
+  );
+
+  @override
+  Future<bool> get hasPermission => _speech.hasPermission;
+
+  @override
+  Future<void> listen({
+    required String localeId,
+    required void Function(String words) onResult,
+  }) => _speech.listen(
+    listenOptions: SpeechListenOptions(
+      partialResults: true,
+      localeId: localeId,
+    ),
+    onResult: (result) => onResult(result.recognizedWords),
+  );
+
+  @override
+  Future<void> stop() => _speech.stop();
+}
+
+/// Sesli giriş katmanı — testte sahte ile değiştirilir.
+final voiceInputProvider = Provider<VoiceInput>((_) => _SpeechVoiceInput());
+
+/// Tanıma sırasındaki hatayı insan diline çevirir; null = gösterme.
+/// Kodlar speech_to_text'in kendi kodları (Android SpeechRecognizer +
+/// iOS SFSpeechRecognizer eşlemeleri). Hiçbir şey duyulmadıysa ama metin
+/// zaten varsa ("kahve 90" dedi, sonra sustu) söylenecek bir şey yok —
+/// metin normal yoldan çözümlenir.
+String? voiceErrorMessage(
+  Strings str,
+  String code, {
+  required bool hasText,
+  TargetPlatform? platform,
+}) {
+  final android = (platform ?? defaultTargetPlatform) == TargetPlatform.android;
+  return switch (code) {
+    'error_no_match' ||
+    'error_speech_timeout' => hasText ? null : str.aiVoiceNothingHeard,
+    'error_permission' || 'error_speech_recognizer_request_not_authorized' =>
+      android ? str.aiVoicePermissionAndroid : str.aiVoicePermission,
+    'error_network' ||
+    'error_network_timeout' ||
+    'error_server' ||
+    'error_server_disconnected' => str.aiVoiceNetwork,
+    'error_language_not_supported' ||
+    'error_language_unavailable' => str.aiVoiceLanguage,
+    'error_request_cancelled' => null,
+    _ => str.aiVoiceFailed,
+  };
+}
 
 /// AI hızlı giriş: yaz ya da SÖYLE — "kahve 90, market 450" → hazır
 /// işlemler. Sıkıcı kısmı (form doldurmayı) ortadan kaldıran ana akış;
@@ -41,12 +125,18 @@ class _AiAddSheet extends ConsumerStatefulWidget {
 class _AiAddSheetState extends ConsumerState<_AiAddSheet> {
   final _controller = TextEditingController();
   final _parser = ExpenseParser();
-  final _speech = SpeechToText();
+  late final VoiceInput _speech;
 
   List<ParsedItem> _items = const [];
   bool _parsing = false;
   bool _saving = false;
   bool _listening = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _speech = ref.read(voiceInputProvider);
+  }
 
   @override
   void dispose() {
@@ -76,12 +166,35 @@ class _AiAddSheetState extends ConsumerState<_AiAddSheet> {
           }
         }
       },
-      onError: (_) {
-        if (mounted) setState(() => _listening = false);
+      onError: (code) {
+        // Eskiden sessizce sıfırlanıyordu: kullanıcı mikrofonun neden
+        // söndüğünü bilmiyordu. Şimdi sebep söylenir; alınan metin varsa
+        // yine de çözümlenir, boşa gitmesin.
+        if (!mounted) return;
+        // Durum 'done' önce geldiyse metin zaten çözümlendi; ikinci kez
+        // çözümleme (ikinci AI çağrısı) olmasın.
+        final wasListening = _listening;
+        setState(() => _listening = false);
+        final hasText = _controller.text.trim().isNotEmpty;
+        final msg = voiceErrorMessage(str, code, hasText: hasText);
+        if (msg != null) showErrorSnack(context, msg);
+        if (wasListening && hasText) _parse();
       },
     );
     if (!available) {
-      if (mounted) showErrorSnack(context, str.aiVoiceUnavailable);
+      // "Bu cihazda kullanılamıyor" yalnız gerçekten öyleyse söylenir.
+      // Çoğu zaman sebep izin reddidir — cihaz sağlam, ayara gitmeli.
+      final hasPermission = await _speech.hasPermission;
+      if (!mounted) return;
+      final android = defaultTargetPlatform == TargetPlatform.android;
+      showErrorSnack(
+        context,
+        hasPermission
+            ? str.aiVoiceUnavailable
+            : android
+            ? str.aiVoicePermissionAndroid
+            : str.aiVoicePermission,
+      );
       return;
     }
     setState(() => _listening = true);
@@ -90,12 +203,9 @@ class _AiAddSheetState extends ConsumerState<_AiAddSheet> {
         ref.read(voiceLocaleProvider) ??
         voiceLocaleFor(ref.read(strProvider).localeCode);
     await _speech.listen(
-      listenOptions: SpeechListenOptions(
-        partialResults: true,
-        localeId: localeId,
-      ),
-      onResult: (result) {
-        _controller.text = result.recognizedWords;
+      localeId: localeId,
+      onResult: (words) {
+        _controller.text = words;
       },
     );
   }

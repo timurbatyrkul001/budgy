@@ -380,6 +380,12 @@ class Strings {
     required this.aiSaveAllTpl,
     required this.aiNothingFound,
     required this.aiVoiceUnavailable,
+    required this.aiVoicePermission,
+    required this.aiVoicePermissionAndroid,
+    required this.aiVoiceNothingHeard,
+    required this.aiVoiceNetwork,
+    required this.aiVoiceLanguage,
+    required this.aiVoiceFailed,
     required this.notifTitle,
     required this.notifHeroBody,
     required this.notifSectionSystem,
@@ -738,6 +744,12 @@ class Strings {
   final String aiSaveAllTpl;
   final String aiNothingFound;
   final String aiVoiceUnavailable;
+  final String aiVoicePermission;
+  final String aiVoicePermissionAndroid;
+  final String aiVoiceNothingHeard;
+  final String aiVoiceNetwork;
+  final String aiVoiceLanguage;
+  final String aiVoiceFailed;
 
   /// Bildirim tercihleri ekranı (ayarlar › Bildirimler).
   final String notifTitle;
@@ -1130,6 +1142,17 @@ class Strings {
     aiSaveAllTpl: 'Save {n} transactions',
     aiNothingFound: "Couldn't find an amount — try rephrasing.",
     aiVoiceUnavailable: 'Voice input is unavailable on this device.',
+    aiVoicePermission:
+        'Budgy doesn’t have access to the microphone. Allow it in Settings → Budgy → Microphone and Speech Recognition, then try again.',
+    aiVoicePermissionAndroid:
+        'Budgy doesn’t have access to the microphone. Allow it in Settings → Apps → Budgy → Permissions → Microphone, then try again.',
+    aiVoiceNothingHeard:
+        'Didn’t catch anything. Tap the microphone and speak a bit closer to the phone.',
+    aiVoiceNetwork:
+        'Speech recognition needs internet right now. Check your connection and try again — or just type it.',
+    aiVoiceLanguage:
+        'Voice input isn’t available in this language on this device. Pick another one in Settings → Voice input language, or just type it.',
+    aiVoiceFailed: 'Voice input stopped. Try again — or just type it.',
     notifTitle: 'Notifications',
     notifHeroBody: 'Choose which reminders reach you. Everything is scheduled '
         'on this device — nothing is sent from a server.',
@@ -1523,6 +1546,17 @@ class Strings {
     aiSaveAllTpl: '{n} işlemi kaydet',
     aiNothingFound: 'Tutar bulamadım — biraz farklı yazmayı dene.',
     aiVoiceUnavailable: 'Bu cihazda sesli giriş kullanılamıyor.',
+    aiVoicePermission:
+        'Budgy’nin mikrofona erişim izni yok. Ayarlar → Budgy → Mikrofon ve Konuşma Tanıma’dan izin ver, sonra tekrar dene.',
+    aiVoicePermissionAndroid:
+        'Budgy’nin mikrofona erişim izni yok. Ayarlar → Uygulamalar → Budgy → İzinler → Mikrofon’dan izin ver, sonra tekrar dene.',
+    aiVoiceNothingHeard:
+        'Hiçbir şey duyamadım. Mikrofona dokunup telefona biraz daha yakın konuş.',
+    aiVoiceNetwork:
+        'Konuşma tanıma şu an internet istiyor. Bağlantını kontrol edip tekrar dene — ya da yazıver.',
+    aiVoiceLanguage:
+        'Bu dilde sesli giriş bu cihazda yok. Ayarlar → Sesli giriş dili’nden başka bir dil seç ya da yazıver.',
+    aiVoiceFailed: 'Sesli giriş durdu. Tekrar dene — ya da yazıver.',
     notifTitle: 'Bildirimler',
     notifHeroBody: 'Hangi hatırlatmaların geleceğini buradan seç. Her şey bu '
         'cihazda planlanır — sunucudan bir şey gönderilmez.',
@@ -1916,6 +1950,17 @@ class Strings {
     aiSaveAllTpl: 'Сохранить {n} операций',
     aiNothingFound: 'Не нашёл сумму — попробуй сказать иначе.',
     aiVoiceUnavailable: 'Голосовой ввод недоступен на этом устройстве.',
+    aiVoicePermission:
+        'У Budgy нет доступа к микрофону. Разреши его в Настройки → Budgy → Микрофон и Распознавание речи, потом попробуй снова.',
+    aiVoicePermissionAndroid:
+        'У Budgy нет доступа к микрофону. Разреши его в Настройки → Приложения → Budgy → Разрешения → Микрофон, потом попробуй снова.',
+    aiVoiceNothingHeard:
+        'Ничего не расслышал. Нажми на микрофон и скажи чуть ближе к телефону.',
+    aiVoiceNetwork:
+        'Распознаванию речи сейчас нужен интернет. Проверь соединение и попробуй снова — или просто напиши.',
+    aiVoiceLanguage:
+        'Голосовой ввод на этом языке на устройстве недоступен. Выбери другой в Настройки → Язык голосового ввода — или просто напиши.',
+    aiVoiceFailed: 'Голосовой ввод прервался. Попробуй ещё раз — или просто напиши.',
     notifTitle: 'Уведомления',
     notifHeroBody: 'Выбери, какие напоминания приходить. Всё планируется на '
         'этом устройстве — с сервера ничего не отправляется.',

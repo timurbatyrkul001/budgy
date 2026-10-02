@@ -86,36 +86,6 @@ class ExBackground extends StatelessWidget {
       ColoredBox(color: Ex.bg, child: child);
 }
 
-/// Onboarding ilerlemesi: ince, 3 parçalı çubuk (dolu = nane).
-class StepBar extends StatelessWidget {
-  const StepBar({super.key, required this.count, required this.index});
-
-  final int count;
-  final int index;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        for (var i = 0; i < count; i++) ...[
-          if (i > 0) const SizedBox(width: 6),
-          Expanded(
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 260),
-              curve: Curves.easeOutCubic,
-              height: 4,
-              decoration: BoxDecoration(
-                color: i <= index ? Ex.mint : Colors.white12,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
 BoxDecoration _glass(double radius) => BoxDecoration(
       color: Ex.glassFill,
       borderRadius: BorderRadius.circular(radius),
@@ -128,25 +98,39 @@ class GlassSquareButton extends StatelessWidget {
     super.key,
     required this.icon,
     required this.onTap,
+    this.label,
     this.size = 40,
     this.iconSize = 21,
   });
 
   final IconData icon;
   final VoidCallback onTap;
+
+  /// Ekran okuyucunun söyleyeceği ad ("Ara", "Filtre", "Kapat"...).
+  ///
+  /// İkonun kendisi hiçbir şey söylemez: VoiceOver kullanan biri için
+  /// etiketsiz bir ikon düğmesi sessiz bir kutudur. Verilmezse düğme yine
+  /// "düğme" olarak duyurulur ama adsız kalır — bu yüzden yeni her
+  /// kullanımda doldurulmalı.
+  final String? label;
+
   final double size;
   final double iconSize;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Container(
-        width: size,
-        height: size,
-        decoration: _glass(Ex.iconRadius),
-        child: Icon(icon, color: Ex.text, size: iconSize),
+    return Semantics(
+      button: true,
+      label: label,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          width: size,
+          height: size,
+          decoration: _glass(Ex.iconRadius),
+          child: Icon(icon, color: Ex.text, size: iconSize),
+        ),
       ),
     );
   }
@@ -364,6 +348,9 @@ class SheetFrame extends StatelessWidget {
               ),
               IconButton(
                 onPressed: () => Navigator.of(context).pop(),
+                // Yirmiden fazla alt sayfanın kapatma düğmesi burası.
+                // Adı sistemden geliyor; ipucu olarak da görünüyor.
+                tooltip: MaterialLocalizations.of(context).closeButtonTooltip,
                 style: IconButton.styleFrom(
                   backgroundColor: Ex.surfaceHi,
                   shape: RoundedRectangleBorder(
@@ -411,6 +398,10 @@ class ExBackButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return GlassSquareButton(
       icon: Icons.arrow_back_rounded,
+      // Adı Flutter'ın kendi sözlüğünden: uygulamanın üç dilinde de
+      // doğru ("Geri" / "Back" / "Назад") ve bizim sözlüğümüze yeni bir
+      // satır eklemeye gerek yok.
+      label: MaterialLocalizations.of(context).backButtonTooltip,
       size: 40,
       iconSize: 22,
       onTap: onTap ?? () => Navigator.of(context).maybePop(),
@@ -439,10 +430,16 @@ class BudgyBackButton extends StatelessWidget {
           child: InkWell(
             borderRadius: BorderRadius.circular(Ex.iconRadius),
             onTap: () => Navigator.of(context).maybePop(),
-            child: const SizedBox(
-              width: 40,
-              height: 40,
-              child: Icon(Icons.arrow_back_rounded, size: 22, color: Ex.text),
+            // InkWell "düğme" olduğunu kendisi söylüyor ama adını değil:
+            // ekran okuyucuda adsız bir düğme çıkıyordu. Ad sistemden —
+            // on beş ekranda tek seferde düzeliyor.
+            child: Semantics(
+              label: MaterialLocalizations.of(context).backButtonTooltip,
+              child: const SizedBox(
+                width: 40,
+                height: 40,
+                child: Icon(Icons.arrow_back_rounded, size: 22, color: Ex.text),
+              ),
             ),
           ),
         ),

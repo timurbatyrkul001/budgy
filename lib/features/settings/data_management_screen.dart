@@ -15,6 +15,12 @@ import '../envelopes/envelope_l10n.dart';
 import '../home/fx_providers.dart';
 import '../transactions/tx.dart';
 
+/// `journalFullProvider`'ın tavanı (budget_repository.dart,
+/// `watchTransactions(limit: 1000)`). Dışa aktarma o listeden beslendiği
+/// için dosya da en fazla bu kadar işlem taşır; liste tavana dayandıysa
+/// kullanıcıya dürüstçe söylenir — "tüm verim" sanıp eksik dosya almasın.
+const kCsvExportLimit = 1000;
+
 /// Veri yönetimi: CSV dışa aktarma (paylaş) ve "Tüm verileri sil"
 /// (çift onay → deleteAccountData; hesap kalır).
 class DataManagementScreen extends ConsumerStatefulWidget {
@@ -103,6 +109,11 @@ class _DataManagementScreenState extends ConsumerState<DataManagementScreen> {
   @override
   Widget build(BuildContext context) {
     final rs = ref.watch(rsProvider);
+    // Liste tavana dayandıysa daha eski işlemler yüklenmemiştir — dosya da
+    // onları içermez. Tam 1000 işlemi olan için uyarı gereksizdir ama
+    // zararsız; eksik dosyayı sessizce vermekten iyidir.
+    final txCount = ref.watch(journalFullProvider).value?.length ?? 0;
+    final truncated = txCount >= kCsvExportLimit;
     return Scaffold(
       backgroundColor: Ex.bg,
       body: SafeArea(
@@ -143,6 +154,18 @@ class _DataManagementScreenState extends ConsumerState<DataManagementScreen> {
                         Text(rs.exportCsvHint,
                             style: const TextStyle(
                                 fontSize: 12.5, height: 1.35, color: Ex.textMuted)),
+                        if (truncated) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            tpl(rs.exportCsvLimitTpl, {'n': '$kCsvExportLimit'}),
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              height: 1.35,
+                              fontWeight: FontWeight.w600,
+                              color: Ex.amber,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),

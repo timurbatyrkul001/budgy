@@ -83,7 +83,13 @@ final currencyProvider = StreamProvider<String>((ref) {
   return ref.watch(budgetRepositoryProvider).watchCurrency();
 });
 
-/// Seçili tema modu (Ayarlar → Görünüm). Girişten önce sistem.
+/// Seçili tema modu (onboarding'de "dünya" seçimiyle kaydedilir). Girişten
+/// önce sistem.
+///
+/// ŞİMDİLİK OKUNMUYOR: [KopilkaApp] tek temayla (afiş kâğıdı, açık) çalışır,
+/// `themeMode: ThemeMode.light` sabit. Seçim yine de [setThemeMode] ile
+/// Firestore'a yazılır; gerçek açık/koyu tema geldiğinde bu sağlayıcı
+/// MaterialApp'e bağlanacak. Bu yüzden SİLME — bilinçli olarak bekliyor.
 final themeModeProvider = StreamProvider<ThemeMode>((ref) {
   final user = ref.watch(authStateProvider).value;
   if (user == null) return Stream.value(ThemeMode.system);
@@ -125,7 +131,7 @@ final profileProvider = StreamProvider<Map<String, dynamic>>((ref) {
 
 /// Журнал: последние операции, новые сверху. Ana ekrandaki "son işlemler"
 /// için — kısa liste. Hesaplamalarda KULLANMA: [limit] yüzünden eksik olur,
-/// bunun yerine tarih aralıklı [recentTxsProvider] / [monthTxsProvider].
+/// bunun yerine tarih aralıklı [recentTxsProvider].
 final journalProvider = StreamProvider<List<Tx>>((ref) {
   return ref.watch(budgetRepositoryProvider).watchTransactions();
 });
@@ -150,14 +156,6 @@ final recurringMaterializerProvider = FutureProvider<int>((ref) {
 /// Geçmiş ekranı (arama + filtre) için daha geniş pencere.
 final journalFullProvider = StreamProvider<List<Tx>>((ref) {
   return ref.watch(budgetRepositoryProvider).watchTransactions(limit: 1000);
-});
-
-/// Belirli bir ayın işlemleri. Anahtar '2026-06' biçiminde.
-final monthTxsProvider =
-    StreamProvider.family<List<Tx>, String>((ref, monthKey) {
-  final start = DateTime.parse('$monthKey-01');
-  final end = DateTime(start.year, start.month + 1);
-  return ref.watch(budgetRepositoryProvider).watchTxsBetween(start, end);
 });
 
 /// Son 6 ayın işlemleri — tüm ay bazlı hesapların TEK kaynağı.
@@ -366,6 +364,9 @@ class BudgetRepository {
         (doc) => _themeModeFromCode(doc.data()?['themeMode'] as String?),
       );
 
+  /// Onboarding'deki dünya seçimini kaydeder. Uygulama bugün bu değeri
+  /// uygulamıyor ([themeModeProvider] notuna bak) ama kullanıcının tercihi
+  /// kaybolmasın diye yazılmaya devam eder.
   Future<void> setThemeMode(ThemeMode mode) =>
       _settings.set({'themeMode': mode.name}, SetOptions(merge: true));
 

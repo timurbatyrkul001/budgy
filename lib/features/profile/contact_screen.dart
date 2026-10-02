@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/l10n.dart';
 import '../../core/tokens.dart';
+import '../settings/settings_hub.dart';
 import 'help_screen.dart';
 import 'privacy_policy_screen.dart';
 
@@ -146,8 +147,14 @@ class ContactScreen extends ConsumerWidget {
                   ),
                   const SizedBox(height: 28),
                   Center(
-                    child: Text('Budgy v1.0',
-                        style: TextStyle(fontSize: 13, color: c.textFaint)),
+                    // Sürüm ELLE yazılmamalı: burada 'Budgy v1.0' sabiti
+                    // vardı, Ayarlar ise gerçek sürümü package_info'dan
+                    // okuyordu. İlk güncellemede iki ekran iki farklı
+                    // sürüm söyleyecekti ve yanılan bu olacaktı.
+                    child: Text(
+                      'Budgy ${ref.watch(appVersionProvider).value ?? ''}',
+                      style: TextStyle(fontSize: 13, color: c.textFaint),
+                    ),
                   ),
                 ],
               ),

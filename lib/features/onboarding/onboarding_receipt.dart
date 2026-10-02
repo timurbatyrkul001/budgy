@@ -382,14 +382,6 @@ class ReceiptPaper extends StatelessWidget {
   }
 }
 
-/// Fiş tipografisi: tek aralıklı font yok, Inter'e harf aralığı ve tabular
-/// rakam verilerek yazarkasa hissi kuruluyor.
-TextStyle receiptTextStyle({
-  double size = 13,
-  Color color = Poster.ink,
-  double spacing = 0.8,
-}) => _receiptStyle(size: size, color: color, spacing: spacing);
-
 /// Fişteki noktalı ayraç.
 class ReceiptRule extends StatelessWidget {
   const ReceiptRule({super.key});

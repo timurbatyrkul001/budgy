@@ -6,7 +6,6 @@ import 'package:kopilka_app/core/l10n.dart';
 import 'package:kopilka_app/features/envelopes/envelope.dart';
 import 'package:kopilka_app/features/envelopes/home_screen.dart';
 import 'package:kopilka_app/features/goals/goals_screen.dart';
-import 'package:kopilka_app/features/savings/savings_screen.dart';
 import 'package:kopilka_app/features/stats/stats_screen.dart';
 import 'package:kopilka_app/features/transactions/journal_screen.dart';
 import 'package:kopilka_app/features/transactions/tx.dart';
@@ -118,7 +117,6 @@ void main() {
     'Hedefler': const GoalsScreen(),
     'İstatistik': const StatsScreen(),
     'Geçmiş': const JournalScreen(),
-    'Birikim': const SavingsScreen(),
   };
 
   // 320dp: iPhone SE (1. nesil) · 360dp: en yaygın Android genişliği.

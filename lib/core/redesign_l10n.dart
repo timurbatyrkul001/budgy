@@ -85,6 +85,15 @@ class RS {
     required this.aiLimitReached,
     required this.aiNetworkError,
     required this.scanFailed,
+    required this.scanNoTotal,
+    required this.cameraDenied,
+    required this.cameraDeniedAndroid,
+    required this.cameraRestricted,
+    required this.cameraUnavailable,
+    required this.photosDenied,
+    required this.photosDeniedAndroid,
+    required this.photosRestricted,
+    required this.aiLimitResetTpl,
     required this.enterAmount,
     required this.saveAllTpl,
     required this.expense,
@@ -113,6 +122,10 @@ class RS {
     required this.recurringTitle,
     required this.recurringEmpty,
     required this.nextTpl,
+    required this.recurringHold,
+    required this.recurringHoldAccountMissing,
+    required this.recurringHoldFxUnavailable,
+    required this.recurringHoldGeneric,
     required this.delete,
     required this.account,
     required this.dateTitle,
@@ -177,6 +190,7 @@ class RS {
     required this.dataManagement,
     required this.exportCsv,
     required this.exportCsvHint,
+    required this.exportCsvLimitTpl,
     required this.deleteAllData,
     required this.deleteAllDataHint,
     required this.deleteAllDataConfirm,
@@ -243,6 +257,7 @@ class RS {
     required this.about,
     required this.versionTpl,
     required this.archived,
+    required this.searchNoMatch,
     required this.archive,
     required this.unarchive,
     required this.deleteCategoryTpl,
@@ -548,6 +563,15 @@ class RS {
   final String aiLimitReached;
   final String aiNetworkError;
   final String scanFailed;
+  final String scanNoTotal;
+  final String cameraDenied;
+  final String cameraDeniedAndroid;
+  final String cameraRestricted;
+  final String cameraUnavailable;
+  final String photosDenied;
+  final String photosDeniedAndroid;
+  final String photosRestricted;
+  final String aiLimitResetTpl;
   final String enterAmount;
   final String saveAllTpl;
   final String expense;
@@ -576,6 +600,10 @@ class RS {
   final String recurringTitle;
   final String recurringEmpty;
   final String nextTpl;
+  final String recurringHold;
+  final String recurringHoldAccountMissing;
+  final String recurringHoldFxUnavailable;
+  final String recurringHoldGeneric;
   final String delete;
   final String account;
   final String dateTitle;
@@ -640,6 +668,7 @@ class RS {
   final String dataManagement;
   final String exportCsv;
   final String exportCsvHint;
+  final String exportCsvLimitTpl;
   final String deleteAllData;
   final String deleteAllDataHint;
   final String deleteAllDataConfirm;
@@ -706,6 +735,9 @@ class RS {
   final String about;
   final String versionTpl;
   final String archived;
+
+  /// Arama hiçbir şey bulamadı — boş liste yerine çıkan metin.
+  final String searchNoMatch;
   final String archive;
   final String unarchive;
   final String deleteCategoryTpl;
@@ -1112,6 +1144,22 @@ class RS {
     aiLimitReached: 'Your AI quota for this month is used up',
     aiNetworkError: 'AI is unreachable right now, try again later',
     scanFailed: 'Couldn’t read the receipt',
+    scanNoTotal:
+        'Couldn’t find a total on this photo. Make sure the whole receipt is in the frame and sharp, then try again.',
+    cameraDenied:
+        'Budgy doesn’t have access to the camera. Allow it in Settings → Budgy → Camera, then try again.',
+    cameraDeniedAndroid:
+        'Budgy doesn’t have access to the camera. Allow it in Settings → Apps → Budgy → Permissions → Camera, then try again.',
+    cameraRestricted:
+        'Camera use is blocked on this device (Screen Time or a device profile). Pick a photo from the library instead.',
+    cameraUnavailable: 'This device has no camera. Pick a photo from the library instead.',
+    photosDenied:
+        'Budgy doesn’t have access to your photos. Allow it in Settings → Budgy → Photos, then try again.',
+    photosDeniedAndroid:
+        'Budgy doesn’t have access to your photos. Allow it in Settings → Apps → Budgy → Permissions → Photos and videos, then try again.',
+    photosRestricted:
+        'Access to photos is blocked on this device (Screen Time or a device profile). Take a photo with the camera instead.',
+    aiLimitResetTpl: 'Your AI quota for this month is used up — it resets on {date}.',
     enterAmount: 'Enter an amount',
     saveAllTpl: 'Save ({n})',
     expense: 'Expense',
@@ -1141,6 +1189,13 @@ class RS {
     recurringEmpty:
         'No recurring transactions yet. Pick "Repeat" when adding one.',
     nextTpl: 'Next: {date}',
+    recurringHold: 'On hold',
+    recurringHoldAccountMissing:
+        'The account for this rule is archived or deleted, so the payment wasn’t recorded. Bring the account back from the archive — or, if it’s gone, delete this rule and set it up again. Missed payments are added at the next launch.',
+    recurringHoldFxUnavailable:
+        'The exchange rate couldn’t be fetched, so the payment wasn’t recorded. Nothing to do on your side: it will be retried the next time you open Budgy with internet.',
+    recurringHoldGeneric:
+        'This payment wasn’t recorded. It will be retried the next time you open Budgy.',
     delete: 'Delete',
     account: 'Account',
     dateTitle: 'Date',
@@ -1208,6 +1263,8 @@ class RS {
     dataManagement: 'Data management',
     exportCsv: 'Export transactions (CSV)',
     exportCsvHint: 'Date, type, amount, currency, category, note, account.',
+    exportCsvLimitTpl:
+        'The file holds at most the latest {n} transactions — anything older is left out.',
     deleteAllData: 'Delete all data',
     deleteAllDataHint:
         'Removes every transaction, category, wallet and setting. Your account stays.',
@@ -1281,6 +1338,7 @@ class RS {
     about: 'About',
     versionTpl: 'Version {v}',
     archived: 'Archived',
+    searchNoMatch: 'Nothing matches that. Try a shorter word.',
     archive: 'Archive',
     unarchive: 'Unarchive',
     deleteCategoryTpl: 'Delete "{name}"? Past transactions keep their history.',
@@ -1614,6 +1672,22 @@ class RS {
     aiLimitReached: 'Bu ayki yapay zekâ hakkın doldu',
     aiNetworkError: 'Yapay zekâya şu an ulaşılamıyor, sonra tekrar dene',
     scanFailed: 'Fiş okunamadı',
+    scanNoTotal:
+        'Bu fotoğrafta toplam tutar bulunamadı. Fişin tamamı karede ve net olsun, sonra tekrar dene.',
+    cameraDenied:
+        'Budgy’nin kameraya erişim izni yok. Ayarlar → Budgy → Kamera’dan izin ver, sonra tekrar dene.',
+    cameraDeniedAndroid:
+        'Budgy’nin kameraya erişim izni yok. Ayarlar → Uygulamalar → Budgy → İzinler → Kamera’dan izin ver, sonra tekrar dene.',
+    cameraRestricted:
+        'Bu cihazda kamera kullanımı engellenmiş (Ekran Süresi ya da cihaz profili). Bunun yerine galeriden fotoğraf seç.',
+    cameraUnavailable: 'Bu cihazda kamera yok. Bunun yerine galeriden fotoğraf seç.',
+    photosDenied:
+        'Budgy’nin fotoğraflarına erişim izni yok. Ayarlar → Budgy → Fotoğraflar’dan izin ver, sonra tekrar dene.',
+    photosDeniedAndroid:
+        'Budgy’nin fotoğraflarına erişim izni yok. Ayarlar → Uygulamalar → Budgy → İzinler → Fotoğraflar ve videolar’dan izin ver, sonra tekrar dene.',
+    photosRestricted:
+        'Bu cihazda fotoğraflara erişim engellenmiş (Ekran Süresi ya da cihaz profili). Bunun yerine kamerayla çek.',
+    aiLimitResetTpl: 'Bu ayki yapay zekâ hakkın doldu — {date} tarihinde yenilenir.',
     enterAmount: 'Bir tutar gir',
     saveAllTpl: 'Kaydet ({n})',
     expense: 'Gider',
@@ -1643,6 +1717,13 @@ class RS {
     recurringEmpty:
         'Henüz tekrarlayan işlem yok. İşlem eklerken "Tekrar"ı seç.',
     nextTpl: 'Sıradaki: {date}',
+    recurringHold: 'Beklemede',
+    recurringHoldAccountMissing:
+        'Bu kuralın hesabı arşivde ya da silinmiş, bu yüzden ödeme yazılmadı. Hesabı arşivden geri getir; silindiyse bu kuralı silip yeniden oluştur. Kaçan ödemeler bir sonraki açılışta eklenir.',
+    recurringHoldFxUnavailable:
+        'Kur alınamadığı için ödeme yazılmadı. Senin yapman gereken bir şey yok: internet varken Budgy’yi bir sonraki açışında tekrar denenir.',
+    recurringHoldGeneric:
+        'Bu ödeme yazılmadı. Budgy’yi bir sonraki açışında tekrar denenir.',
     delete: 'Sil',
     account: 'Hesap',
     dateTitle: 'Tarih',
@@ -1710,6 +1791,8 @@ class RS {
     dataManagement: 'Veri yönetimi',
     exportCsv: 'İşlemleri dışa aktar (CSV)',
     exportCsvHint: 'Tarih, tür, tutar, para birimi, kategori, not, hesap.',
+    exportCsvLimitTpl:
+        'Dosyaya en fazla son {n} işlem girer — daha eskileri dışarıda kalır.',
     deleteAllData: 'Tüm verileri sil',
     deleteAllDataHint:
         'Tüm işlemleri, kategorileri, cüzdanları ve ayarları kaldırır. Hesabın kalır.',
@@ -1781,6 +1864,7 @@ class RS {
     about: 'Hakkında',
     versionTpl: 'Sürüm {v}',
     archived: 'Arşiv',
+    searchNoMatch: 'Eşleşen bir şey yok. Daha kısa bir kelime dene.',
     archive: 'Arşivle',
     unarchive: 'Arşivden çıkar',
     deleteCategoryTpl: '"{name}" silinsin mi? Geçmiş işlemler kayıtta kalır.',
@@ -2114,6 +2198,22 @@ class RS {
     aiLimitReached: 'Лимит ИИ на этот месяц исчерпан',
     aiNetworkError: 'ИИ сейчас недоступен, попробуй позже',
     scanFailed: 'Не удалось прочитать чек',
+    scanNoTotal:
+        'На этом фото не нашлась итоговая сумма. Проверь, что чек целиком в кадре и не размыт, и попробуй снова.',
+    cameraDenied:
+        'У Budgy нет доступа к камере. Разреши его в Настройки → Budgy → Камера и попробуй снова.',
+    cameraDeniedAndroid:
+        'У Budgy нет доступа к камере. Разреши его в Настройки → Приложения → Budgy → Разрешения → Камера и попробуй снова.',
+    cameraRestricted:
+        'Камера на этом устройстве заблокирована (Экранное время или профиль устройства). Выбери фото из галереи.',
+    cameraUnavailable: 'На этом устройстве нет камеры. Выбери фото из галереи.',
+    photosDenied:
+        'У Budgy нет доступа к фото. Разреши его в Настройки → Budgy → Фото и попробуй снова.',
+    photosDeniedAndroid:
+        'У Budgy нет доступа к фото. Разреши его в Настройки → Приложения → Budgy → Разрешения → Фото и видео и попробуй снова.',
+    photosRestricted:
+        'Доступ к фото на этом устройстве заблокирован (Экранное время или профиль устройства). Сними чек камерой.',
+    aiLimitResetTpl: 'Лимит ИИ на этот месяц исчерпан — обновится {date}.',
     enterAmount: 'Введи сумму',
     saveAllTpl: 'Сохранить ({n})',
     expense: 'Расход',
@@ -2143,6 +2243,13 @@ class RS {
     recurringEmpty:
         'Повторяющихся операций пока нет. Выбери «Повтор» при добавлении.',
     nextTpl: 'Следующая: {date}',
+    recurringHold: 'На паузе',
+    recurringHoldAccountMissing:
+        'Счёт этого правила в архиве или удалён, поэтому платёж не записан. Верни счёт из архива, а если его уже нет — удали это правило и создай заново. Пропущенные платежи добавятся при следующем запуске.',
+    recurringHoldFxUnavailable:
+        'Не удалось получить курс валют, поэтому платёж не записан. Делать ничего не нужно: попробуем снова, когда ты откроешь Budgy с интернетом.',
+    recurringHoldGeneric:
+        'Этот платёж не записан. Попробуем снова при следующем запуске Budgy.',
     delete: 'Удалить',
     account: 'Счёт',
     dateTitle: 'Дата',
@@ -2209,6 +2316,8 @@ class RS {
     dataManagement: 'Данные',
     exportCsv: 'Экспорт операций (CSV)',
     exportCsvHint: 'Дата, тип, сумма, валюта, категория, заметка, счёт.',
+    exportCsvLimitTpl:
+        'В файл попадают не больше {n} последних операций — всё, что старше, в него не войдёт.',
     deleteAllData: 'Удалить все данные',
     deleteAllDataHint:
         'Удалит все операции, категории, кошельки и настройки. Аккаунт останется.',
@@ -2280,6 +2389,7 @@ class RS {
     about: 'О приложении',
     versionTpl: 'Версия {v}',
     archived: 'Архив',
+    searchNoMatch: 'Ничего не нашлось. Попробуй слово покороче.',
     archive: 'В архив',
     unarchive: 'Из архива',
     deleteCategoryTpl: 'Удалить «{name}»? История операций сохранится.',

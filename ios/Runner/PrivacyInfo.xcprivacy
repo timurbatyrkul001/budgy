@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Budgy gizlilik bildirimi (privacy manifest).
+
+	     Apple 1 Mayıs 2024'ten beri bu dosya olmadan ya da eksik olduğunda
+	     yüklemeyi ITMS-91053 ile reddediyor — incelemede değil, App Store
+	     Connect'e yüklerken.
+
+	     İki bölüm var:
+	       • NSPrivacyAccessedAPITypes — "sebebi bildirilmesi gereken" API'ler.
+	         Çoğu eklenti kendi bildirimini taşıyor; buradakiler bildirimi
+	         OLMAYAN eklentiler (home_widget, speech_to_text) için.
+	       • NSPrivacyCollectedDataTypes — cihazdan çıkıp sunucuda saklanan
+	         veriler. App Store Connect'teki "App Privacy" anketiyle
+	         TUTARLI olmalı; Apple ikisini karşılaştırıyor.
+
+	     ÖNEMLİ: Bu dosya elle yazıldı. Tek gerçek doğrulama TestFlight'a
+	     yüklemektir — Apple eksik bir sebep bulursa e-postayla tam listeyi
+	     gönderir ve buraya eklemek gerekir. -->
+
+	<!-- Reklam takibi yok: ne reklam SDK'sı var, ne IDFA okunuyor. -->
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<!-- UserDefaults. home_widget eklentisi ana uygulama ile widget
+		     arasında veri taşımak için UserDefaults(suiteName:) kullanıyor
+		     ve kendi bildirimini TAŞIMIYOR, bu yüzden burada.
+		     CA92.1 = yalnız uygulamanın kendi verisi için. -->
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+
+		<!-- Dosya zaman damgaları. path_provider ile yazılan yerel önbellek
+		     (döviz kuru tablosu) ve Flutter'ın kendi dosya işlemleri.
+		     C617.1 = uygulamanın kendi konteynerindeki dosyalar. -->
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>C617.1</string>
+			</array>
+		</dict>
+
+		<!-- Boş disk alanı. Yazma öncesi kontroller (Firestore yerel
+		     önbelleği, dosya yazımı). E174.1 = kullanıcıya gösterilmeden,
+		     yalnız uygulamanın kendi işleyişi için. -->
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryDiskSpace</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>E174.1</string>
+			</array>
+		</dict>
+
+		<!-- Sistem açılış zamanı. Crashlytics çökme raporunda olayların
+		     sırasını kurmak için kullanıyor. 35F9.1 = uygulama içi olayların
+		     zamanlamasını ölçmek. -->
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategorySystemBootTime</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>35F9.1</string>
+			</array>
+		</dict>
+	</array>
+
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array>
+		<!-- E-posta. YALNIZ Google/Apple ile giriş yapan kullanıcıda; anonim
+		     kullanan hiç vermiyor. Hesabı tanımak için, reklam için değil. -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeEmailAddress</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+
+		<!-- Ad. Sağlayıcıdan gelen görünen ad; karşılama ekranında
+		     kullanılıyor. -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeName</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+
+		<!-- Kullanıcı kimliği (Firebase uid). Verinin kime ait olduğunu
+		     belirleyen tek alan; anonim kullanıcıda da var. -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeUserID</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+
+		<!-- Finansal bilgi: kullanıcının girdiği harcama/gelir kayıtları,
+		     tutarlar, kategoriler, hesap adları. Uygulamanın VARLIK SEBEBİ
+		     bu; cihazlar arasında eşitlensin diye Firestore'da saklanıyor.
+		     Banka hesabı numarası, kart numarası, ödeme bilgisi TOPLANMIYOR —
+		     uygulama hiçbir bankaya bağlanmıyor. -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeOtherFinancialInfo</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+
+		<!-- Fotoğraf: fiş görseli. Metni okunup harcamaya çevrilmek üzere
+		     işleme gönderiliyor; görselin kendisi saklanmıyor (uygulamanın
+		     dosya depolaması yok). Yine de bildiriliyor — cihazdan çıkıyor. -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypePhotosorVideos</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+
+		<!-- Ses: sesle harcama ekleme. Tanıma cihazda/sistem servisinde
+		     yapılıyor, ses kaydı saklanmıyor; çıkan METİN işleniyor. -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeAudioData</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+
+		<!-- Çökme verisi: Crashlytics. Kimliğe bağlanmıyor. -->
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeCrashData</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

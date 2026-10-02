@@ -69,7 +69,13 @@ final monthSpentProvider = Provider<double>((ref) {
   });
 });
 
-/// Bu ay kategorisiz ₺ giderler ("N işlem kategori bekliyor").
+/// Bu ay kategorisiz giderler ("N işlem kategori bekliyor").
+///
+/// Burada da `t.currency == 'TRY'` süzgeci vardı — `monthSpentProvider`'daki
+/// hatanın aynısı: döviz kartından yapılmış kategorisiz bir harcama
+/// sayılmıyordu, yani kullanıcı "kategori bekleyen işlem yok" görüp o
+/// harcamayı hiç kategorilemiyordu. Para birimi burada alakasız: kategorisi
+/// olmayan her gider kategori bekliyor.
 final uncategorizedTxsProvider = Provider<List<Tx>>((ref) {
   return ref
       .watch(currentMonthTxsProvider)
@@ -78,7 +84,6 @@ final uncategorizedTxsProvider = Provider<List<Tx>>((ref) {
             t.type == TxType.expense &&
             !t.isConvert &&
             !t.isGoalFund &&
-            t.currency == 'TRY' &&
             t.envelopeId == null,
       )
       .toList();
