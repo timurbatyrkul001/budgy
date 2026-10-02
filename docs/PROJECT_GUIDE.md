@@ -5,7 +5,7 @@
 пути и выдержки настоящие.
 
 **Состояние на момент написания:** 2 октября 2026, коммит `27a6d8a`,
-`flutter test` → 806 пройдено, 7 пропущено.
+`flutter test` → 914 пройдено, 7 пропущено. (Число растёт — перепроверь перед собеседованием.)
 
 ## Содержание
 
@@ -225,7 +225,11 @@ SDK: `sdk: ^3.11.5`. Все утверждения «где использует
   `LocalAuthentication`. Остался только `NSFaceIDUsageDescription` в `ios/Runner/Info.plist:33`.
 - README обещает «email/OTP, password reset». Экраны `otp_screen.dart`,
   `forget_password_screen.dart`, `new_password_screen.dart` существуют, но в них **ноль**
-  обращений к `FirebaseAuth` (проверено grep'ом) — это UI-макеты без логики. Реально работают
+  обращений к `FirebaseAuth` — это были UI-макеты без логики. **Исправлено 2 октября 2026:**
+  `forget_password_screen.dart` теперь вызывает настоящий `sendPasswordResetEmail`, а
+  `otp_screen.dart` и `new_password_screen.dart` удалены — в схеме Firebase пароль
+  меняется по ссылке из письма, в браузере, и этих экранов в приложении быть не должно.
+  Помимо них работают
   только `signInWithEmailAndPassword` (`sign_in_screen.dart:70`), `linkWithCredential(EmailAuthProvider.credential(...))`
   (`sign_up_screen.dart:95-99`) и `sendEmailVerification()` (`email_verify_screen.dart:53`).
 - README: «light & dark». В `app.dart` `themeMode: ThemeMode.light` — тёмная тема отключена.
@@ -288,7 +292,7 @@ Future<Map<String, double>?> fetchFxRates(String base) async {
 | **Cloud Firestore** | неявно, `FirebaseFirestore.instance` в `budgetRepositoryProvider` (`budget_repository.dart:13`) | все репозитории (см. 3.3) |
 | **Cloud Functions** | `FirebaseFunctions.instanceFor(region: 'europe-west1')` | только `claude_client.dart` |
 | **Crashlytics** | `main.dart` (`setCrashlyticsCollectionEnabled(!kDebugMode)` + два хука) | `lib/core/feedback.dart` → `guardWrite` |
-| **App Check** | `main.dart` → `_activateAppCheck()` | Обеспечивает токен для Firestore/Functions. ВАЖНО: в `functions/src/index.ts:87` `enforceAppCheck: false` — на стороне функции проверка пока выключена |
+| **App Check** | `main.dart` → `_activateAppCheck()` | Обеспечивает токен для Firestore/Functions. С 2 октября 2026 функция требует его: `enforceAppCheck: true`. До этого проверка была выключена, и любой вошедший (включая анонимного) мог звать AI-прокси из любого клиента — анонимные аккаунты бесплатны, поэтому квоты на пользователя не защищали |
 | **Messaging (FCM)** | **нет** | `firebase_messaging` отсутствует; уведомления только локальные (`flutter_local_notifications`) |
 | **Storage / Analytics / Remote Config** | **нет** | Отсутствуют в `pubspec.yaml` |
 
@@ -404,7 +408,7 @@ Node 22 + TypeScript, зависимости `@anthropic-ai/sdk`, `firebase-admi
 (`functions/package.json`). Три файла в `functions/src/`:
 
 - `index.ts` — единственная функция `aiCall` (`onCall`, регион `europe-west1`, 60 с,
-  256 MiB, `maxInstances: 10`, `enforceAppCheck: false`).
+  256 MiB, `maxInstances: 10`, `enforceAppCheck: true`).
 - `limits.ts` — модель `claude-haiku-4-5`, месячные лимиты (`scan: 100, parse: 300, advice: 30`),
   `maxTokens: 1024`, ограничения входа (≤4 блока, ≤8000 символов текста, ≤4 МБ base64).
 - `usage.ts` — счётчики `users/{uid}/usage/{yyyy-MM}` через `runTransaction`
@@ -417,7 +421,7 @@ Node 22 + TypeScript, зависимости `@anthropic-ai/sdk`, `firebase-admi
 const anthropicApiKey = defineSecret("ANTHROPIC_API_KEY");   // Secret Manager, не в коде
 
 export const aiCall = onCall<unknown, Promise<AiCallResponse>>(
-  { region: REGION, secrets: [anthropicApiKey], timeoutSeconds: 60, maxInstances: 10, enforceAppCheck: false },
+  { region: REGION, secrets: [anthropicApiKey], timeoutSeconds: 60, maxInstances: 10, enforceAppCheck: true },
   async (request) => {
     const uid = request.auth?.uid;
     if (!uid) throw new HttpsError("unauthenticated", "Giriş yapılmamış.");
@@ -2521,7 +2525,7 @@ $ flutter test
 00:23 +806 ~7: All tests passed!
 ```
 
-**806 прошло, 7 пропущено, 0 упало, ~23 секунды.** Пропущенные: 3 PNG-«снимка» (`skip: pngDir == null` в `onboarding_bubbles_test`, `onboarding_response_test`, `onboarding_receipt_test`) и 3 в `onboarding_firstday_test.dart` с `skip: 'Şimdilik atla'` / `'Skip for now'` / `'Пока пропустить'` (grep находит 6 явных `skip:`; отчёт пишет `~7`). `test/widget/_tmp_drag_test.dart` — отладочный остаток («drag debug»), который стоит удалить.
+**На момент написания 806 прошло, 7 пропущено, 0 упало, ~23 секунды; к 2 октября — 914.** Пропущенные: 3 PNG-«снимка» (`skip: pngDir == null` в `onboarding_bubbles_test`, `onboarding_response_test`, `onboarding_receipt_test`) и 3 в `onboarding_firstday_test.dart` с `skip: 'Şimdilik atla'` / `'Skip for now'` / `'Пока пропустить'` (grep находит 6 явных `skip:`; отчёт пишет `~7`). `test/widget/_tmp_drag_test.dart` — отладочный остаток («drag debug»), который стоит удалить.
 
 Самые крупные по числу кейсов: `budget_repository_test` (23), `budget_period_test` (20), `analytics_test` (19), `converter_test` (19), `settings_hub_test` (18), `accounts_repository_test` (17), `calc_test` (17), `account_card_test` (15), `pro_locks_test` (15), `account_picker_test` (15).
 
@@ -3165,7 +3169,7 @@ Manager и доступен только Cloud Function. Пароли прило
 **Что это.** Golden сравнивает отрисованный виджет с эталонным PNG;
 integration гоняет приложение целиком на устройстве.
 
-**Почему нет.** Есть 806 unit- и widget-тестов, включая layout-тесты на
+**Почему нет.** Есть 900+ unit- и widget-тестов, включая layout-тесты на
 переполнение (320dp × 3 языка). Golden не заведены, хотя проект визуальный и
 они бы подошли.
 
@@ -3270,7 +3274,7 @@ Cloud Function `aiCall`, она уже ходит в Anthropic. Модель и 
 не имели бы смысла.
 
 **11. Как тестируешь?**
-806 тестов, проходят за 23 секунды. Unit — на чистую логику (курсы валют,
+Больше 900 тестов, проходят за ~25 секунд. Unit — на чистую логику (курсы валют,
 аналитика, разбор сумм). Widget — на экраны, с `fake_cloud_firestore` вместо
 настоящей базы и подменой провайдеров через `overrideWith`. Отдельно —
 layout-тесты: каждый экран рендерится на 320 и 360 dp на трёх языках, и
@@ -3307,7 +3311,10 @@ Firestore через провайдер. `.arb` и `flutter_localizations` дл�
 Отвечай прямо, это сильнее, чем умалчивать:
 - подписки — есть paywall и gate, но покупка не совершается, RevenueCat не
   подключён;
-- замороженный курс валют спроектирован и покрыт тестами, но экран записи
-  ещё не передаёт его в репозиторий;
-- три экрана восстановления пароля — макеты без логики;
-- Cloud Function не проверяет App Check.
+- подписки: paywall и gate есть, покупка не совершается, RevenueCat не подключён;
+- выбор темы сохраняется, но не применяется (см. раздел про две палитры);
+- продуктовой аналитики нет — падения видны, поведение пользователей не измеряется.
+
+Исправлено 2 октября 2026 (раньше было в этом списке): замороженный курс подключён к
+экрану записи; восстановление пароля стало настоящим; Cloud Function требует App Check;
+приложение больше не зависает на сплэше без сети.

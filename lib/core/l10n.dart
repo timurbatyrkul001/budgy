@@ -364,6 +364,20 @@ class Strings {
     required this.aiSaveAllTpl,
     required this.aiNothingFound,
     required this.aiVoiceUnavailable,
+    required this.notifTitle,
+    required this.notifHeroBody,
+    required this.notifSectionSystem,
+    required this.notifPermGrantedTitle,
+    required this.notifPermGrantedBody,
+    required this.notifPermDeniedTitle,
+    required this.notifPermDeniedBody,
+    required this.notifSectionDaily,
+    required this.notifDailyDesc,
+    required this.notifDailyHourTitle,
+    required this.notifWeeklyDesc,
+    required this.notifSectionPayments,
+    required this.notifPaymentsDescTpl,
+    required this.notifManagePayments,
   });
 
   final String localeCode;
@@ -688,6 +702,22 @@ class Strings {
   final String aiSaveAllTpl;
   final String aiNothingFound;
   final String aiVoiceUnavailable;
+
+  /// Bildirim tercihleri ekranı (ayarlar › Bildirimler).
+  final String notifTitle;
+  final String notifHeroBody;
+  final String notifSectionSystem;
+  final String notifPermGrantedTitle;
+  final String notifPermGrantedBody;
+  final String notifPermDeniedTitle;
+  final String notifPermDeniedBody;
+  final String notifSectionDaily;
+  final String notifDailyDesc;
+  final String notifDailyHourTitle;
+  final String notifWeeklyDesc;
+  final String notifSectionPayments;
+  final String notifPaymentsDescTpl; // {n} = tanımlı hatırlatıcı sayısı
+  final String notifManagePayments;
 
   static const en = Strings(
     localeCode: 'en',
@@ -1048,6 +1078,25 @@ class Strings {
     aiSaveAllTpl: 'Save {n} transactions',
     aiNothingFound: "Couldn't find an amount — try rephrasing.",
     aiVoiceUnavailable: 'Voice input is unavailable on this device.',
+    notifTitle: 'Notifications',
+    notifHeroBody: 'Choose which reminders reach you. Everything is scheduled '
+        'on this device — nothing is sent from a server.',
+    notifSectionSystem: 'System permission',
+    notifPermGrantedTitle: 'Notifications allowed',
+    notifPermGrantedBody: 'This device can show reminders from Budgy.',
+    notifPermDeniedTitle: 'Notifications are off in system settings',
+    notifPermDeniedBody: 'None of the reminders below can appear until you '
+        'allow them in your device settings: Notifications › Budgy.',
+    notifSectionDaily: 'Daily',
+    notifDailyDesc: 'Every day at the hour you pick, a nudge to log what you '
+        'spent today.',
+    notifDailyHourTitle: 'Time',
+    notifWeeklyDesc: 'Sundays at 20:00 — your earnings for the week. '
+        'Comes with the daily reminder.',
+    notifSectionPayments: 'Payments',
+    notifPaymentsDescTpl: 'For each recurring expense, on its payment days '
+        'at 10:00. {n} set up right now.',
+    notifManagePayments: 'Manage recurring expenses',
   );
 
   static const tr = Strings(
@@ -1406,6 +1455,25 @@ class Strings {
     aiSaveAllTpl: '{n} işlemi kaydet',
     aiNothingFound: 'Tutar bulamadım — biraz farklı yazmayı dene.',
     aiVoiceUnavailable: 'Bu cihazda sesli giriş kullanılamıyor.',
+    notifTitle: 'Bildirimler',
+    notifHeroBody: 'Hangi hatırlatmaların geleceğini buradan seç. Her şey bu '
+        'cihazda planlanır — sunucudan bir şey gönderilmez.',
+    notifSectionSystem: 'Sistem izni',
+    notifPermGrantedTitle: 'Bildirimlere izin verildi',
+    notifPermGrantedBody: 'Bu cihaz Budgy hatırlatmalarını gösterebilir.',
+    notifPermDeniedTitle: 'Bildirimler sistemde kapalı',
+    notifPermDeniedBody: 'Cihaz ayarlarında Bildirimler › Budgy açılana kadar '
+        'aşağıdaki hatırlatmaların hiçbiri görünmez.',
+    notifSectionDaily: 'Günlük',
+    notifDailyDesc: 'Her gün seçtiğin saatte bugünkü harcamalarını girmeni '
+        'hatırlatır.',
+    notifDailyHourTitle: 'Saat',
+    notifWeeklyDesc: 'Pazar 20:00 — haftanın kazancı. Günlük hatırlatma '
+        'açıkken gelir.',
+    notifSectionPayments: 'Ödemeler',
+    notifPaymentsDescTpl: 'Her düzenli gider için ödeme günlerinde 10:00\'da. '
+        'Şu an {n} tanımlı.',
+    notifManagePayments: 'Düzenli giderleri yönet',
   );
 
   static const ru = Strings(
@@ -1764,5 +1832,24 @@ class Strings {
     aiSaveAllTpl: 'Сохранить {n} операций',
     aiNothingFound: 'Не нашёл сумму — попробуй сказать иначе.',
     aiVoiceUnavailable: 'Голосовой ввод недоступен на этом устройстве.',
+    notifTitle: 'Уведомления',
+    notifHeroBody: 'Выбери, какие напоминания приходить. Всё планируется на '
+        'этом устройстве — с сервера ничего не отправляется.',
+    notifSectionSystem: 'Разрешение системы',
+    notifPermGrantedTitle: 'Уведомления разрешены',
+    notifPermGrantedBody: 'Это устройство может показывать напоминания Budgy.',
+    notifPermDeniedTitle: 'Уведомления выключены в системе',
+    notifPermDeniedBody: 'Ни одно из напоминаний ниже не появится, пока ты не '
+        'разрешишь их в настройках устройства: Уведомления › Budgy.',
+    notifSectionDaily: 'Ежедневно',
+    notifDailyDesc: 'Каждый день в выбранный час — напоминание записать '
+        'сегодняшние траты.',
+    notifDailyHourTitle: 'Время',
+    notifWeeklyDesc: 'По воскресеньям в 20:00 — заработок за неделю. '
+        'Приходит вместе с ежедневным напоминанием.',
+    notifSectionPayments: 'Платежи',
+    notifPaymentsDescTpl: 'Для каждого регулярного расхода в дни оплаты в '
+        '10:00. Сейчас настроено: {n}.',
+    notifManagePayments: 'Управлять регулярными расходами',
   );
 }

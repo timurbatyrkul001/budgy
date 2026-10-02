@@ -112,8 +112,10 @@ void main() {
       expect(find.text(rs.hubEditAvatar), findsOneWidget);
       await tester.tap(find.text(rs.hubEditAvatar));
       await tester.pumpAndSettle();
-      // Mevcut cüzdan düzenleyici sheet'i (başlık "Customize wallet").
-      expect(find.text(rs.customizeWallet), findsOneWidget);
+      // Artık eski cüzdan sheet'i değil, ayrı avatar ekranı açılır
+      // (renk + simge; ad ve para birimi burada yok).
+      expect(find.text(rs.editAvatarTitle), findsOneWidget);
+      expect(find.text(rs.customizeWallet), findsNothing);
     });
 
     testWidgets('bölüm başlıkları yok, dört giriş kapısı var', (tester) async {

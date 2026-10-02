@@ -440,6 +440,17 @@ class RS {
     required this.rerunOnboardingDialogTitle,
     required this.rerunOnboardingDialogBody,
     required this.rerunOnboardingConfirm,
+    required this.editNameTitle,
+    required this.editNameBody,
+    required this.editNameFirst,
+    required this.editNameLast,
+    required this.editAvatarTitle,
+    required this.editAvatarBody,
+    required this.editAvatarPickTitle,
+    required this.editAvatarLetter,
+    required this.editAvatarResetTitle,
+    required this.editAvatarResetBody,
+    required this.editAvatarResetConfirm,
   });
 
   final String onbTitle;
@@ -951,6 +962,27 @@ class RS {
   final String rerunOnboardingDialogBody;
   final String rerunOnboardingConfirm;
 
+  // ── Kişisel bilgiler › Ad / Avatar düzenleme (2026-10) ─────────────────
+  // [editNameFirst] / [editNameLast]: form iki alan gösterir ama profilde
+  // tek `name` var; metinler yalnız ETİKET, şema değişmedi.
+  // [editAvatarBody]: avatar bu uygulamada renk + simge (ya da baş harf).
+  // Fotoğraf yükleme YOK (Storage bağlı değil) — metinler fotoğraf, galeri,
+  // kamera vaat etmez; test bunu sabitliyor.
+  // [editAvatarResetBody]: çöp kutusu hesabı değil avatarı sıfırlar; metin
+  // neyin değişip neyin değişmediğini açıkça söyler ki kullanıcı "verim
+  // gidiyor mu" diye korkmasın.
+  final String editNameTitle;
+  final String editNameBody;
+  final String editNameFirst;
+  final String editNameLast;
+  final String editAvatarTitle;
+  final String editAvatarBody;
+  final String editAvatarPickTitle;
+  final String editAvatarLetter;
+  final String editAvatarResetTitle;
+  final String editAvatarResetBody;
+  final String editAvatarResetConfirm;
+
   static RS of(String code) => switch (code) {
     'tr' => tr,
     'ru' => ru,
@@ -1432,6 +1464,19 @@ class RS {
     rerunOnboardingDialogBody:
         'Your data stays exactly as it is — nothing is deleted. You\'ll just see the first-time setup again, and anything you pick there is added on top of what you already have.',
     rerunOnboardingConfirm: 'Show wizard',
+    editNameTitle: 'Edit your name',
+    editNameBody:
+        'How Budgy addresses you. Leave it empty and your wallet name is shown instead.',
+    editNameFirst: 'First name',
+    editNameLast: 'Last name',
+    editAvatarTitle: 'Avatar',
+    editAvatarBody: 'Pick a colour and an icon, or keep the initial of your wallet.',
+    editAvatarPickTitle: 'Colour & icon',
+    editAvatarLetter: 'Initial',
+    editAvatarResetTitle: 'Reset the avatar?',
+    editAvatarResetBody:
+        'The colour goes back to the default green and the icon is replaced by the initial. Your data and account are not affected.',
+    editAvatarResetConfirm: 'Reset',
   );
 
   static const tr = RS(
@@ -1905,6 +1950,19 @@ class RS {
     rerunOnboardingDialogBody:
         'Verilerin olduğu gibi kalır — hiçbir şey silinmez. Sadece ilk kurulum ekranlarını yeniden görürsün; orada seçtiklerin mevcut olanların üstüne eklenir.',
     rerunOnboardingConfirm: 'Sihirbazı göster',
+    editNameTitle: 'Adını düzenle',
+    editNameBody:
+        'Budgy sana bu adla seslenir. Boş bırakırsan yerine cüzdan adı görünür.',
+    editNameFirst: 'Ad',
+    editNameLast: 'Soyad',
+    editAvatarTitle: 'Avatar',
+    editAvatarBody: 'Bir renk ve simge seç ya da cüzdanının baş harfiyle kalsın.',
+    editAvatarPickTitle: 'Renk ve simge',
+    editAvatarLetter: 'Baş harf',
+    editAvatarResetTitle: 'Avatar sıfırlansın mı?',
+    editAvatarResetBody:
+        'Renk varsayılan yeşile döner, simgenin yerini baş harf alır. Verilerine ve hesabına dokunulmaz.',
+    editAvatarResetConfirm: 'Sıfırla',
   );
 
   static const ru = RS(
@@ -2379,5 +2437,18 @@ class RS {
     rerunOnboardingDialogBody:
         'Твои данные останутся как есть — ничего не удалится. Ты просто снова увидишь экраны первоначальной настройки; всё выбранное там добавится к тому, что уже есть.',
     rerunOnboardingConfirm: 'Показать мастер',
+    editNameTitle: 'Изменить имя',
+    editNameBody:
+        'Так Budgy будет к тебе обращаться. Оставь пустым — покажем название кошелька.',
+    editNameFirst: 'Имя',
+    editNameLast: 'Фамилия',
+    editAvatarTitle: 'Аватар',
+    editAvatarBody: 'Выбери цвет и значок — или оставь первую букву кошелька.',
+    editAvatarPickTitle: 'Цвет и значок',
+    editAvatarLetter: 'Буква',
+    editAvatarResetTitle: 'Сбросить аватар?',
+    editAvatarResetBody:
+        'Цвет вернётся к зелёному по умолчанию, вместо значка будет первая буква. Данные и аккаунт не затрагиваются.',
+    editAvatarResetConfirm: 'Сбросить',
   );
 }
