@@ -5,8 +5,9 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:kopilka_app/core/l10n.dart';
 import 'package:kopilka_app/core/redesign_l10n.dart';
 import 'package:kopilka_app/features/automation/automation_screen.dart';
-import 'package:kopilka_app/features/envelopes/home_screen.dart';
 import 'package:kopilka_app/features/recurring/recurring_screen.dart';
+import 'package:kopilka_app/features/root/bottom_tab_bar.dart';
+import 'package:kopilka_app/features/root/root_screen.dart';
 import 'package:kopilka_app/features/transactions/quick_entry_screen.dart';
 
 import '../support/harness.dart';
@@ -108,53 +109,53 @@ void main() {
     expect(paywall, findsNothing);
   });
 
-  // ── B. eylem kilidi: ana ekran dock'u (fiş tarama + sesli giriş) ────────
+  // ── B. eylem kilidi: "+" seçim sayfası (fiş tarama + sesli giriş) ───────
+  //
+  // Dock kaldırıldı: fiş tarama ve sesli giriş artık kök ekrandaki "+"
+  // düğmesinin açtığı seçim sayfasında kart. Kilit davranışı aynı.
 
-  group('ana ekran dock · eylem kilidi', () {
-    final scanButton = find.byIcon(Icons.document_scanner_outlined);
-    final micButton = find.byIcon(Icons.mic_rounded);
+  group('"+" seçim sayfası · eylem kilidi', () {
+    final scanCard = find.text(RS.tr.addScanReceipt);
+    final micCard = find.text(RS.tr.addByVoice);
 
-    testWidgets('abonesi olmayan iki düğmeyi ve Pro rozetlerini görür', (
+    Future<void> openSheet(WidgetTester tester, {bool pro = false}) async {
+      await pumpBudgyScreen(
+        tester,
+        const RootScreen(),
+        db: FakeFirebaseFirestore(),
+        language: AppLanguage.tr,
+        pro: pro,
+      );
+      await tester.tap(find.byKey(kBottomTabAddKey));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('abonesi olmayan kilitli kartları görür; rozet yok', (
       tester,
     ) async {
-      await pumpBudgyScreen(
-        tester,
-        const HomeScreen(),
-        db: FakeFirebaseFirestore(),
-        language: AppLanguage.tr,
-      );
+      await openSheet(tester);
 
-      // Düğmeler gizlenmiyor — gizlenen özellik satılamaz.
-      expect(scanButton, findsOneWidget);
-      expect(micButton, findsOneWidget);
-      expect(badge, findsNWidgets(2));
+      // Kartlar gizlenmiyor — gizlenen özellik satılamaz. Ama rozet de yok:
+      // kilidi paywall anlatıyor, listede dört kart aynı duruyor.
+      expect(scanCard, findsOneWidget);
+      expect(micCard, findsOneWidget);
+      expect(badge, findsNothing);
     });
 
-    testWidgets('Pro kullanıcı rozet görmez', (tester) async {
-      await pumpBudgyScreen(
-        tester,
-        const HomeScreen(),
-        db: FakeFirebaseFirestore(),
-        language: AppLanguage.tr,
-        pro: true,
-      );
+    testWidgets('Pro kullanıcı aynı kartları görür', (tester) async {
+      await openSheet(tester, pro: true);
 
-      expect(scanButton, findsOneWidget);
-      expect(micButton, findsOneWidget);
+      expect(scanCard, findsOneWidget);
+      expect(micCard, findsOneWidget);
       expect(badge, findsNothing);
     });
 
     testWidgets('fiş tarama: Pro değilse paywall, kaynak seçimi açılmaz', (
       tester,
     ) async {
-      await pumpBudgyScreen(
-        tester,
-        const HomeScreen(),
-        db: FakeFirebaseFirestore(),
-        language: AppLanguage.tr,
-      );
+      await openSheet(tester);
 
-      await tester.tap(scanButton);
+      await tester.tap(scanCard);
       await tester.pumpAndSettle();
 
       expect(paywall, findsOneWidget);
@@ -166,15 +167,9 @@ void main() {
     testWidgets('fiş tarama: Pro ise paywall açılmaz, tarama akışı başlar', (
       tester,
     ) async {
-      await pumpBudgyScreen(
-        tester,
-        const HomeScreen(),
-        db: FakeFirebaseFirestore(),
-        language: AppLanguage.tr,
-        pro: true,
-      );
+      await openSheet(tester, pro: true);
 
-      await tester.tap(scanButton);
+      await tester.tap(scanCard);
       await tester.pumpAndSettle();
 
       expect(paywall, findsNothing);
@@ -184,29 +179,18 @@ void main() {
     });
 
     testWidgets('sesli giriş: Pro değilse paywall', (tester) async {
-      await pumpBudgyScreen(
-        tester,
-        const HomeScreen(),
-        db: FakeFirebaseFirestore(),
-        language: AppLanguage.tr,
-      );
+      await openSheet(tester);
 
-      await tester.tap(micButton);
+      await tester.tap(micCard);
       await tester.pumpAndSettle();
 
       expect(paywall, findsOneWidget);
     });
 
     testWidgets('sesli giriş: Pro ise paywall açılmaz', (tester) async {
-      await pumpBudgyScreen(
-        tester,
-        const HomeScreen(),
-        db: FakeFirebaseFirestore(),
-        language: AppLanguage.tr,
-        pro: true,
-      );
+      await openSheet(tester, pro: true);
 
-      await tester.tap(micButton);
+      await tester.tap(micCard);
       await tester.pumpAndSettle();
 
       expect(paywall, findsNothing);
@@ -218,7 +202,7 @@ void main() {
   group('hızlı giriş · tekrar düğmesi', () {
     final repeatButton = find.byIcon(Icons.repeat_rounded);
 
-    testWidgets('abonesi olmayan düğmeyi ve rozeti görür; basınca paywall', (
+    testWidgets('abonesi olmayan düğmeyi görür (rozetsiz); basınca paywall', (
       tester,
     ) async {
       await pumpBudgyScreen(
@@ -228,8 +212,10 @@ void main() {
         language: AppLanguage.tr,
       );
 
+      // Düğme gizlenmiyor ama "Pro" etiketi de taşımıyor: kilidi paywall
+      // anlatıyor. Rozetler arayüzden tamamen kaldırıldı.
       expect(repeatButton, findsOneWidget);
-      expect(badge, findsOneWidget);
+      expect(badge, findsNothing);
 
       await tester.tap(repeatButton);
       await tester.pumpAndSettle();
@@ -242,7 +228,7 @@ void main() {
       );
     });
 
-    testWidgets('Pro: rozet yok, basınca sıklık sayfası açılır', (
+    testWidgets('Pro: basınca sıklık sayfası açılır', (
       tester,
     ) async {
       await pumpBudgyScreen(

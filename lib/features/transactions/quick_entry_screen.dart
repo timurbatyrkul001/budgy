@@ -551,7 +551,8 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
     // olduğu gibi kalır.
     ({double baseAmount, String baseCurrency, double rate})? frozen;
     if (accountId != null) {
-      frozen = _frozenToKeep(
+      frozen =
+          _frozenToKeep(
             editing: editing,
             accountId: accountId,
             amount: amount,
@@ -566,8 +567,8 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
           editing != null
               ? rs.fxFreezeUnavailableEdit
               : isExpense
-                  ? rs.fxFreezeUnavailable
-                  : rs.fxFreezeUnavailableIncome,
+              ? rs.fxFreezeUnavailable
+              : rs.fxFreezeUnavailableIncome,
         );
         setState(() => _saving = false);
         return;
@@ -705,7 +706,10 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
     // Tutarın yanındaki simge girilen paranın birimi: manat kartı seçiliyse
     // ₼ görünmeli, yoksa kullanıcı ₺ sanıp yanlış rakam girer.
     final accountCode =
-        account?.currency ?? _wallet?.currency ?? _editingAccountCurrency ?? code;
+        account?.currency ??
+        _wallet?.currency ??
+        _editingAccountCurrency ??
+        code;
     final symbol = kCurrencies[accountCode] ?? accountCode;
     final canSave = _amount > 0 && !_saving;
     final bottom = MediaQuery.paddingOf(context).bottom;
@@ -898,12 +902,10 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
                                 const SizedBox(width: 8),
                                 // Tekrar kuralı düzenlemede yok (kural bu ekrandan değişmez).
                                 if (!_isEditing)
-                                  ProBadged(
-                                    child: _RoundIconButton(
-                                      icon: Icons.repeat_rounded,
-                                      active: _recurrence != Recurrence.none,
-                                      onTap: _pickRecurrence,
-                                    ),
+                                  _RoundIconButton(
+                                    icon: Icons.repeat_rounded,
+                                    active: _recurrence != Recurrence.none,
+                                    onTap: _pickRecurrence,
                                   ),
                                 const Spacer(),
                                 _RoundIconButton(

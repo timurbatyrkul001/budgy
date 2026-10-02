@@ -6,13 +6,22 @@ import '../../core/ex_style.dart';
 import '../../core/formatters.dart';
 import '../../core/l10n.dart';
 import '../../core/tokens.dart';
+import '../root/bottom_tab_bar.dart';
 import 'work_days_repository.dart';
 
 /// Календарь рабочих дней: тап по дню — указать заработок за этот день.
 /// Ячейки — «тепловая карта» заработка (heat0..heat4), сегодня — кольцо
 /// акцента, внизу — закреплённая карточка «сегодня».
+///
+/// [embedded] true: kök ekranın "Takvim" sekmesinde — geri düğmesi yok,
+/// "bugün" kartı altta sabitlenmek yerine listenin sonunda akar (sabit
+/// kalsa yüzen sekme çubuğunun arkasında kalırdı) ve listenin altında
+/// çubuk payı var. Varsayılan false: ayarlardan push edilen mevcut çağrı
+/// olduğu gibi çalışır.
 class CalendarScreen extends ConsumerStatefulWidget {
-  const CalendarScreen({super.key});
+  const CalendarScreen({super.key, this.embedded = false});
+
+  final bool embedded;
 
   @override
   ConsumerState<CalendarScreen> createState() => _CalendarScreenState();
@@ -53,6 +62,19 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
 
     // «Сегодня»-карточка внизу — только когда показан текущий месяц.
     final showsCurrentMonth = monthKey == monthKeyOf(today);
+    final embedded = widget.embedded;
+    final todayBar = showsCurrentMonth
+        ? _TodayBar(
+            today: today,
+            amount: workDays[today],
+            isMarked: workDays.containsKey(today),
+            onTap: () => _editDay(today, workDays),
+            floating: embedded,
+          )
+        : null;
+    final bottomInset = embedded
+        ? kBottomTabBarInset + MediaQuery.paddingOf(context).bottom
+        : 0.0;
 
     return Scaffold(
       backgroundColor: c.bg,
@@ -62,10 +84,10 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
           children: [
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 6, 20, 24),
+                padding: EdgeInsets.fromLTRB(20, 6, 20, 24 + bottomInset),
                 children: [
-                  // Menüden push edildiğinde geri; yoksa gizli.
-                  const BudgyBackButton(),
+                  // Push edildiğinde geri; sekmedeyken gidilecek "geri" yok.
+                  if (!embedded) const BudgyBackButton(),
                   // ── başlık ─────────────────────────────────────────────
                   Text(
                     str.workDaysTitle,
@@ -147,18 +169,17 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                     weekdays: str.weekdaysShort,
                     onTap: (day) => _editDay(day, workDays),
                   ),
+                  // Sekmedeyken bugün kartı listenin sonunda akar.
+                  if (embedded && todayBar != null) ...[
+                    const SizedBox(height: 18),
+                    todayBar,
+                  ],
                 ],
               ),
             ),
 
             // ── bugün kartı (sadece güncel ay görünürken) ────────────────
-            if (showsCurrentMonth)
-              _TodayBar(
-                today: today,
-                amount: workDays[today],
-                isMarked: workDays.containsKey(today),
-                onTap: () => _editDay(today, workDays),
-              ),
+            if (!embedded && todayBar != null) todayBar,
           ],
         ),
       ),
@@ -542,12 +563,17 @@ class _TodayBar extends ConsumerWidget {
     required this.amount,
     required this.isMarked,
     required this.onTap,
+    this.floating = false,
   });
 
   final DateTime today;
   final double? amount;
   final bool isMarked;
   final VoidCallback onTap;
+
+  /// true: liste içinde serbest kart (sekme modu) — tam genişlik zemin ve
+  /// üst çizgi yok, çünkü artık ekranın altına sabitli bir şerit değil.
+  final bool floating;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -556,11 +582,15 @@ class _TodayBar extends ConsumerWidget {
     final hasAmount = isMarked && amount != null && amount! > 0;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
-      decoration: BoxDecoration(
-        color: c.tabbar,
-        border: Border(top: BorderSide(color: c.border)),
-      ),
+      padding: floating
+          ? EdgeInsets.zero
+          : const EdgeInsets.fromLTRB(20, 14, 20, 12),
+      decoration: floating
+          ? null
+          : BoxDecoration(
+              color: c.tabbar,
+              border: Border(top: BorderSide(color: c.border)),
+            ),
       child: Material(
         color: c.accent,
         borderRadius: BorderRadius.circular(18),

@@ -4,7 +4,6 @@
     <!-- Zamanlanmış hatırlatmalar cihaz yeniden başlayınca yeniden kurulur. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <!-- Face ID / parmak izi ile uygulama kilidi. -->
-    <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
     <!-- Döviz kuru sorgusu (open.er-api.com) + AI parser. -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <!-- Sesle harcama ekleme (speech_to_text). -->

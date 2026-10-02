@@ -29,13 +29,11 @@
 		<key>LSRequiresIPhoneOS</key>
 		<true/>
 		<key>NSCameraUsageDescription</key>
-		<string>Profil fotoğrafı çekmek ve fiş fotoğrafından harcama eklemek için kameraya erişim gerekiyor.</string>
-		<key>NSFaceIDUsageDescription</key>
-		<string>Uygulamayı açarken kimliğini doğrulamak için Face ID kullanılır.</string>
+		<string>Fiş fotoğrafından harcama eklemek için kameraya erişim gerekiyor.</string>
 		<key>NSMicrophoneUsageDescription</key>
 		<string>Harcamaları sesle eklemek için mikrofona erişim gerekiyor.</string>
 		<key>NSPhotoLibraryUsageDescription</key>
-		<string>Profil fotoğrafını seçmek ve fiş fotoğrafından harcama eklemek için fotoğraflarına erişim gerekiyor.</string>
+		<string>Fiş fotoğrafından harcama eklemek için fotoğraflarına erişim gerekiyor.</string>
 		<key>NSSpeechRecognitionUsageDescription</key>
 		<string>Söylediklerini işleme çevirmek için konuşma tanıma kullanılır.</string>
 		<key>UIApplicationSceneManifest</key>

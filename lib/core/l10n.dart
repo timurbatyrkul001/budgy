@@ -208,6 +208,21 @@ class Strings {
     required this.filterTitle,
     required this.categoriesLabel,
     required this.applyFilter,
+    required this.sortFilterTitle,
+    required this.sortByLabel,
+    required this.sortDate,
+    required this.sortAmount,
+    required this.sortCategory,
+    required this.sortAscending,
+    required this.sortDescending,
+    required this.accountLabel,
+    required this.filterAll,
+    required this.filterNoAccount,
+    required this.periodLabel,
+    required this.periodAllTime,
+    required this.periodThisMonth,
+    required this.periodLast30,
+    required this.periodPickDay,
     required this.spentThisMonth,
     required this.allCategoryExpenses,
     required this.viewMoreDetail,
@@ -532,6 +547,23 @@ class Strings {
   final String filterTitle;
   final String categoriesLabel;
   final String applyFilter;
+
+  /// Geçmiş › "Sırala ve Filtrele" alt sayfası.
+  final String sortFilterTitle;
+  final String sortByLabel;
+  final String sortDate;
+  final String sortAmount;
+  final String sortCategory;
+  final String sortAscending;
+  final String sortDescending;
+  final String accountLabel;
+  final String filterAll;
+  final String filterNoAccount;
+  final String periodLabel;
+  final String periodAllTime;
+  final String periodThisMonth;
+  final String periodLast30;
+  final String periodPickDay;
   final String spentThisMonth;
   final String allCategoryExpenses;
   final String viewMoreDetail;
@@ -877,6 +909,21 @@ class Strings {
     filterTitle: 'Filter',
     categoriesLabel: 'Categories',
     applyFilter: 'Apply Filter',
+    sortFilterTitle: 'Sort & Filter',
+    sortByLabel: 'Sort by',
+    sortDate: 'Date',
+    sortAmount: 'Amount',
+    sortCategory: 'Category',
+    sortAscending: 'Ascending',
+    sortDescending: 'Descending',
+    accountLabel: 'Account',
+    filterAll: 'All',
+    filterNoAccount: 'No account',
+    periodLabel: 'Period',
+    periodAllTime: 'All time',
+    periodThisMonth: 'This month',
+    periodLast30: '30 days',
+    periodPickDay: 'Pick a day',
     spentThisMonth: 'Spent this month',
     allCategoryExpenses: 'All Category Expenses',
     viewMoreDetail: 'View more detail',
@@ -1257,6 +1304,21 @@ class Strings {
     filterTitle: 'Filtre',
     categoriesLabel: 'Kategoriler',
     applyFilter: 'Filtreyi Uygula',
+    sortFilterTitle: 'Sırala ve Filtrele',
+    sortByLabel: 'Sıralama',
+    sortDate: 'Tarih',
+    sortAmount: 'Tutar',
+    sortCategory: 'Kategori',
+    sortAscending: 'Artan',
+    sortDescending: 'Azalan',
+    accountLabel: 'Hesap',
+    filterAll: 'Tümü',
+    filterNoAccount: 'Hesapsız',
+    periodLabel: 'Dönem',
+    periodAllTime: 'Tüm zamanlar',
+    periodThisMonth: 'Bu ay',
+    periodLast30: '30 gün',
+    periodPickDay: 'Gün seç',
     spentThisMonth: 'Bu ay harcanan',
     allCategoryExpenses: 'Tüm Kategori Harcamaları',
     viewMoreDetail: 'Detayı gör',
@@ -1634,6 +1696,21 @@ class Strings {
     filterTitle: 'Фильтр',
     categoriesLabel: 'Категории',
     applyFilter: 'Применить',
+    sortFilterTitle: 'Сортировка и фильтр',
+    sortByLabel: 'Сортировка',
+    sortDate: 'Дата',
+    sortAmount: 'Сумма',
+    sortCategory: 'Категория',
+    sortAscending: 'По возрастанию',
+    sortDescending: 'По убыванию',
+    accountLabel: 'Счёт',
+    filterAll: 'Все',
+    filterNoAccount: 'Без счёта',
+    periodLabel: 'Период',
+    periodAllTime: 'Всё время',
+    periodThisMonth: 'Этот месяц',
+    periodLast30: '30 дней',
+    periodPickDay: 'Выбрать день',
     spentThisMonth: 'Потрачено в этом месяце',
     allCategoryExpenses: 'Все расходы по категориям',
     viewMoreDetail: 'Подробнее',

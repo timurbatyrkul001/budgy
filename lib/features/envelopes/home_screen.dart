@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,7 +10,6 @@ import '../../core/motion.dart';
 import '../../core/feedback.dart';
 import '../../core/formatters.dart';
 import '../../core/l10n.dart';
-import '../../core/preview.dart';
 import '../../core/redesign_l10n.dart';
 import '../budget/budget_period.dart';
 import '../budget/budget_screen.dart';
@@ -23,15 +20,11 @@ import '../home/fx_providers.dart';
 import '../settings/app_settings.dart';
 import '../settings/settings_hub.dart';
 import '../reminders/reminders_repository.dart';
+import '../root/bottom_tab_bar.dart';
 import '../space/space.dart';
 import '../stats/stats_screen.dart';
-import '../pro/pro_gate.dart';
-import '../pro/pro_state.dart';
-import '../transactions/ai_add_sheet.dart';
 import '../transactions/category_sheet.dart';
 import '../transactions/journal_screen.dart';
-import '../transactions/quick_entry_screen.dart';
-import '../transactions/receipt_scan.dart';
 import '../transactions/tx.dart';
 import 'budget_repository.dart';
 import 'envelope_detail_screen.dart';
@@ -84,185 +77,50 @@ final uncategorizedTxsProvider = Provider<List<Tx>>((ref) {
 
 /// Ana ekran (kâğıt zemin): üstte cüzdan çipi + kur + ikon butonlar,
 /// sola yaslı "bu ay harcanan", bütçe kartı, yatay hesap kartları, son
-/// hareketler, hatırlatma kartı; altta yüzen tara / + / mikrofon kapsülü.
-class HomeScreen extends ConsumerStatefulWidget {
+/// hareketler, hatırlatma kartı. Alt sekme çubuğu ve "+" kök ekranda
+/// (root_screen); bu ekran yalnız listesinin altına çubuk payı bırakır.
+class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
-  ConsumerState<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends ConsumerState<HomeScreen> {
-  /// Son kaydedilen işlem — "Kaydedildi · Geri al" çipi 4 sn görünür.
-  String? _undoTxId;
-  Timer? _undoTimer;
-
-  @override
-  void initState() {
-    super.initState();
-    if (kPreviewHomeToast) _undoTxId = 'preview';
-  }
-
-  @override
-  void dispose() {
-    _undoTimer?.cancel();
-    super.dispose();
-  }
-
-  Future<void> _openQuickEntry() async {
-    final result = await showQuickEntry(context);
-    if (result == null || !mounted) return;
-    _showUndo(result.lastTxId);
-  }
-
-  void _showUndo(String txId) {
-    _undoTimer?.cancel();
-    setState(() => _undoTxId = txId);
-    _undoTimer = Timer(const Duration(seconds: 4), () {
-      if (mounted) setState(() => _undoTxId = null);
-    });
-  }
-
-  Future<void> _undo() async {
-    final id = _undoTxId;
-    _undoTimer?.cancel();
-    setState(() => _undoTxId = null);
-    if (id == null || id == 'preview') return;
-    // deleteTx bakiyeyi de geri alır.
-    await guardWrite(
-      context,
-      ref.read(strProvider),
-      () => ref.read(budgetRepositoryProvider).deleteTx(id),
-      reason: 'undoQuickEntry',
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     // Bildirim zamanlayıcısı ana ekranda bir kez izlenir.
     ref.watch(reminderSchedulerProvider);
-    final rs = ref.watch(rsProvider);
     final bottom = MediaQuery.paddingOf(context).bottom;
 
     return Scaffold(
       backgroundColor: Ex.bg,
       body: ExBackground(
         glow: 0.46,
-        child: Stack(
-          children: [
-            SafeArea(
-              bottom: false,
-              child: ListView(
-                padding: EdgeInsets.fromLTRB(16, 8, 16, 120 + bottom),
-                // Bölümler ilk gösterimde 35 ms arayla solup yukarı kayarak
-                // gelir; başlık sabit kalır. Yeniden kurulum tekrar oynatmaz.
-                children: [
-                  const _Header(),
-                  const SizedBox(height: 34),
-                  const _Hero().enterUp(context, index: 0),
-                  const SizedBox(height: 14),
-                  const _SpendSparkline().enterUp(context, index: 1),
-                  const SizedBox(height: 22),
-                  const _BudgetCard().enterUp(context, index: 2),
-                  const _ReviewRow().enterUp(context, index: 3),
-                  const SizedBox(height: 26),
-                  const _AccountsSection().enterUp(context, index: 4),
-                  const SizedBox(height: 26),
-                  const _RecentSection().enterUp(context, index: 5),
-                  const _NotificationsCard().enterUp(context, index: 6),
-                ],
-              ),
+        child: SafeArea(
+          bottom: false,
+          child: ListView(
+            // Alt pay: yüzen sekme çubuğu + güvenli alan; son kart çubuğun
+            // arkasına girmesin.
+            padding: EdgeInsets.fromLTRB(
+              16,
+              8,
+              16,
+              kBottomTabBarInset + 16 + bottom,
             ),
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: _Dock(onAdd: _openQuickEntry),
-            ),
-            // Kaydedildi · Geri al — kapsülün hemen üstünde yüzen çip.
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: bottom + 96,
-              child: IgnorePointer(
-                ignoring: _undoTxId == null,
-                child: Center(
-                  child: _UndoChip(
-                    saved: rs.saved,
-                    undo: rs.undo,
-                    onUndo: _undo,
-                  ),
-                ).reveal(context, visible: _undoTxId != null),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// "Kaydedildi · Geri al" çipi.
-class _UndoChip extends StatelessWidget {
-  const _UndoChip({
-    required this.saved,
-    required this.undo,
-    required this.onUndo,
-  });
-
-  final String saved;
-  final String undo;
-  final VoidCallback onUndo;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Ex.surface,
-      borderRadius: BorderRadius.circular(14),
-      elevation: 12,
-      // Tam siyah gölge açık zeminde çipi ağırlaştırıyor; mürekkebin düşük
-      // alfalı hâli kâğıttan yumuşakça kaldırır.
-      shadowColor: Ex.text.withValues(alpha: 0.35),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(12, 8, 6, 8),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Ex.borderHi),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.check_circle_rounded, size: 18, color: Ex.income),
-            const SizedBox(width: 8),
-            Text(
-              saved,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-                color: Ex.text,
-              ),
-            ),
-            const SizedBox(width: 6),
-            TextButton(
-              onPressed: onUndo,
-              style: TextButton.styleFrom(
-                foregroundColor: Ex.mint,
-                minimumSize: Size.zero,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: Text(
-                undo,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ],
+            // Bölümler ilk gösterimde 35 ms arayla solup yukarı kayarak
+            // gelir; başlık sabit kalır. Yeniden kurulum tekrar oynatmaz.
+            children: [
+              const _Header(),
+              const SizedBox(height: 34),
+              const _Hero().enterUp(context, index: 0),
+              const SizedBox(height: 14),
+              const _SpendSparkline().enterUp(context, index: 1),
+              const SizedBox(height: 22),
+              const _BudgetCard().enterUp(context, index: 2),
+              const _ReviewRow().enterUp(context, index: 3),
+              const SizedBox(height: 26),
+              const _AccountsSection().enterUp(context, index: 4),
+              const SizedBox(height: 26),
+              const _RecentSection().enterUp(context, index: 5),
+              const _NotificationsCard().enterUp(context, index: 6),
+            ],
+          ),
         ),
       ),
     );
@@ -1226,132 +1084,6 @@ class _NotificationsCard extends ConsumerWidget {
             const Icon(Icons.chevron_right_rounded, color: Ex.textMuted),
           ],
         ),
-      ),
-    );
-  }
-}
-
-// ── alt eylem kapsülü ─────────────────────────────────────────────────────
-
-class _Dock extends ConsumerWidget {
-  const _Dock({required this.onAdd});
-
-  final VoidCallback onAdd;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final bottom = MediaQuery.paddingOf(context).bottom;
-    return Container(
-      padding: EdgeInsets.fromLTRB(0, 34, 0, bottom + 12),
-      // Altta kayan içerik kapsülün arkasında kâğıda karışarak silinsin;
-      // karartma koyu zeminin kalıntısıydı, krem kâğıtta leke gibi duruyordu.
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Ex.bg.withValues(alpha: 0), Ex.bg.withValues(alpha: 0.95)],
-        ),
-      ),
-      child: Center(
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
-          decoration: BoxDecoration(
-            color: Ex.surface,
-            borderRadius: BorderRadius.circular(36),
-            border: Border.all(color: Ex.borderHi),
-            // Kâğıt üstünde gölge mürekkebin soluk hâli olmalı; koyu
-            // zemindeki ağır siyah burada kapsülü "yüzdürmek" yerine eziyordu.
-            boxShadow: [
-              BoxShadow(
-                color: Ex.text.withValues(alpha: 0.08),
-                blurRadius: 20,
-                offset: const Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Fiş tarama ve sesli giriş Pro: düğmeler herkese görünür
-              // (gizlenen özellik satılamaz), Pro değilse rozet taşır ve
-              // basınca paywall açılır. AI çağrısı Pro olmadan hiç yapılmaz.
-              ProBadged(
-                child: _DockButton(
-                  size: 46,
-                  color: Ex.surfaceHi,
-                  onTap: () async {
-                    if (!await requirePro(context, ref, ProFeature.aiEntry)) {
-                      return;
-                    }
-                    if (context.mounted) startReceiptScan(context, ref);
-                  },
-                  child: const Icon(
-                    Icons.document_scanner_outlined,
-                    size: 22,
-                    color: Ex.text,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 26),
-              _DockButton(
-                size: 56,
-                color: Ex.brand,
-                onTap: onAdd,
-                child: const Icon(
-                  Icons.add_rounded,
-                  size: 32,
-                  color: Ex.onBrand,
-                ),
-              ),
-              const SizedBox(width: 26),
-              ProBadged(
-                child: _DockButton(
-                  size: 46,
-                  color: Ex.surfaceHi,
-                  onTap: () async {
-                    if (!await requirePro(context, ref, ProFeature.aiEntry)) {
-                      return;
-                    }
-                    if (context.mounted) showAiAdd(context);
-                  },
-                  child: const Icon(
-                    Icons.mic_rounded,
-                    size: 22,
-                    color: Ex.text,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _DockButton extends StatelessWidget {
-  const _DockButton({
-    required this.size,
-    required this.color,
-    required this.onTap,
-    required this.child,
-  });
-
-  final double size;
-  final Color color;
-  final VoidCallback onTap;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    // Basılıyken 0.94'e küçülür (parmağı izler).
-    return PressScale(
-      color: color,
-      onTap: onTap,
-      child: SizedBox(
-        width: size,
-        height: size,
-        child: Center(child: child),
       ),
     );
   }

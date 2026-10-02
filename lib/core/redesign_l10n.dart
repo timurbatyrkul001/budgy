@@ -451,6 +451,14 @@ class RS {
     required this.editAvatarResetTitle,
     required this.editAvatarResetBody,
     required this.editAvatarResetConfirm,
+    required this.tabHome,
+    required this.tabJournal,
+    required this.tabCalendar,
+    required this.addSheetTitle,
+    required this.addExpenseManual,
+    required this.addIncomeManual,
+    required this.addScanReceipt,
+    required this.addByVoice,
   });
 
   final String onbTitle;
@@ -983,6 +991,22 @@ class RS {
   final String editAvatarResetBody;
   final String editAvatarResetConfirm;
 
+  // ── alt sekme çubuğu + "+" seçim sayfası ──────────────────────────────
+  final String tabHome;
+  final String tabJournal;
+  final String tabCalendar;
+
+  /// "+" düğmesinin açtığı seçim sayfasının başlığı.
+  final String addSheetTitle;
+
+  /// Seçim kartlarının etiketleri. Satır sonu bilinçli: referansta her
+  /// kart iki satırlı yazar, yazı tipine/dile göre kendiliğinden kırılmasına
+  /// bırakılırsa TR'de tek, RU'da üç satır olabiliyordu.
+  final String addExpenseManual;
+  final String addIncomeManual;
+  final String addScanReceipt;
+  final String addByVoice;
+
   static RS of(String code) => switch (code) {
     'tr' => tr,
     'ru' => ru,
@@ -1477,6 +1501,14 @@ class RS {
     editAvatarResetBody:
         'The colour goes back to the default green and the icon is replaced by the initial. Your data and account are not affected.',
     editAvatarResetConfirm: 'Reset',
+    tabHome: 'Home',
+    tabJournal: 'Expenses',
+    tabCalendar: 'Calendar',
+    addSheetTitle: 'What do you want to do?',
+    addExpenseManual: 'Add expense\nmanually',
+    addIncomeManual: 'Add income\nmanually',
+    addScanReceipt: 'Scan\nreceipt',
+    addByVoice: 'Add by\nvoice',
   );
 
   static const tr = RS(
@@ -1963,6 +1995,14 @@ class RS {
     editAvatarResetBody:
         'Renk varsayılan yeşile döner, simgenin yerini baş harf alır. Verilerine ve hesabına dokunulmaz.',
     editAvatarResetConfirm: 'Sıfırla',
+    tabHome: 'Ana sayfa',
+    tabJournal: 'Harcamalar',
+    tabCalendar: 'Takvim',
+    addSheetTitle: 'Ne yapmak istiyorsun?',
+    addExpenseManual: 'Elle gider\nekle',
+    addIncomeManual: 'Elle gelir\nekle',
+    addScanReceipt: 'Fiş\ntara',
+    addByVoice: 'Sesle\nekle',
   );
 
   static const ru = RS(
@@ -2450,5 +2490,13 @@ class RS {
     editAvatarResetBody:
         'Цвет вернётся к зелёному по умолчанию, вместо значка будет первая буква. Данные и аккаунт не затрагиваются.',
     editAvatarResetConfirm: 'Сбросить',
+    tabHome: 'Главная',
+    tabJournal: 'Расходы',
+    tabCalendar: 'Календарь',
+    addSheetTitle: 'Что хочешь сделать?',
+    addExpenseManual: 'Расход\nвручную',
+    addIncomeManual: 'Доход\nвручную',
+    addScanReceipt: 'Сканировать\nчек',
+    addByVoice: 'Добавить\nголосом',
   );
 }
