@@ -9,6 +9,7 @@ import '../../core/ex_style.dart';
 import '../../core/feedback.dart';
 import '../../core/formatters.dart';
 import '../../core/l10n.dart';
+import '../../core/redesign_l10n.dart';
 import '../../core/tokens.dart';
 import '../envelopes/budget_repository.dart';
 import '../envelopes/envelope.dart';
@@ -16,6 +17,7 @@ import '../envelopes/envelope_l10n.dart';
 import '../settings/app_settings.dart';
 import '../settings/category_resolver.dart';
 import 'quick_entry_screen.dart';
+import 'receipt_scan.dart';
 
 /// Sesli girişin cihaz katmanı. Gerçekte speech_to_text ([_SpeechVoiceInput]),
 /// testte sahte — izin reddi, ağ hatası gibi hâller ancak böyle sınanıyor.
@@ -224,18 +226,39 @@ class _AiAddSheetState extends ConsumerState<_AiAddSheet> {
       _parsing = true;
       _items = const [];
     });
+    // AI patlarsa ayrıştırıcı regex'e düşüyor — tutar yine geliyor ama
+    // kategori gelmiyor. Eskiden bunun SEBEBİ tamamen yutuluyordu: aylık
+    // hakkı biten kullanıcı kategorisiz bir tutar görüp neden böyle
+    // olduğunu hiç öğrenemiyordu. Sebebi yakalayıp aşağıda söylüyoruz.
+    Object? aiError;
     final items = await _parser.parse(
       text,
       envelopes: envelopes,
       languageCode: str.localeCode,
       resolveCategory: categoryResolverSync(ref),
+      onAiFailed: (error) => aiError = error,
     );
     if (!mounted) return;
     setState(() {
       _parsing = false;
       _items = items;
     });
-    if (items.isEmpty) showErrorSnack(context, str.aiNothingFound);
+    if (items.isEmpty) {
+      showErrorSnack(context, str.aiNothingFound);
+      return;
+    }
+    // Yalnız ADI OLAN sebepleri söylüyoruz (hak bitti / ağ / giriş yok).
+    // Bilinmeyen bir hatada susuyoruz: regex iş gördü, kullanıcıyı
+    // anlamayacağı bir uyarıyla korkutmanın anlamı yok.
+    final error = aiError;
+    if (error is AiLimitReached ||
+        error is AiNetworkError ||
+        error is AiUnavailable) {
+      showInfoSnack(
+        context,
+        receiptErrorMessage(ref.read(rsProvider), error!, str.localeCode),
+      );
+    }
   }
 
   Future<void> _saveAll() async {

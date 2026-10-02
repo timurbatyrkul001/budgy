@@ -13,13 +13,19 @@ import '../envelopes/budget_repository.dart';
 import '../envelopes/envelope.dart';
 import '../envelopes/envelope_l10n.dart';
 import '../home/fx_providers.dart';
-import '../transactions/tx.dart';
 
-/// `journalFullProvider`'ın tavanı (budget_repository.dart,
-/// `watchTransactions(limit: 1000)`). Dışa aktarma o listeden beslendiği
-/// için dosya da en fazla bu kadar işlem taşır; liste tavana dayandıysa
-/// kullanıcıya dürüstçe söylenir — "tüm verim" sanıp eksik dosya almasın.
-const kCsvExportLimit = 1000;
+/// Dışa aktarmanın tavanı.
+///
+/// Ekrandaki geçmiş listesi (`journalFullProvider`) 1000 kayıtla sınırlı —
+/// orada doğru, çünkü liste canlı besleniyor. Ama dosya "tüm verim"
+/// demek: 1500 işlemi olan biri 500'ü eksik bir dosyayı hepsi sanıp
+/// saklıyordu. Bu yüzden dışa aktarma kendi, çok daha yüksek tavanıyla
+/// tek seferlik okuma yapıyor.
+///
+/// Sonsuz değil: bir kullanıcının geçmişi ne kadar uzun olursa olsun
+/// belleğe sığması gerekiyor. Bu sayıya ulaşmak gerçekçi değil, ama
+/// ulaşılırsa kullanıcıya söyleniyor — sessizce kesmiyoruz.
+const kCsvExportLimit = 50000;
 
 /// Veri yönetimi: CSV dışa aktarma (paylaş) ve "Tüm verileri sil"
 /// (çift onay → deleteAccountData; hesap kalır).
@@ -39,7 +45,19 @@ class _DataManagementScreenState extends ConsumerState<DataManagementScreen> {
     final str = ref.read(strProvider);
     final rs = ref.read(rsProvider);
     try {
-      final txs = ref.read(journalFullProvider).value ?? const <Tx>[];
+      // journalFullProvider EKRAN için: son 1000 kayıtla sınırlı, çünkü
+      // listeyi canlı besliyor. Dışa aktarma "tüm verim" demek — orada
+      // sınır sessiz bir veri kaybı oluyordu: 1500 işlemi olan biri
+      // 500'ü eksik bir dosyayı "hepsi" sanıp saklıyordu.
+      //
+      // Burada tek seferlik, çok daha yüksek tavanlı bir okuma yapıyoruz.
+      // Stream değil `.first`: ekranı beslemiyor, dosya yazılıp bitiyor.
+      // Tavan yine var ama ulaşılması gerçekçi değil; sonsuz bırakmak
+      // ise belleği bir kullanıcının geçmişinin insafına bırakmak olurdu.
+      final txs = await ref
+          .read(budgetRepositoryProvider)
+          .watchTransactions(limit: kCsvExportLimit)
+          .first;
       final envelopes = {
         for (final e in ref.read(envelopesProvider).value ?? const <Envelope>[])
           e.id: e,
@@ -55,6 +73,14 @@ class _DataManagementScreenState extends ConsumerState<DataManagementScreen> {
       final file = File('${dir.path}/budgy-transactions.csv');
       await file.writeAsString(csv);
       await Share.shareXFiles([XFile(file.path, mimeType: 'text/csv')]);
+      // Tavana dayandıysa dosya eksik demektir. Pratikte ulaşılmaz, ama
+      // ulaşılırsa sessiz kalmak en kötüsü olurdu.
+      if (txs.length >= kCsvExportLimit && mounted) {
+        showInfoSnack(
+          context,
+          tpl(rs.exportCsvLimitTpl, {'n': '$kCsvExportLimit'}),
+        );
+      }
     } catch (_) {
       if (mounted) showErrorSnack(context, str.errorSaveFailed);
     } finally {
@@ -109,11 +135,6 @@ class _DataManagementScreenState extends ConsumerState<DataManagementScreen> {
   @override
   Widget build(BuildContext context) {
     final rs = ref.watch(rsProvider);
-    // Liste tavana dayandıysa daha eski işlemler yüklenmemiştir — dosya da
-    // onları içermez. Tam 1000 işlemi olan için uyarı gereksizdir ama
-    // zararsız; eksik dosyayı sessizce vermekten iyidir.
-    final txCount = ref.watch(journalFullProvider).value?.length ?? 0;
-    final truncated = txCount >= kCsvExportLimit;
     return Scaffold(
       backgroundColor: Ex.bg,
       body: SafeArea(
@@ -154,18 +175,6 @@ class _DataManagementScreenState extends ConsumerState<DataManagementScreen> {
                         Text(rs.exportCsvHint,
                             style: const TextStyle(
                                 fontSize: 12.5, height: 1.35, color: Ex.textMuted)),
-                        if (truncated) ...[
-                          const SizedBox(height: 6),
-                          Text(
-                            tpl(rs.exportCsvLimitTpl, {'n': '$kCsvExportLimit'}),
-                            style: const TextStyle(
-                              fontSize: 12.5,
-                              height: 1.35,
-                              fontWeight: FontWeight.w600,
-                              color: Ex.amber,
-                            ),
-                          ),
-                        ],
                       ],
                     ),
                   ),

@@ -9,9 +9,16 @@ import 'package:kopilka_app/features/transactions/tx.dart';
 
 import '../support/harness.dart';
 
-/// CSV dışa aktarma `journalFullProvider`'dan beslenir, o da 1000 işlemle
-/// sınırlı. Liste tavana dayandıysa kullanıcı dosyanın eksik olabileceğini
-/// EKRANDA görür; altındaysa uyarı yok.
+/// CSV dışa aktarma EKRANDAKİ listeden beslenmiyor.
+///
+/// Önce besleniyordu ve o liste 1000 kayıtla sınırlıydı: 1500 işlemi olan
+/// biri 500'ü eksik bir dosyayı "tüm verim" sanıp saklıyordu. Bir süre
+/// bunun için kartta sabit bir uyarı duruyordu — ama doğru çözüm uyarmak
+/// değil, eksik vermemekti.
+///
+/// Şimdi dışa aktarma kendi, çok daha yüksek tavanıyla tek seferlik okuma
+/// yapıyor. Dolayısıyla kartta artık uyarı YOK; uyarı yalnız o tavana
+/// gerçekten ulaşılırsa, dosya yazıldıktan sonra şerit olarak çıkıyor.
 void main() {
   setUpAll(() async {
     for (final lang in AppLanguage.values) {
@@ -49,35 +56,31 @@ void main() {
   String warning(AppLanguage lang) =>
       tpl(RS.of(lang.code).exportCsvLimitTpl, {'n': '$kCsvExportLimit'});
 
-  test('tavan journalFullProvider ile aynı', () {
-    expect(kCsvExportLimit, 1000);
+  test('dışa aktarma tavanı ekran listesinin tavanından çok yüksek', () {
+    // Ekrandaki geçmiş 1000'le sınırlı (budget_repository,
+    // journalFullProvider). Dosya onunla aynı tavanı PAYLAŞMAMALI —
+    // paylaştığı sürece eksik dosya üretiyordu.
+    expect(kCsvExportLimit, greaterThan(1000));
   });
 
-  testWidgets('tavanın altında: uyarı yok', (tester) async {
-    await pump(tester, kCsvExportLimit - 1);
-    expect(find.text(warning(AppLanguage.tr)), findsNothing);
-    expect(find.text(RS.tr.exportCsvHint), findsOneWidget);
-  });
-
-  testWidgets('tavana dayandı: uyarı var, sayı metinde', (tester) async {
-    await pump(tester, kCsvExportLimit);
-    expect(find.text(warning(AppLanguage.tr)), findsOneWidget);
-    expect(find.textContaining('1000'), findsOneWidget);
-  });
-
-  testWidgets('hiç işlem yok: uyarı yok', (tester) async {
-    await pump(tester, 0);
-    expect(find.text(warning(AppLanguage.tr)), findsNothing);
-  });
+  // Ekranda sabit uyarı kalmadı: hangi sayıda işlem olursa olsun kullanıcı
+  // "dosyan eksik olabilir" diye bir şey görmüyor, çünkü eksik değil.
+  for (final count in [0, 999, 1000, 1500]) {
+    testWidgets('$count işlem: kartta uyarı yok', (tester) async {
+      await pump(tester, count);
+      expect(find.text(warning(AppLanguage.tr)), findsNothing);
+      expect(find.text(RS.tr.exportCsvHint), findsOneWidget);
+    });
+  }
 
   for (final width in [320.0, 360.0]) {
     for (final lang in AppLanguage.values) {
-      testWidgets('${width.toInt()}dp · ${lang.code}: uyarı taşmaz', (
+      testWidgets('${width.toInt()}dp · ${lang.code}: kart taşmaz', (
         tester,
       ) async {
-        await pump(tester, kCsvExportLimit, language: lang, width: width);
+        await pump(tester, 1500, language: lang, width: width);
         expect(tester.takeException(), isNull);
-        expect(find.text(warning(lang)), findsOneWidget);
+        expect(find.text(RS.of(lang.code).exportCsvHint), findsOneWidget);
       });
     }
   }

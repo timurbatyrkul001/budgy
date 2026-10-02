@@ -52,11 +52,18 @@ class ExpenseParser {
   static bool get aiAvailable => ClaudeClient.available;
 
   /// [envelopes] — aktif ₺ zarflar; AI kategoriyi bunların adlarıyla eşler.
+  ///
+  /// [onAiFailed] — AI denendi ve PATLADI, regex'e düşülüyor. Çağıran bunu
+  /// kullanıcıya söyleyebilsin diye var: eskiden hata tamamen yutuluyordu
+  /// ve aylık hakkı biten kullanıcı, kategorisiz bir tutar görüp neden
+  /// böyle olduğunu hiç öğrenemiyordu. AI hiç denenmediyse (anahtar yok)
+  /// çağrılmaz — o ayrı bir durum.
   Future<List<ParsedItem>> parse(
     String text, {
     required List<({String id, String name})> envelopes,
     String languageCode = 'tr',
     ({String id, String name})? Function(String text)? resolveCategory,
+    void Function(Object error)? onAiFailed,
   }) async {
     final cleaned = text.trim();
     if (cleaned.isEmpty) return const [];
@@ -77,9 +84,11 @@ class ExpenseParser {
           envelopes,
           AiOp.parse,
         );
-      } catch (_) {
-        // Ağ hatası / hak bitti → regex'e düş; kullanıcı en azından tutarı
-        // alır. ([AiLimitReached] burada yutulur; fişte yutulmaz.)
+      } catch (error) {
+        // Ağ hatası / hak bitti → regex'e düş: kullanıcı en azından tutarı
+        // alsın, elle girmek zorunda kalmasın. Ama SESSİZCE düşmüyoruz —
+        // sebebi çağırana bildiriyoruz ki ekranda bir not çıkabilsin.
+        onAiFailed?.call(error);
       }
     }
     return _parseWithRegex(cleaned, envelopes, resolveCategory);
