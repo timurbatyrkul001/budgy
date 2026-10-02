@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/category_visual.dart';
 import '../../core/formatters.dart';
 import '../../core/l10n.dart';
+import '../accounts/account.dart';
 import '../auth/auth_gate.dart';
 import '../recurring/recurring.dart';
 import '../transactions/tx.dart';
@@ -85,6 +86,17 @@ final themeModeProvider = StreamProvider<ThemeMode>((ref) {
   final user = ref.watch(authStateProvider).value;
   if (user == null) return Stream.value(ThemeMode.system);
   return ref.watch(budgetRepositoryProvider).watchThemeMode();
+});
+
+/// "Yazı kontrastını artır" (Ayarlar → Görünüm). Varsayılan kapalı.
+///
+/// [themeModeProvider]'dan farklı olarak oturum koruması YOK: koruma
+/// [KopilkaApp] tarafında yapılır (girişten önce false). Böylece ayar ekranı
+/// ve widget testleri bu sağlayıcıyı doğrudan sahte Firestore'dan
+/// okuyabilir — testte `FirebaseAuth.instance` kurulu değil, oturum
+/// kontrolü buraya girse sağlayıcı hiç akmazdı.
+final highContrastProvider = StreamProvider<bool>((ref) {
+  return ref.watch(budgetRepositoryProvider).watchHighContrast();
 });
 
 ThemeMode _themeModeFromCode(String? code) => switch (code) {
@@ -325,6 +337,15 @@ class BudgetRepository {
 
   Future<void> setThemeMode(ThemeMode mode) =>
       _settings.set({'themeMode': mode.name}, SetOptions(merge: true));
+
+  /// Yüksek kontrast (erişilebilirlik): settings/main → `highContrast`.
+  /// Alan yoksa kapalı — eski kullanıcılar için görünüm değişmesin.
+  Stream<bool> watchHighContrast() => _settings
+      .snapshots()
+      .map((doc) => doc.data()?['highContrast'] == true);
+
+  Future<void> setHighContrast(bool on) =>
+      _settings.set({'highContrast': on}, SetOptions(merge: true));
 
   /// Profil bilgileri (isim, foto, telefon...) settings/main içinde.
   Stream<Map<String, dynamic>> watchProfile() =>
@@ -695,6 +716,8 @@ class BudgetRepository {
   ///   (göç öncesi) işlemler için de doğrudur: onların etkisi zarf
   ///   bakiyeleri üzerinden göç toplamına, yani bugünkü cüzdana aktı.
   /// * Döviz işlemi → ilgili kumbara zarfının bakiyesini geri al.
+  /// * `accountId` dolu → cüzdan/zarf değil, O HESABIN bakiyesi geri alınır
+  ///   (kendi biriminde; bkz. [_reversalOf]).
   /// * `goalFund` → hedef bakiyesini de ters çevir (goalId üzerinden).
   /// * `convert` → aynı `groupId`'li TÜM bacaklar birlikte silinir,
   ///   yoksa tek bacak kalır ve bakiyeler kalıcı bozulur.
@@ -716,22 +739,29 @@ class BudgetRepository {
 
     final rev = _reversalOf([for (final doc in docs) doc.data()!]);
     final batch = _db.batch();
-    await _applyDeltas(batch, rev.cash, rev.env);
+    await _applyDeltas(batch, rev.cash, rev.env, rev.acc);
     for (final doc in docs) {
       batch.delete(doc.reference);
     }
     await batch.commit();
   }
 
-  /// İşlem belgelerinin para etkisinin TERSİ: cüzdan farkı + zarf farkları.
-  /// deleteTx ve updateTx aynı mantığı paylaşır (iki kopya olmasın).
-  ({double cash, Map<String, double> env}) _reversalOf(
+  /// İşlem belgelerinin para etkisinin TERSİ: cüzdan farkı + zarf farkları
+  /// + hesap (kart) farkları. deleteTx ve updateTx aynı mantığı paylaşır
+  /// (iki kopya olmasın).
+  ({double cash, Map<String, double> env, Map<String, double> acc}) _reversalOf(
       List<Map<String, dynamic>> docs) {
     var cashDelta = 0.0;
     final envDeltas = <String, double>{};
+    final accDeltas = <String, double>{};
     void env(String? id, double delta) {
       if (id == null || delta == 0) return;
       envDeltas[id] = (envDeltas[id] ?? 0) + delta;
+    }
+
+    void acc(String id, double delta) {
+      if (delta == 0) return;
+      accDeltas[id] = (accDeltas[id] ?? 0) + delta;
     }
 
     for (final d in docs) {
@@ -745,7 +775,15 @@ class BudgetRepository {
               : 0.0; // eski transfer kayıtları: cüzdanı etkilemez
 
       if (sign == 0) continue;
-      if (currency == 'TRY') {
+      final accountId = d['accountId'] as String?;
+      if (accountId != null) {
+        // Hesaba bağlı kayıt: para o hesaptan çıkmış ya da oraya girmişti,
+        // cüzdana ve zarfa hiç dokunulmamıştı (bkz. _writeExpense /
+        // _writeCashIncome). Geri alma da yalnız o hesabın bakiyesinde ve
+        // hesabın KENDİ biriminde: çevrilmiş `baseAmount` değil ham `amount`.
+        // Aksi hâlde manat kartına lira yazılırdı.
+        acc(accountId, sign * amount);
+      } else if (currency == 'TRY') {
         cashDelta += sign * amount;
       } else {
         // Döviz: kumbara bakiyesi cüzdanla AYNI işaret kuralına uyar —
@@ -759,19 +797,36 @@ class BudgetRepository {
         env(goalId, -sign * amount);
       }
     }
-    return (cash: cashDelta, env: envDeltas);
+    return (cash: cashDelta, env: envDeltas, acc: accDeltas);
   }
 
-  /// Cüzdan + zarf farklarını tek partide yazar (belge başına TEK artış;
-  /// olmayan zarf atlanır).
+  /// Cüzdan + zarf + hesap farklarını tek partide yazar (belge başına TEK
+  /// artış; olmayan zarf/hesap atlanır).
   Future<void> _applyDeltas(
-      WriteBatch batch, double cash, Map<String, double> env) async {
-    _cashDelta(batch, cash);
+    WriteBatch batch,
+    double cash,
+    Map<String, double> env, [
+    Map<String, double> acc = const {},
+  ]) async {
+    // Nakit hesabı (`accounts/cash`) kart seçicide de seçilebiliyor ve o
+    // zaman kayda `accountId: 'cash'` yazılıyor. Bu aynı belge: payı cüzdan
+    // farkına katılır ki tek belgeye iki ayrı artış düşmesin.
+    _cashDelta(batch, cash + (acc[Account.cashId] ?? 0));
     for (final entry in env.entries) {
       if (entry.value == 0) continue;
       final envSnap = await _envelopes.doc(entry.key).get();
       if (envSnap.exists) {
         batch.update(_envelopes.doc(entry.key),
+            {'balance': FieldValue.increment(entry.value)});
+      }
+    }
+    for (final entry in acc.entries) {
+      if (entry.key == Account.cashId || entry.value == 0) continue;
+      final accSnap = await _accounts.doc(entry.key).get();
+      // Silinmiş hesaba artış yazmak belgeyi yalnız `balance` alanıyla
+      // yarım diriltirdi; hesap yoksa geri alacak bakiye de yok.
+      if (accSnap.exists) {
+        batch.update(_accounts.doc(entry.key),
             {'balance': FieldValue.increment(entry.value)});
       }
     }
@@ -784,6 +839,20 @@ class BudgetRepository {
   ///
   /// [envelopeId]: ₺ işlemde kategori etiketi (bakiye taşımaz), dövizde
   /// kumbara cüzdanı (bakiyesi değişir).
+  ///
+  /// [accountId] verilirse yeni etki O HESABIN bakiyesine, kendi biriminde
+  /// (addExpense/addCashIncome ile aynı kural); eski kayıt başka bir hesaba
+  /// bağlıysa onun bakiyesi geri alınır — kart değiştirmek "birinden geri
+  /// al, ötekinden düş" demektir. [baseAmount]/[baseCurrency]/[fxRate]
+  /// çağıran tarafta dondurulup verilir: düzenleme yeni bir olgu kaydıdır,
+  /// tutar ya da kart değiştiyse eski kur geçersizdir. [accountId] null ise
+  /// dört alan da belgeden silinir — eski karttan kalan kur kırıntısı
+  /// `Tx.baseOr`'u yanıltmasın.
+  ///
+  /// GET + BATCH, transaction değil — bilinçli: bakiye yazmaları
+  /// `FieldValue.increment` ile atomik, okunan tek şey işlem belgesinin eski
+  /// hâli. Aynı belgeyi iki yerden aynı anda düzenlemek dışında yarış yok;
+  /// transaction ise çevrimdışı çalışmaz ve o fiyatı ödemeye değmez.
   Future<void> updateTx(
     String txId, {
     required TxType type,
@@ -793,6 +862,10 @@ class BudgetRepository {
     String? envelopeId,
     String? envelopeName,
     String? note,
+    String? accountId,
+    double? baseAmount,
+    String? baseCurrency,
+    double? fxRate,
   }) async {
     if (type == TxType.transfer) throw const TxNotEditable('transfer');
     if (amount <= 0) throw ArgumentError.value(amount, 'amount');
@@ -812,15 +885,20 @@ class BudgetRepository {
     final rev = _reversalOf([old]);
     var cash = rev.cash;
     final env = Map<String, double>.from(rev.env);
+    final acc = Map<String, double>.from(rev.acc);
     final sign = type == TxType.expense ? -1.0 : 1.0;
-    if (currency == 'TRY') {
+    if (accountId != null) {
+      // Aynı hesapta kalındıysa geri alma + yeni etki aynı anahtarda
+      // toplanır: bakiye tam FARK kadar oynar, iki kez değil.
+      acc[accountId] = (acc[accountId] ?? 0) + sign * amount;
+    } else if (currency == 'TRY') {
       cash += sign * amount;
     } else if (envelopeId != null) {
       env[envelopeId] = (env[envelopeId] ?? 0) + sign * amount;
     }
 
     final batch = _db.batch();
-    await _applyDeltas(batch, cash, env);
+    await _applyDeltas(batch, cash, env, acc);
     batch.update(ref, {
       'type': type.name,
       'amount': amount,
@@ -830,6 +908,10 @@ class BudgetRepository {
       'envelopeName': envelopeName ?? FieldValue.delete(),
       'envelopeIds': [?envelopeId],
       'currency': currency,
+      'accountId': accountId ?? FieldValue.delete(),
+      'baseAmount': baseAmount ?? FieldValue.delete(),
+      'baseCurrency': baseCurrency ?? FieldValue.delete(),
+      'fxRate': fxRate ?? FieldValue.delete(),
     });
     await batch.commit();
   }
@@ -925,12 +1007,29 @@ class BudgetRepository {
   /// Доход в кошелёк — единственный путь для ₺-дохода в новой модели.
   /// [envelopeId]/[envelopeName]: gelir kaynağı etiketi (maaş, hediye…) —
   /// yalnız etiket, o zarfın bakiyesine dokunulmaz.
+  ///
+  /// [accountId] verilirse para O HESABA girer (bakiyesi artar) ve işlem o
+  /// hesaba bağlanır; [currency] o hesabın birimidir. Verilmezse eski yol:
+  /// ₺ nakit kasası — kart eklememiş kullanıcı değişikliği hissetmez.
+  ///
+  /// [baseAmount]/[baseCurrency]/[fxRate]: [addExpense] ile aynı sözleşme —
+  /// çağıran taraf `freezeToBase` ile hesaplayıp verir, depo kur çekmez. Kur
+  /// gelirde de işlem anında DONDURULUR: manat maaşını her açılışta güncel
+  /// kurla çevirseydik geçen ayın gelir toplamı da kurla birlikte oynardı.
+  /// Gider için geçerli olan "geçmişi oynayan kayıt işe yaramaz" kuralı
+  /// gelir için de geçerli; aksi hâlde ay sonu "ne kazandım / ne harcadım"
+  /// karşılaştırması iki ayrı kurla yapılmış olurdu.
   Future<String> addCashIncome({
     required double amount,
     String? note,
     DateTime? date,
     String? envelopeId,
     String? envelopeName,
+    String currency = 'TRY',
+    String? accountId,
+    double? baseAmount,
+    String? baseCurrency,
+    double? fxRate,
   }) async {
     final batch = _db.batch();
     final doc = _txs.doc();
@@ -939,7 +1038,12 @@ class BudgetRepository {
         note: note,
         date: date ?? DateTime.now(),
         envelopeId: envelopeId,
-        envelopeName: envelopeName);
+        envelopeName: envelopeName,
+        currency: currency,
+        accountId: accountId,
+        baseAmount: baseAmount,
+        baseCurrency: baseCurrency,
+        fxRate: fxRate);
     await batch.commit();
     return doc.id;
   }
@@ -952,6 +1056,11 @@ class BudgetRepository {
     String? note,
     String? envelopeId,
     String? envelopeName,
+    String currency = 'TRY',
+    String? accountId,
+    double? baseAmount,
+    String? baseCurrency,
+    double? fxRate,
   }) {
     batch.set(doc, {
       'type': TxType.income.name,
@@ -961,9 +1070,23 @@ class BudgetRepository {
       'envelopeId': ?envelopeId,
       'envelopeName': ?envelopeName,
       'envelopeIds': [?envelopeId],
-      'currency': 'TRY',
+      'currency': currency,
+      'accountId': ?accountId,
+      'baseAmount': ?baseAmount,
+      'baseCurrency': ?baseCurrency,
+      'fxRate': ?fxRate,
     });
-    _cashDelta(batch, amount);
+    if (accountId != null) {
+      // Para seçilen hesaba girer; bakiye hesabın KENDİ biriminde tutulur,
+      // o yüzden çevrilmiş değil ham tutar eklenir (_writeExpense'in aynası:
+      // oradan −amount, buradan +amount).
+      batch.update(_accounts.doc(accountId), {
+        'balance': FieldValue.increment(amount),
+      });
+    } else {
+      // Hesap seçilmeden gelen eski yol: tek kasa modeli, olduğu gibi.
+      _cashDelta(batch, amount);
+    }
   }
 
   /// Kategorisiz (ya da yanlış kategorili) ₺ giderin kategorisini değiştir.

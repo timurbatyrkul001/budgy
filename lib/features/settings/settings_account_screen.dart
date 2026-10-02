@@ -7,13 +7,13 @@ import '../../core/feedback.dart';
 import '../../core/gradient_icon.dart';
 import '../../core/l10n.dart';
 import '../../core/redesign_l10n.dart';
-import '../auth/forget_password_screen.dart';
 import '../auth/sign_in_screen.dart';
 import '../auth/sign_up_screen.dart';
 import '../envelopes/budget_repository.dart';
 import 'data_management_screen.dart';
 import 'settings_hub.dart';
 import 'settings_personal_details_screen.dart';
+import 'settings_signin_security_screen.dart';
 
 /// Geçerli kullanıcı; Firebase kurulu değilse (widget testi) null.
 User? _currentUser() {
@@ -95,14 +95,14 @@ class SettingsAccountScreen extends ConsumerWidget {
               ),
             ),
           ] else
+            // Doğrudan şifre sıfırlamaya DEĞİL, tam ekrana: Google/Apple ile
+            // girmiş kullanıcının şifresi yok, "şifre" ekranı ona anlamsızdı.
+            // Şifre akışı artık o ekranın içinde, yalnız şifresi olana.
             SettingsRow(
               icon: Icons.lock_rounded,
               title: rs.hubLoginSecurity,
               onTap: () => pushSettings(
-                context,
-                ForgetPasswordScreen(
-                    onDone: () => Navigator.of(context).maybePop()),
-              ),
+                  context, const SettingsSignInSecurityScreen()),
             ),
         ]),
 

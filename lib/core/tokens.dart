@@ -132,6 +132,34 @@ class BudgyColors extends ThemeExtension<BudgyColors> {
     envAraba: Color(0xFFE8EAEE),
   );
 
+  // ── Yüksek kontrast (Ayarlar → Görünüm → "Yazı kontrastını artır") ───
+  //
+  // Erişilebilirlik ayarı: soluk gri metinleri okumakta zorlananlar için
+  // ikincil metinler koyulaşır. Ana [text] zaten siyah, ona dokunulmaz;
+  // vurgu/amber/zarf tint'leri de aynı kalır — amaç paleti değiştirmek
+  // değil, yalnız "gri yazı"yı okunur kılmak.
+  //
+  // Değerler (beyaz zemine kontrast oranı, WCAG):
+  //   textMuted  76766F → 45453F   4.6:1 → 9.7:1
+  //   textFaint  9A9A94 → 5F5F59   2.8:1 → 6.4:1  (normal boyda AA'yı geçer)
+  //   border     E7E5DE → CFCCC3   kart kenarı/ayırıcı belli belirsiz
+  //   borderStrong D4D1C8 → B3AFA5 kalmasın; biraz daha koyu, hâlâ ince.
+  //
+  // DÜRÜST SINIR: bu palet yalnız `context.budgy` okuyan yerleri etkiler.
+  // `Ex.*` sabitleriyle (derleme zamanı const) boyanan ekranlar ayardan
+  // habersizdir. `Ex`'i çalışma zamanına taşımak bilinen bir borç; bu ayar
+  // o borcu kapatmaz, sadece hazır olan altyapıyı kullanır.
+  static final highContrast = dark.copyWith(
+    textMuted: const Color(0xFF45453F),
+    textFaint: const Color(0xFF5F5F59),
+    border: const Color(0xFFCFCCC3),
+    borderStrong: const Color(0xFFB3AFA5),
+  );
+
+  /// Ayara göre palet: `true` → [highContrast], değilse olağan [dark].
+  static BudgyColors forContrast({required bool high}) =>
+      high ? highContrast : dark;
+
   @override
   BudgyColors copyWith({
     Color? bg,

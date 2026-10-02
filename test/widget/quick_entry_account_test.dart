@@ -19,7 +19,7 @@ import '../support/harness.dart';
 /// çip yalnız iki+ hesapta görünür, tek hesapta akış eskisi gibi; manat
 /// kartından harcama `baseAmount`/`fxRate` ile yazılır; kur yoksa kayıt
 /// YAPILMAZ ve form dolu kalır; elle seçilen kart kategori değişince öneriyle
-/// ezilmez.
+/// ezilmez. Gelirde de aynı çip: para karta GİRER, kur yine donar.
 void main() {
   setUpAll(() async {
     for (final lang in AppLanguage.values) {
@@ -257,6 +257,103 @@ void main() {
     expect(tx['baseCurrency'], 'TRY');
     expect(tx['fxRate'], 1);
     expect(await balanceOf(db, 'a1'), 850);
+  });
+
+  group('gelir', () {
+    Future<void> toIncome(WidgetTester tester) async {
+      await tester.tap(find.text(RS.tr.income));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('iki hesap → gelirde de çip var; 5000 ₺ Enpara\'ya girer', (
+      tester,
+    ) async {
+      final db = await pumpEntry(tester, accounts: const [cash, enpara]);
+      await toIncome(tester);
+      expect(find.byType(AccountChip), findsOneWidget);
+      await pickCard(tester, 'a1');
+      expect(chipAccount(tester).id, 'a1');
+
+      await type(tester, '5000');
+      await save(tester);
+
+      final all = await txs(db);
+      expect(all, hasLength(1));
+      final tx = all.single;
+      expect(tx['type'], 'income');
+      expect(tx['amount'], 5000);
+      expect(tx['currency'], 'TRY');
+      expect(tx['accountId'], 'a1');
+      expect(tx['baseAmount'], 5000);
+      expect(tx['fxRate'], 1);
+      // Para karta GİRDİ: 1000 + 5000. Nakit dokunulmadı.
+      expect(await balanceOf(db, 'a1'), 6000);
+      expect(await balanceOf(db, Account.cashId), 1000);
+      expect(find.byType(QuickEntryScreen), findsNothing);
+    });
+
+    testWidgets('manat kartına 300 ₼ gelir: baseAmount 591, fxRate 1.97', (
+      tester,
+    ) async {
+      final db = await pumpEntry(
+        tester,
+        accounts: const [cash, kapital],
+        fxSnapshot: fx,
+      );
+      await toIncome(tester);
+      await pickCard(tester, 'a2');
+      expect(find.text('₺'), findsNothing, reason: 'simge kartın birimi');
+
+      await type(tester, '300');
+      await save(tester);
+
+      final tx = (await txs(db)).single;
+      expect(tx['type'], 'income');
+      expect(tx['amount'], 300);
+      expect(tx['currency'], 'AZN');
+      expect(tx['accountId'], 'a2');
+      expect(tx['baseAmount'], 591);
+      expect(tx['baseCurrency'], 'TRY');
+      expect(tx['fxRate'], closeTo(1.97, 1e-9));
+      // Bakiye kartın KENDİ biriminde artar: 500 ₼ + 300 ₼.
+      expect(await balanceOf(db, 'a2'), 800);
+      expect(await balanceOf(db, Account.cashId), 1000);
+    });
+
+    testWidgets('gelirde kur yok → kayıt YAPILMAZ, gelir mesajı çıkar', (
+      tester,
+    ) async {
+      final db = await pumpEntry(
+        tester,
+        accounts: const [cash, kapital],
+        fxSnapshot: null,
+      );
+      await toIncome(tester);
+      await pickCard(tester, 'a2');
+      await type(tester, '300');
+      await save(tester);
+
+      expect(await txs(db), isEmpty);
+      expect(await balanceOf(db, 'a2'), 500);
+      expect(find.text(RS.tr.fxFreezeUnavailableIncome), findsOneWidget);
+      expect(find.byType(QuickEntryScreen), findsOneWidget);
+      expect(chipAccount(tester).id, 'a2');
+    });
+
+    testWidgets('tek hesap → gelir eskisi gibi nakde girer', (tester) async {
+      final db = await pumpEntry(tester, accounts: const [cash]);
+      await toIncome(tester);
+      expect(find.byType(AccountChip), findsNothing);
+
+      await type(tester, '700');
+      await save(tester);
+
+      final tx = (await txs(db)).single;
+      expect(tx['type'], 'income');
+      expect(tx.containsKey('accountId'), isFalse, reason: 'eski yol');
+      expect(tx.containsKey('baseAmount'), isFalse);
+      expect(await balanceOf(db, Account.cashId), 1700);
+    });
   });
 
   group('öneri ve elle seçim', () {

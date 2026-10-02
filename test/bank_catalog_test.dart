@@ -59,7 +59,7 @@ void main() {
   });
 
   test('bilinen karakterler: Kaspi altın metal, Enpara beyaz şerit, '
-      'Papara mor split, T-Bank siyah flat, Birbank siyah-kırmızı split', () {
+      'Papara siyah split, T-Bank siyah flat, Birbank siyah-kırmızı split', () {
     final kaspi = bankByKey('kaspi')!;
     expect(kaspi.style, CardStyle.metal);
     expect(kaspi.isLight, isTrue);
@@ -74,9 +74,12 @@ void main() {
     final papara = bankByKey('papara')!;
     expect(papara.style, CardStyle.split);
     expect(papara.isLight, isFalse);
-    // Mor: mavi kanalı kırmızıdan, kırmızı yeşilden büyük.
-    expect(papara.color.b, greaterThan(papara.color.r));
-    expect(papara.color.r, greaterThan(papara.color.g));
+    // 2023 kimliği siyah-beyaz: zemin siyah, ikinci ton da nötr (doygun
+    // değil) — eski mor geri sızmasın.
+    expect(papara.color.computeLuminance(), lessThan(0.02), reason: 'siyah');
+    final graphite = papara.accents.single;
+    expect((graphite.r - graphite.b).abs(), lessThan(0.05), reason: 'nötr');
+    expect((graphite.r - graphite.g).abs(), lessThan(0.05), reason: 'nötr');
 
     final tbank = bankByKey('tbank')!;
     expect(tbank.style, CardStyle.flat);
@@ -144,6 +147,21 @@ void main() {
     for (final k in keys) {
       expect(k, isNotEmpty);
       expect(k, equals(k.toLowerCase()), reason: 'anahtar küçük harf: $k');
+    }
+  });
+
+  test('aynı ülkede iki banka aynı rengi paylaşmaz', () {
+    // Kart rengi tanıma aracı: seçicide yan yana duran iki kart aynı
+    // renkse kullanıcı ayıramaz. Genel kayıtlar (Diğer/Nakit) her ülkede
+    // görünür, onlar da hiçbir bankayla çakışmasın.
+    for (final c in kBankCountries) {
+      final seen = <int, String>{};
+      for (final b in banksForCountry(c)) {
+        final v = b.color.toARGB32();
+        expect(seen.containsKey(v), isFalse,
+            reason: '$c: ${b.key} ile ${seen[v]} aynı renk');
+        seen[v] = b.key;
+      }
     }
   });
 

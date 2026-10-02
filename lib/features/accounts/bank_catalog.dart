@@ -23,17 +23,23 @@ import '../../core/ex_style.dart';
 /// yanılgısı demek. Geometri `account_card.dart` içindeki painter'larda,
 /// her biri kendi oranlarıyla.
 ///
-/// RENKLER NEREDEN: Her kayıttaki hex, bankanın resmî sitesi / kurumsal
-/// kimlik kılavuzundaki ana rengin ezberden aktarımı (Pantone eşleniğiyle
-/// birlikte not düştüm). Yüzde yüz birebir olduğunu iddia etmiyoruz; amaç
-/// "o bankanın rengi" diye tanınması, pikseli pikseline eşleşmesi değil.
+/// RENKLER NEREDEN: Her kayıttaki hex 2026-10-02'de birincil kaynaktan
+/// doğrulandı: bankanın kendi sitesindeki logo SVG/PNG dosyası, sitenin
+/// <meta theme-color> değeri ya da site CSS'indeki marka rengi; siteye
+/// erişilemeyen birkaç bankada (Kapital, Sber) Wikimedia Commons'taki logo
+/// dosyası ikincil kaynak olarak kullanıldı. Kaynak ve tarih her kaydın
+/// "KAYNAK:" satırında. Doğrulanamayan tonlar (Kaspi'nin altını, T-Bank /
+/// Birbank / Papara'nın siyahı) açıkça "DOĞRULANAMADI" diye işaretli;
+/// orada amaç "o bankanın kartı" diye tanınması, pikseli pikseline
+/// eşleşmesi değil.
 ///
 /// KONTRAST KURALI: Kart üstündeki yazı rengi [BankBrand.surface]'tan türer:
 /// koyu zeminde BEYAZ, açık zeminde mürekkep (`Ex.text`). WCAG AA metin için
-/// yazı ile zemin arasında en az 4.5:1 gerekir. Sarı (Vakıfbank), turuncu
-/// (ING), açık yeşil (TEB, Halyk, Sber) ve parlak kırmızı (Alfa) marka
-/// tonları beyazla bunu geçmez; o kayıtlarda ton KOYULAŞTIRILDI ve yanına
-/// yazıldı. Açık zeminli kartlarda (Kaspi altını, Enpara beyazı) tam tersi:
+/// yazı ile zemin arasında en az 4.5:1 gerekir. Sarı (VakıfBank, Jusan),
+/// turuncu (ING), açık yeşil (TEB, Freedom, Sber) ve parlak kırmızı (Alfa,
+/// Birbank'ın vurgusu) marka tonları beyazla bunu geçmez; o kayıtlarda ton
+/// KOYULAŞTIRILDI — ton (hue) sabit, RGB orantılı ölçeklendi, eşiği ilk
+/// geçen değer alındı — ve resmî hex ile birlikte yanına yazıldı. Açık zeminli kartlarda (Kaspi altını, Enpara beyazı) tam tersi:
 /// zemin yeterince AÇIK tutuldu ki mürekkep okunsun. Testler bu eşiği her
 /// kayıt için kendi zeminine göre doğrular (`test/bank_catalog_test.dart`).
 
@@ -181,120 +187,168 @@ String currencyForCountry(String code) => switch (code) {
     };
 
 /// Tüm katalog. Sıra = seçicideki sıra (ülke içinde yaygınlık).
+///
+/// Her kayıtta "KAYNAK:" satırı var — renk nereden alındı, hangi tarihte
+/// bakıldı. Kısaltmalar: "site logo SVG" = bankanın kendi sitesindeki logo
+/// dosyasının fill değeri; "theme-color" = sitenin <meta name=theme-color>
+/// değeri (bankanın tarayıcıya bildirdiği kendi rengi); "Commons" =
+/// Wikimedia Commons'taki logo dosyası (ikincil kaynak, yalnız site
+/// erişilemeyince veya çapraz doğrulama için).
 const kBankCatalog = <BankBrand>[
   // ── Türkiye ────────────────────────────────────────────────────────────
   BankBrand(
     key: 'enpara',
     name: 'Enpara',
-    // Enpara moru (Pantone 2603 C ≈ #702082): kimlik rengi, çipte görünür.
-    color: Color(0xFF702082),
+    // Enpara moru #AA55A1 — Pantone 2603 (#702082) sanılmıştı, yanlıştı:
+    // gerçek logo daha açık, pembeye çalan bir mor. Çipte görünür.
+    // KAYNAK (2026-10-02): enpara.com/Frontend/dist/images/enpara.svg
+    // (logo fill ×6) + Commons "Enpara.com Logo.svg" aynı değer.
+    color: Color(0xFFAA55A1),
     country: 'TR',
     currency: 'TRY',
     // NEDEN ribbon: Enpara'nın kartı beyaz üstüne renkli çapraz şerittir;
     // mor tek başına "Enpara" demiyor, beyaz + üç renk şerit diyor. Zemin
-    // açık, yazı mürekkep. Şerit: turuncu → mor → yeşil, bizim açımız ve
+    // açık, yazı mürekkep. Şerit paleti logonun kendi üç rengi (turuncu
+    // #F99D1C, mor #AA55A1, yeşil #8DC63F — aynı SVG'den), bizim açımız ve
     // oranımızla (bankanın şeridi birebir değil).
     style: CardStyle.ribbon,
     surface: Brightness.light,
-    accents: [Color(0xFFF07E1A), Color(0xFF702082), Color(0xFF2E9E4F)],
+    accents: [Color(0xFFF99D1C), Color(0xFFAA55A1), Color(0xFF8DC63F)],
   ),
   BankBrand(
     key: 'garanti',
     name: 'Garanti BBVA',
-    // BBVA "core blue" #004481 — Garanti BBVA birleşmeden beri bu laciverti
-    // kullanıyor, eski Garanti yeşili artık ikincil. ~9.8:1.
-    color: Color(0xFF004481),
+    // BBVA laciverti #004480 — birleşmeden beri ana renk bu, eski Garanti
+    // yeşili logoda yalnız amblemde kaldı. Beyazla ~9.8:1, olduğu gibi.
+    // KAYNAK (2026-10-02): garantibbva.com.tr/content/dam/public-website/
+    // logo/logo.svg (fill #004480); sitenin theme-color'ı #004481 (1 birim
+    // fark, aynı renk).
+    color: Color(0xFF004480),
     country: 'TR',
     currency: 'TRY',
   ),
   BankBrand(
     key: 'isbank',
     name: 'İş Bankası',
-    // İş Bankası laciverti (Pantone 288 C ≈ #002D72). Olduğu gibi.
-    color: Color(0xFF002D72),
+    // İş Bankası mavisi #00559F — "Pantone 288 laciverti" sanılmıştı, logo
+    // aslında daha açık, orta mavi. Beyazla ~7.5:1, olduğu gibi.
+    // KAYNAK (2026-10-02): Commons "Türkiye İş Bankası logo.svg" (fill
+    // #00559F) + isbank.com.tr v2.css'te aynı değer ×9. Site başlık
+    // zemini daha koyu bir lacivert (#013682) ama o logo değil, zemin.
+    color: Color(0xFF00559F),
     country: 'TR',
     currency: 'TRY',
   ),
   BankBrand(
     key: 'yapikredi',
     name: 'Yapı Kredi',
-    // Yapı Kredi koyu mavisi (logo laciverti, ≈ #003A70). Olduğu gibi.
-    color: Color(0xFF003A70),
+    // Yapı Kredi laciverti #004587. Beyazla ~9.5:1, olduğu gibi.
+    // KAYNAK (2026-10-02): assets.yapikredi.com.tr/WebSite/_assets/img/
+    // Yapikredi_logo.svg (fill ×10). Site HTML'inde #004990 da geçiyor
+    // (buton tonu); logo değeri esas alındı.
+    color: Color(0xFF004587),
     country: 'TR',
     currency: 'TRY',
   ),
   BankBrand(
     key: 'akbank',
     name: 'Akbank',
-    // Akbank kırmızısı (Pantone 485 C ≈ #DA291C). Beyazla ~4.9:1, sınırda
-    // ama geçiyor; koyulaştırmadık.
-    color: Color(0xFFDA291C),
+    // Akbank kırmızısı #DC0005. Beyazla ~5.2:1, geçiyor; koyulaştırmadık.
+    // KAYNAK (2026-10-02): akbank.com/SiteAssets/img/logo.svg (fill) +
+    // sitenin theme-color'ı aynı değer.
+    color: Color(0xFFDC0005),
     country: 'TR',
     currency: 'TRY',
   ),
   BankBrand(
     key: 'ziraat',
     name: 'Ziraat',
-    // Ziraat kırmızısı (Pantone 186 C ≈ #C8102E). ~5.9:1, olduğu gibi.
-    color: Color(0xFFC8102E),
+    // Ziraat kırmızısı #E10514. Beyazla ~5.0:1, olduğu gibi.
+    // KAYNAK (2026-10-02): ziraatbank.com.tr theme-color + site CSS'inde
+    // en sık renk (×183). Commons'taki 2025 logo SVG'si #D71920 veriyor
+    // (baskı/vektör farkı); bankanın sitesinde kullandığı değer esas.
+    color: Color(0xFFE10514),
     country: 'TR',
     currency: 'TRY',
   ),
   BankBrand(
     key: 'papara',
     name: 'Papara',
-    // Papara moru (dijital markanın vurgu rengi, ≈ #4B2A8A). Beyazla ~10:1.
-    color: Color(0xFF4B2A8A),
+    // Papara 2023'te (Ağustos) logosunu yeniledi: mor/gradyan BIRAKILDI,
+    // kimlik sade SİYAH-BEYAZ oldu. Eski mor (#4B2A8A) artık marka değil.
+    // Siyahın tam hex'i DOĞRULANAMADI: papara.com sunucudan yalnız
+    // Bootstrap değişkenli bir kabuk döndürüyor, logo JS ile geliyor.
+    // Uygulamanın mürekkebi (#111) ile karışmasın diye bir tık açık
+    // antrasit — T-Bank/Birbank ile aynı gerekçe, ayrı ülke, yan yana
+    // görünmezler.
+    // KAYNAK (2026-10-02): fintechistanbul.org 24.08.2023 "Papara logosunu
+    // yeniledi" (ikincil; siyah-beyaz tercihi açıkça yazıyor).
+    color: Color(0xFF1A1A1A),
     country: 'TR',
     currency: 'TRY',
-    // NEDEN split: Papara'nın kartları tek düz renk değil, iki tonlu/kesik
-    // yüzeyler; köşegen iki ton bunu düz mor kartlardan (Enpara/QNB) ayırır.
-    // İkinci ton aynı morun koyusu, beyazla ~14:1 — simge ve rozet onun
-    // üstüne düşüyor.
+    // NEDEN split: Papara'nın kartları tek düz yüzey değil, kesik/iki tonlu;
+    // köşegen bunu düz siyah T-Bank kartından ayırır. İkinci ton grafit
+    // (#2E2E2E, beyazla ~13.6:1) — simge ve rozet onun üstüne düşüyor.
     style: CardStyle.split,
-    accents: [Color(0xFF2B1650)],
+    accents: [Color(0xFF2E2E2E)],
   ),
   BankBrand(
     key: 'denizbank',
     name: 'DenizBank',
-    // DenizBank kırmızısı (logo dalgası, ≈ #E4002B). Parlak hali ~4.3:1 ile
-    // eşiğin altında kaldığı için koyulaştırıldı → #B5121B.
-    color: Color(0xFFB5121B),
+    // DenizBank MAVİ #004899 — kırmızı sanılmıştı, yanlıştı: logo yazısı
+    // mavi, kırmızı yalnız eski logonun dalga vurgusuydu (Commons eski
+    // "DenizBank logo.svg": mavi #004C91 + kırmızı #CE163A); 2026 logosu
+    // tamamen mavi. Beyazla ~8.8:1, olduğu gibi.
+    // KAYNAK (2026-10-02): denizbank.com/_assets/img/DenizbankLOGO-en-v6.svg
+    // (tek fill ×9) + Commons "DenizBank logo 2026.svg" birebir aynı dosya;
+    // site theme-color'ı #00529A (komşu ton).
+    color: Color(0xFF004899),
     country: 'TR',
     currency: 'TRY',
   ),
   BankBrand(
     key: 'qnb',
     name: 'QNB',
-    // QNB mor-bordosu (Pantone 7421 C komşusu, ≈ #6B1E5C). Olduğu gibi.
-    color: Color(0xFF6B1E5C),
+    // QNB Türkiye laciverti #1B124B — "QNB" yazısının rengi (mor-bordo
+    // #6B1E5C sanılmıştı, o amblemdeki ikincil ton). Beyazla ~17:1.
+    // KAYNAK (2026-10-02): qnb.com.tr/_assets/img/logo.png — PNG'deki
+    // doygun piksellerin %99'u #1B124B; brandfetch de #1A164E veriyor.
+    // Sitenin theme-color'ı #870052 (amblemin mor-bordosu), yazı rengi değil.
+    color: Color(0xFF1B124B),
     country: 'TR',
     currency: 'TRY',
   ),
   BankBrand(
     key: 'vakifbank',
     name: 'VakıfBank',
-    // VakıfBank sarısı (#FFCB05) beyaz yazıyla ~1.4:1 — okunmaz. Aynı tonun
-    // koyu hardalı kullanıldı; sarı kimliği korunuyor, metin okunuyor.
-    color: Color(0xFF8A6600),
+    // VakıfBank sarısı #FDB913 beyaz yazıyla ~1.7:1 — okunmaz. Aynı tonun
+    // koyusu kullanıldı (RGB orantılı ölçek, ton sabit) → #956D0B, ~4.7:1.
+    // KAYNAK (2026-10-02): vakifbank.com.tr/Templates/Default/assets/img/
+    // logo.svg (fill #FDB913) + site CSS'inde en sık renk (×149).
+    color: Color(0xFF956D0B),
     country: 'TR',
     currency: 'TRY',
   ),
   BankBrand(
     key: 'teb',
     name: 'TEB',
-    // TEB / BNP Paribas yeşili (#009640) beyazla ~3.9:1, eşiğin altında;
-    // koyulaştırıldı → #007A33.
-    color: Color(0xFF007A33),
+    // TEB / BNP Paribas yeşili #00915A beyazla ~4.0:1, eşiğin altında;
+    // aynı tonda hafif koyultuldu → #008553, ~4.7:1.
+    // KAYNAK (2026-10-02): teb.com.tr HTML'inde en sık marka rengi (×15);
+    // logo PNG'si (images/TEB/fLogo.png) aynı yeşil ailesini veriyor.
+    // Commons'taki "TEB logo.svg" eski mavi logo (#164194), güncel değil.
+    color: Color(0xFF008553),
     country: 'TR',
     currency: 'TRY',
   ),
   BankBrand(
     key: 'ing',
     name: 'ING',
-    // ING turuncusu (#FF6200) beyazla ~3:1 — geçmez. Yanık turuncuya
-    // koyulaştırıldı → #B84A00; hâlâ "ING turuncusu" diye okunuyor.
-    color: Color(0xFFB84A00),
+    // ING turuncusu #FF6200 beyazla ~3.0:1 — geçmez. Aynı tonda koyultuldu
+    // → #C94D00, ~4.6:1; hâlâ "ING turuncusu" diye okunuyor.
+    // KAYNAK (2026-10-02): ing.com.tr/documents/IngBank/assets/css/ui.css
+    // (#FF6200 ×27) ve site.css; ING Group'un küresel turuncusuyla aynı.
+    color: Color(0xFFC94D00),
     country: 'TR',
     currency: 'TRY',
   ),
@@ -303,42 +357,52 @@ const kBankCatalog = <BankBrand>[
   BankBrand(
     key: 'kapital',
     name: 'Kapital Bank',
-    // Kapital Bank kırmızısı (≈ #D7141A). ~5.2:1, olduğu gibi.
-    color: Color(0xFFD7141A),
+    // Kapital Bank kırmızısı #B61D29 (2025 logosu). Beyazla ~6.6:1.
+    // KAYNAK (2026-10-02): İKİNCİL — Commons "Kapital Bank logo 2025.png"
+    // (doygun piksellerin tamamı #B61D29). kapitalbank.az Cloudflare
+    // doğrulaması istiyor, sunucudan alınamadı; /az yolu Birbank temasına
+    // yönleniyor. Eski logo (Commons SVG) bordo #6A062B + kırmızı #E0262C.
+    color: Color(0xFFB61D29),
     country: 'AZ',
     currency: 'AZN',
   ),
   BankBrand(
     key: 'pasha',
     name: 'PAŞA Bank',
-    // PAŞA Bank koyu yeşili (logo, ≈ #00573F). Olduğu gibi.
-    color: Color(0xFF00573F),
+    // PAŞA Bank yeşili #007D57. Beyazla ~5.2:1, olduğu gibi.
+    // KAYNAK (2026-10-02): pashabank.az/favicon.svg (fill #007D57 ×4,
+    // yanında kırmızı vurgu #CF3A4B) + sitenin sohbet eklentisine verdiği
+    // theme_color aynı değer.
+    color: Color(0xFF007D57),
     country: 'AZ',
     currency: 'AZN',
   ),
   BankBrand(
     key: 'birbank',
     name: 'Birbank',
-    // Birbank, Kapital Bank'ın dijital markası. Kullanıcı tarifine göre
-    // kartı SİYAH zemin üstüne KIRMIZI vurgu — renkler kullanıcı tarifinden,
-    // resmî marka kılavuzundan değil (birbank.az kart görsellerini JS ile
-    // yüklüyor, sunucu HTML'inden doğrulanamadı). Zemin: uygulamanın
-    // mürekkebiyle (#111) karışmasın diye bir tık açık antrasit.
+    // Birbank, Kapital Bank'ın dijital markası. SİYAH zemin kullanıcı
+    // tarifinden — DOĞRULANAMADI (birbank.az kart görsellerini JS ile
+    // yüklüyor); yaklaşık ton, uygulamanın mürekkebiyle (#111) karışmasın
+    // diye bir tık açık antrasit.
     color: Color(0xFF161616),
     country: 'AZ',
     currency: 'AZN',
     // NEDEN split: siyah → kırmızı köşegen, tarif edilen görünüm bu; ayrıca
-    // kırmızı Kapital kartının yanında Birbank'ı ayırıyor. Kırmızı, Kapital
-    // kırmızısının (#E4002B) krem kâğıtta ucuz durmayan vişneye çekilmişi
-    // (≈ #C41230, beyazla ~6:1 — simge ve rozet onun üstüne düşüyor).
+    // kırmızı Kapital kartının yanında Birbank'ı ayırıyor. Kırmızı #FF0039
+    // beyazla ~4.0:1, eşiğin altında; aynı tonda hafif koyultuldu →
+    // #E80034, ~4.7:1 — simge ve rozet onun üstüne düşüyor.
+    // KAYNAK (2026-10-02): birbank.az/file/new_logo_*.svg (fill #FF0039);
+    // site CSS değişkeni --red #BC0C19, theme-color #DF3A4C (UI tonları).
     style: CardStyle.split,
-    accents: [Color(0xFFC41230)],
+    accents: [Color(0xFFE80034)],
   ),
   BankBrand(
     key: 'abb',
     name: 'ABB',
-    // Azərbaycan Beynəlxalq Bankı mavisi (≈ #0B4EA2). Olduğu gibi.
-    color: Color(0xFF0B4EA2),
+    // Azərbaycan Beynəlxalq Bankı mavisi #0056C1. Beyazla ~6.8:1.
+    // KAYNAK (2026-10-02): abb-bank.az theme-color + mask-icon rengi
+    // (ikisi de #0056C1); Commons "ABB Logo.png" #0057C2 (1 birim fark).
+    color: Color(0xFF0056C1),
     country: 'AZ',
     currency: 'AZN',
   ),
@@ -347,10 +411,12 @@ const kBankCatalog = <BankBrand>[
   BankBrand(
     key: 'kaspi',
     name: 'Kaspi',
-    // NEDEN altın, kırmızı değil: Kaspi'nin logosu kırmızı ama herkesin
-    // cebindeki kart "Kaspi Gold" — altın metalik. Kullanıcı kartını
-    // altından tanıyor. Ton (≈ #CFA54C) sarıya kaçmayan, hafif sıcak altın;
-    // mürekkeple ~7.9:1. Metal gradyanının en koyu durağı da eşiği geçer
+    // NEDEN altın, kırmızı değil: Kaspi'nin logosu kırmızı (#F14635 —
+    // kaspi.kz/favicon/icon.svg, 2026-10-02) ama herkesin cebindeki kart
+    // "Kaspi Gold" — altın metalik. Kullanıcı kartını altından tanıyor.
+    // ALTIN TONU DOĞRULANAMADI: kartın altını için yayımlanmış bir hex yok,
+    // yaklaşık ton (≈ #CFA54C, sarıya kaçmayan sıcak altın); mürekkeple
+    // ~7.9:1. Metal gradyanının en koyu durağı da eşiği geçer
     // (account_card_test doğrular).
     color: Color(0xFFCFA54C),
     country: 'KZ',
@@ -363,28 +429,36 @@ const kBankCatalog = <BankBrand>[
   BankBrand(
     key: 'halyk',
     name: 'Halyk',
-    // Halyk yeşili (≈ #00A651) beyazla ~3.3:1 — geçmez. Koyulaştırıldı
-    // → #007A3D.
-    color: Color(0xFF007A3D),
+    // Halyk yeşili #008669 (logo; yanında sarı #F8AE00). Beyazla ~4.55:1,
+    // sınırda ama geçiyor; koyulaştırmadık.
+    // KAYNAK (2026-10-02): halykbank.kz/themes/halyk/assets/images/logo.svg
+    // (fill ×2); favicon.svg komşu ton #00896B.
+    color: Color(0xFF008669),
     country: 'KZ',
     currency: 'KZT',
   ),
   BankBrand(
     key: 'freedom',
     name: 'Freedom Bank',
-    // Freedom Finance yeşili (≈ #1AB248) limona çalar, beyazla ~2.6:1.
-    // Koyulaştırıldı → #1B7A2E; Halyk'tan biraz daha sarı kalsın diye
-    // kırmızı kanalı bırakıldı.
-    color: Color(0xFF1B7A2E),
+    // Freedom yeşili #02B140 (logo kalkanının parlak yeşili) beyazla ~2.9:1
+    // — geçmez. Aynı tonda koyultuldu → #028731, ~4.7:1. Logonun koyu
+    // tonu #164734 de var ama kartı tanıtan parlak yeşil.
+    // KAYNAK (2026-10-02): bankffin.kz/images/logo.svg (fill #02B140 +
+    // #164734).
+    color: Color(0xFF028731),
     country: 'KZ',
     currency: 'KZT',
   ),
   BankBrand(
     key: 'jusan',
     name: 'Jusan',
-    // Jusan turuncusu (≈ #F28C00) beyazla ~2.4:1 — geçmez. Kehribara
-    // koyulaştırıldı → #9A6200.
-    color: Color(0xFF9A6200),
+    // Jusan kehribarı #EDB110 beyazla ~1.9:1 — geçmez. Aynı tonda
+    // koyultuldu → #936E0A, ~4.7:1. "Turuncu #F28C00" sanılmıştı; eski
+    // logo turuncuydu (Commons "Jusan Bank.png" #FF6700), güncel marka
+    // sarı-kehribar.
+    // KAYNAK (2026-10-02): jusan.kz/favicon/favicon.svg (fill #EDB110 ×4)
+    // + site HTML'inde aynı değer.
+    color: Color(0xFF936E0A),
     country: 'KZ',
     currency: 'KZT',
   ),
@@ -394,10 +468,13 @@ const kBankCatalog = <BankBrand>[
     key: 'tbank',
     name: 'T-Bank',
     // NEDEN siyah: T-Bank'ın kart karakteri koyu/siyah (sarı logo, siyah
-    // plastik); sarıyı (#FFDD2D) zemin yapmak beyaz yazıyla ~1.3:1, okunmaz,
-    // koyultunca da hardal olup markayı kaybediyordu. Uygulamanın
-    // mürekkebi (#111) ile karışmasın diye bir tık açık antrasit. Flat kaldı:
-    // siyah kartın karakteri düzlüğünde.
+    // plastik); sarıyı zemin yapmak beyaz yazıyla ~1.3:1, okunmaz,
+    // koyultunca da hardal olup markayı kaybediyordu. SİYAHIN HEX'İ
+    // DOĞRULANAMADI (kart plastiği için yayımlanmış değer yok), yaklaşık
+    // ton: uygulamanın mürekkebi (#111) ile karışmasın diye bir tık açık
+    // antrasit. Flat kaldı: siyah kartın karakteri düzlüğünde.
+    // KAYNAK (2026-10-02): marka sarısı #FFDD2D — tbank.ru HTML'inde ×15
+    // + Commons "T-Bank RU logo.svg" fill; sarı doğrulandı, zemin değil.
     color: Color(0xFF1E1E1E),
     country: 'RU',
     currency: 'RUB',
@@ -405,18 +482,23 @@ const kBankCatalog = <BankBrand>[
   BankBrand(
     key: 'sber',
     name: 'Sber',
-    // Sber yeşili (#21A038, resmî) beyazla ~3.4:1 — geçmez. Koyulaştırıldı
-    // → #137A2B.
-    color: Color(0xFF137A2B),
+    // Sber yeşili #21A038 beyazla ~3.4:1 — geçmez. Aynı tonda koyultuldu
+    // → #1C862F, ~4.7:1.
+    // KAYNAK (2026-10-02): Commons "Sberbank Logo 2020.svg" fill
+    // rgb(12.94%, 62.75%, 21.96%) = #21A038 (ikincil kaynak: sberbank.ru
+    // bu ağdan engelli, yalnız engel sayfası dönüyor).
+    color: Color(0xFF1C862F),
     country: 'RU',
     currency: 'RUB',
   ),
   BankBrand(
     key: 'alfa',
     name: 'Alfa-Bank',
-    // Alfa kırmızısı (#EF3124, resmî) beyazla ~4.1:1 — sınırın altında.
-    // Hafif koyulaştırıldı → #C9261B.
-    color: Color(0xFFC9261B),
+    // Alfa kırmızısı #EF3124 beyazla ~4.1:1 — sınırın altında. Aynı tonda
+    // hafif koyultuldu → #DE2E21, ~4.7:1.
+    // KAYNAK (2026-10-02): alfabank.ru mask-icon rengi + favicon SVG fill
+    // (ikisi de #EF3124), HTML'de ×14.
+    color: Color(0xFFDE2E21),
     country: 'RU',
     currency: 'RUB',
   ),

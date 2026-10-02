@@ -145,7 +145,10 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
       _date = DateTime(tx.date.year, tx.date.month, tx.date.day);
       _note = tx.note ?? '';
       // Zarf akışı henüz gelmediyse işlemdeki denormalize ad yeter.
-      if (tx.currency != 'TRY') {
+      // Hesaba bağlı kayıtta döviz kodu KARTIN birimidir, zarfın değil:
+      // orada envelopeId harcama kategorisi/gelir kaynağıdır, "cüzdan"
+      // değil. Manat kartı kaydını döviz zarfı sanıp kategoriyi yutmayalım.
+      if (tx.accountId == null && tx.currency != 'TRY') {
         _wallet =
             env ??
             (tx.envelopeId == null
@@ -191,23 +194,38 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
   /// gelirde kaynak (maaş, hediye…). Döviz cüzdanında hedef cüzdanın kendisi.
   bool get _categoryApplies => _wallet == null;
 
-  /// Hesap (kart) seçimi yalnız YENİ GİDERDE ve nakit yolundayken devrede.
+  /// Düzenlenen kaydın bağlı olduğu hesap — liste yüklendiyse ve hesap
+  /// hâlâ listedeyse. Eski (hesapsız) kayıtta ve arşivlenmiş hesapta null.
+  Account? _editingAccount(List<Account> accounts) {
+    final id = widget.editing?.accountId;
+    if (id == null) return null;
+    return accounts.where((a) => a.id == id).firstOrNull;
+  }
+
+  /// Düzenlenen kayıt hesaba bağlıysa o hesabın birimi; yoksa null.
+  /// Hesap listede olmasa bile (arşivlenmiş) tutar o birimde gösterilmeli.
+  String? get _editingAccountCurrency =>
+      widget.editing?.accountId == null ? null : widget.editing?.currency;
+
+  /// Hesap (kart) seçimi nakit yolundayken devrede — yeni gider, yeni gelir
+  /// ve düzenleme. Üçü de aynı çipi kullanır; gelirde para hesaba GİRER,
+  /// giderde ÇIKAR, düzenlemede eski etki geri alınıp yenisi uygulanır
+  /// (depo tarafı: addExpense / addCashIncome / updateTx).
   ///
   /// * Döviz zarfı (eski "cüzdan") seçiliyse para o zarftan düşer; hesap
   ///   kavramı oraya karışmaz.
-  /// * Gelirde `addCashIncome`, düzenlemede `updateTx` hesap almıyor —
-  ///   orada çip göstermek "seçtim ama etkisi yok" olurdu.
   /// * İki hesaptan azı varsa seçecek şey yok: akış hesaplardan ÖNCEKİ
-  ///   hâliyle birebir aynı kalır, `addExpense` yeni alanları hiç görmez.
-  ///   Kart eklememiş kullanıcı için hiçbir şey değişmemeli.
+  ///   hâliyle birebir aynı kalır, depo yeni alanları hiç görmez. Kart
+  ///   eklememiş kullanıcı için hiçbir şey değişmemeli. Tek istisna:
+  ///   düzenlenen kayıt zaten bir hesaba bağlıysa çip görünür — değiştirecek
+  ///   ikinci hesap olmasa da "nereden" bilgisi gösterilir ve bağ korunur.
   bool _accountsApply(List<Account> accounts) =>
-      !_isEditing &&
-      _mode == QuickMode.expense &&
       _wallet == null &&
-      accounts.length >= 2;
+      (accounts.length >= 2 || _editingAccount(accounts) != null);
 
   /// Formun şu anki hesabı: kullanıcı dokunduysa onun seçimi (liste hâlâ
-  /// içeriyorsa), yoksa kategori + geçmişe göre öneri.
+  /// içeriyorsa), düzenlemede kaydın kendi hesabı, yeni kayıtta kategori +
+  /// geçmişe göre öneri.
   ///
   /// Saklanan bir "seçili hesap" alanı yok, her build'de türetiliyor:
   /// böylece kategori değişince öneri kendiliğinden yenilenir, elle seçim
@@ -220,6 +238,11 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
       final match = accounts.where((a) => a.id == picked).firstOrNull;
       if (match != null) return match;
     }
+    // Düzenlemede öneri YOK: kullanıcı dokunmadıysa kaydın kendi hesabı
+    // kalır. Eski (hesapsız) kayda öneriyle kart iliştirmek, "sadece tutarı
+    // düzelttim" diyen kullanıcının parasını sessizce nakitten karta
+    // taşırdı — eski kayıt eskisi gibi düzenlenmeli.
+    if (_isEditing) return _editingAccount(accounts);
     final id = suggestAccount(
       accounts: accounts,
       recent: recent,
@@ -350,7 +373,10 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
       context,
       selectedId: current.id,
       accounts: accounts,
-      title: rs.accountFromTitle,
+      // Gelirde para hesaba GİRER: "hangi hesaptan" sorusu yanlış olurdu.
+      title: _mode == QuickMode.income
+          ? rs.accountToTitle
+          : rs.accountFromTitle,
       addLabel: rs.accountAdd,
       // Sheet önce kapanır, sonra bu çağrılır; editör formun üstüne açılır.
       onAddAccount: () => showAccountEditor(context),
@@ -402,6 +428,33 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
     }
   }
 
+  /// Düzenlemede para tarafı (hesap, tutar, birim) DEĞİŞMEDİYSE kayıttaki
+  /// dondurulmuş kur olduğu gibi kalır: yalnız notu/tarihi/kategoriyi
+  /// düzelten kullanıcı geçmiş kuru bugünkünün üstüne yazmamalı (geçmişi
+  /// oynatmak tam da kaçındığımız şey) ve bunun için ağa çıkması da
+  /// gerekmemeli. Değiştiyse null: bu yeni bir olgu kaydıdır, kur
+  /// [_freezeFor] ile yeniden dondurulur. Ana birim değiştiyse de null —
+  /// eski çevrim artık başka birime.
+  ({double baseAmount, String baseCurrency, double rate})? _frozenToKeep({
+    required Tx? editing,
+    required String accountId,
+    required double amount,
+    required String currency,
+  }) {
+    if (editing == null) return null;
+    final base = editing.baseAmount;
+    final baseCurrency = editing.baseCurrency;
+    final rate = editing.fxRate;
+    if (base == null || baseCurrency == null || rate == null) return null;
+    if (editing.accountId != accountId ||
+        editing.amount != amount ||
+        editing.currency != currency) {
+      return null;
+    }
+    if (baseCurrency != ref.read(currencyCodeProvider)) return null;
+    return (baseAmount: base, baseCurrency: baseCurrency, rate: rate);
+  }
+
   /// "…" menüsü: hesap makinesi / çoklu giriş.
   /// Gider-gelir seçimi artık panelin üstünde görünür anahtar.
   Future<void> _menu() async {
@@ -446,13 +499,28 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
         : DateTime(_date.year, _date.month, _date.day, 12);
     final wallet = _wallet;
     final isExpense = _mode == QuickMode.expense;
-    // İşlemin birimi SEÇİLİ HESABIN birimi (manat kartından manat çıkar),
-    // hesap yoksa eski kural: döviz zarfının birimi ya da ₺.
+    final editing = widget.editing;
     final account = _currentAccount(
       ref.read(accountsProvider).value ?? const <Account>[],
       ref.read(recentTxsProvider).value ?? const <Tx>[],
     );
-    final currency = account?.currency ?? wallet?.currency ?? 'TRY';
+    // Hesap kimliği: formdaki seçim; düzenlemede seçim yoksa kaydın kendi
+    // hesabı — liste henüz gelmemiş ya da hesap arşivlenmiş olsa bile bağ
+    // kopmaz, yoksa kayıt sessizce nakde taşınırdı. Döviz zarfına geçildiyse
+    // bağ kalkar: para artık zarftan çıkıyor.
+    final accountId =
+        account?.id ?? (wallet == null ? editing?.accountId : null);
+    // İşlemin birimi SEÇİLİ HESABIN birimi (manat kartından manat çıkar);
+    // hesap listede yoksa kayıttaki birim; hesap yoksa eski kural: döviz
+    // zarfının birimi ya da ₺.
+    final String currency;
+    if (account != null) {
+      currency = account.currency;
+    } else if (accountId != null) {
+      currency = editing!.currency;
+    } else {
+      currency = wallet?.currency ?? 'TRY';
+    }
     // Kategori: giderde harcama kategorisi, gelirde kaynak etiketi.
     var envelopeId = wallet?.id ?? _category?.id;
     var envelopeName = wallet?.displayName(str) ?? _category?.name;
@@ -474,9 +542,42 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
       if (!mounted) return;
     }
 
-    final editing = widget.editing;
+    // Hesaplı kayıtta kuru YAZMADAN ÖNCE dondur — yeni gider, yeni gelir ve
+    // düzenleme için aynı kural, aynı [_freezeFor]. Düzenlemede para tarafı
+    // değişmediyse kayıttaki kur korunur ([_frozenToKeep]); değiştiyse bu
+    // yeni bir olgu kaydıdır, bugünün kuruyla yeniden dondurulur. Kur yoksa
+    // hiç yazmıyoruz: guardWrite'a girmeden dönüyoruz ki Crashlytics'e
+    // "yazma hatası" diye düşmesin — bu bir hata değil, bilinçli ret. Form
+    // olduğu gibi kalır.
+    ({double baseAmount, String baseCurrency, double rate})? frozen;
+    if (accountId != null) {
+      frozen = _frozenToKeep(
+            editing: editing,
+            accountId: accountId,
+            amount: amount,
+            currency: currency,
+          ) ??
+          await _freezeFor(amount: amount, from: currency);
+      if (!mounted) return;
+      if (frozen == null) {
+        final rs = ref.read(rsProvider);
+        showErrorSnack(
+          context,
+          editing != null
+              ? rs.fxFreezeUnavailableEdit
+              : isExpense
+                  ? rs.fxFreezeUnavailable
+                  : rs.fxFreezeUnavailableIncome,
+        );
+        setState(() => _saving = false);
+        return;
+      }
+    }
+
     if (editing != null) {
       // Yerinde güncelle: eski etki geri alınır, yenisi uygulanır (tek parti).
+      // Hesap alanları da gider: kart değiştiyse depo eskisine iade edip
+      // yenisinden düşer; hesap yoksa (eski kayıt) dördü null, eski yol.
       final ok = await guardWrite(context, str, () async {
         await repo.updateTx(
           editing.id,
@@ -487,6 +588,10 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
           envelopeId: envelopeId,
           envelopeName: envelopeName,
           note: note,
+          accountId: accountId,
+          baseAmount: frozen?.baseAmount,
+          baseCurrency: frozen?.baseCurrency,
+          fxRate: frozen?.rate,
         );
       }, reason: 'editTx');
       if (!mounted) return;
@@ -497,20 +602,6 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
       HapticFeedback.lightImpact();
       Navigator.of(context).pop(true);
       return;
-    }
-
-    // Hesaplı giderde kuru KAYITTAN ÖNCE dondur. Kur yoksa hiç yazmıyoruz:
-    // guardWrite'a girmeden dönüyoruz ki Crashlytics'e "yazma hatası" diye
-    // düşmesin — bu bir hata değil, bilinçli ret. Form olduğu gibi kalır.
-    ({double baseAmount, String baseCurrency, double rate})? frozen;
-    if (account != null) {
-      frozen = await _freezeFor(amount: amount, from: account.currency);
-      if (!mounted) return;
-      if (frozen == null) {
-        showErrorSnack(context, ref.read(rsProvider).fxFreezeUnavailable);
-        setState(() => _saving = false);
-        return;
-      }
     }
 
     String? id;
@@ -536,6 +627,13 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
           date: date,
           envelopeId: envelopeId,
           envelopeName: envelopeName,
+          // Giderle aynı sözleşme: hesap yoksa hepsi null, eski nakit yolu.
+          // Hesap varsa para o karta girer ve kur gelirde de donar.
+          currency: currency,
+          accountId: account?.id,
+          baseAmount: frozen?.baseAmount,
+          baseCurrency: frozen?.baseCurrency,
+          fxRate: frozen?.rate,
         );
       } else {
         id = await repo.addEnvelopeIncome(
@@ -606,7 +704,8 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
     final account = _currentAccount(accounts, recent);
     // Tutarın yanındaki simge girilen paranın birimi: manat kartı seçiliyse
     // ₼ görünmeli, yoksa kullanıcı ₺ sanıp yanlış rakam girer.
-    final accountCode = account?.currency ?? _wallet?.currency ?? code;
+    final accountCode =
+        account?.currency ?? _wallet?.currency ?? _editingAccountCurrency ?? code;
     final symbol = kCurrencies[accountCode] ?? accountCode;
     final canSave = _amount > 0 && !_saving;
     final bottom = MediaQuery.paddingOf(context).bottom;
@@ -659,15 +758,25 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
                       ),
                       const SizedBox(width: 8),
                       if (_isEditing)
-                        GlassChip(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          onTap: () {},
-                          child: Text(
-                            rs.editingLabel,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              color: Ex.mint,
+                        // Esnek: para birimi çipi 3 harfli kodla (AZN, KZT)
+                        // genişleyince ve büyük yazı ölçeğinde rozet yer
+                        // açmalı — satır taşacağına rozet kısalır; çip
+                        // dokunulabilir olan, rozet yalnız bilgi.
+                        Flexible(
+                          child: GlassChip(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            onTap: () {},
+                            child: Flexible(
+                              child: Text(
+                                rs.editingLabel,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: Ex.mint,
+                                ),
+                              ),
                             ),
                           ),
                         )
@@ -746,9 +855,10 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
                             ),
                           ),
 
-                          // Hangi karttan? Tek kompakt çip; yalnız iki+ hesapta
-                          // ve yeni giderde (bkz. _accountsApply). Kendi satırında:
-                          // tarih satırına sıkışsaydı 320dp'de ad kesilirdi.
+                          // Hangi karttan / hangi karta? Tek kompakt çip;
+                          // gider, gelir ve düzenlemede (bkz. _accountsApply).
+                          // Kendi satırında: tarih satırına sıkışsaydı 320dp'de
+                          // ad kesilirdi.
                           if (account != null)
                             Padding(
                               padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
@@ -757,7 +867,12 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
                                 child: AccountChip(
                                   key: const ValueKey('quick-entry-account'),
                                   account: account,
-                                  onTap: () => _pickCard(accounts, account),
+                                  // Tek hesapta (düzenlenen kaydın kendi
+                                  // hesabı) değiştirecek bir şey yok; çip
+                                  // yalnız "nereden" bilgisini gösterir.
+                                  onTap: accounts.length >= 2
+                                      ? () => _pickCard(accounts, account)
+                                      : () {},
                                 ),
                               ),
                             ),

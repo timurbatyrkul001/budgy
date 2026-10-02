@@ -4,8 +4,8 @@
 envelopes (rent, groceries, savings…), and always know where every lira is going — instead of
 staring at one big "total balance."
 
-Built with **Flutter** + **Firebase**, fully themed for light & dark, and available in **3 languages**
-(Turkish, Russian, English).
+Built with **Flutter** + **Firebase**, in a single light "paper" theme, and available in
+**3 languages** (Turkish, Russian, English).
 
 <p align="left">
   <img src="docs/screenshots/home-light.png" width="240" alt="Home — light" />
@@ -30,8 +30,13 @@ a daily earner the real job is *splitting today's income into envelopes*.
 - **Earning streak** 🔥 and a **weekly summary** notification.
 - **Recurring bills** dashboard (monthly total + upcoming due dates).
 - **Home-screen widget** (iOS WidgetKit) — today's earnings, money left, and streak.
-- **Multi-currency** (₺ / $ / € / ₽), **light/dark theme**, and **TR / RU / EN** localization.
-- **Auth**: anonymous, email/OTP, password reset, and biometric (Face ID) lock.
+- **Multi-currency accounts** — add the cards you actually use (a Turkish card in ₺, an
+  Azerbaijani one in ₼). Every expense stores the exchange rate **frozen at the moment it was
+  entered**, so last month's totals never shift when the rate moves.
+- **TR / RU / EN** localization and an increase-contrast accessibility setting.
+- **Auth**: anonymous by default, Google sign-in (links to the anonymous account, so nothing is
+  lost), password reset by email. Sign in with Apple is wired but needs the Apple Developer
+  capability enabled.
 
 ## Tech stack
 
@@ -40,14 +45,32 @@ a daily earner the real job is *splitting today's income into envelopes*.
 | Framework | Flutter · Dart |
 | State | Riverpod (`StreamProvider`, `ThemeExtension` design tokens) |
 | Backend | Firebase — Authentication + Cloud Firestore |
-| Local | flutter_local_notifications, home_widget, local_auth |
-| Design | Custom "Sıcak Defter" token system, light + dark, 3-language i18n |
+| Local | flutter_local_notifications, home_widget |
+| Design | Poster-style token system (paper + ink + green), 3-language i18n |
 
 ## Architecture
 
-Feature-first structure under `lib/features/*` (envelopes, transactions, workdays, insights, auth,
-stats, goals, reminders, profile). Design tokens live in `lib/core/tokens.dart` as a `BudgyColors`
-`ThemeExtension`, so every screen reads colors through `context.budgy` and both themes stay in sync.
+Feature-first structure under `lib/features/*` (envelopes, transactions, accounts, workdays,
+insights, auth, stats, goals, reminders, settings).
+
+Colors live in two places, which is worth knowing before you read the code: `lib/core/tokens.dart`
+holds `BudgyColors`, a `ThemeExtension` read at runtime via `context.budgy`, while
+`lib/core/ex_style.dart` holds `Ex`, compile-time constants used by most screens. The split is
+historical — the app moved from a dark theme to the current paper one and only the values were
+changed, not the type. Moving `Ex` to the runtime palette is the open piece of work that would let
+the app offer real theme choices.
+
+## Not done yet
+
+Stated plainly so the feature list above can be trusted:
+
+- **Subscriptions** — the paywall and the Pro gate exist, but no purchase is made. RevenueCat is
+  not wired up; Pro is granted manually in Firestore.
+- **Theme choice** — the onboarding offers four "worlds" and saves the pick, but the app renders
+  in one light theme (see Architecture).
+- **AI entry** — receipt scanning and voice entry call a Cloud Function that proxies Anthropic.
+  The function is written but not deployed.
+- **Analytics** — Crashlytics is in; there is no product analytics, so drop-off is not measured.
 
 ## Running it
 

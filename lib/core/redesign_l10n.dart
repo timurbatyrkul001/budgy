@@ -416,6 +416,30 @@ class RS {
     required this.accountFromTitle,
     required this.accountFxNoteTpl,
     required this.fxFreezeUnavailable,
+    required this.accountToTitle,
+    required this.fxFreezeUnavailableIncome,
+    required this.fxFreezeUnavailableEdit,
+    required this.signinBodyMember,
+    required this.signinBodyAnon,
+    required this.signinMethodsLabel,
+    required this.signinConnected,
+    required this.signinConnectGoogle,
+    required this.signinConnectApple,
+    required this.signinEmailPassword,
+    required this.signinLastTpl,
+    required this.signinEmailLabel,
+    required this.signinEmailAccount,
+    required this.signinEmailChangePassword,
+    required this.appearancePrefsLabel,
+    required this.appearanceReadabilityLabel,
+    required this.appearanceSetupLabel,
+    required this.highContrastTitle,
+    required this.highContrastBody,
+    required this.rerunOnboardingTitle,
+    required this.rerunOnboardingBody,
+    required this.rerunOnboardingDialogTitle,
+    required this.rerunOnboardingDialogBody,
+    required this.rerunOnboardingConfirm,
   });
 
   final String onbTitle;
@@ -885,6 +909,48 @@ class RS {
   final String accountFxNoteTpl;
   final String fxFreezeUnavailable;
 
+  // Gelir ve düzenleme de hesap seçebiliyor (2026-10). [accountToTitle]
+  // gelirde seçici başlığı: para hesaba GİRİYOR, "hangi hesaptan" yanlış
+  // olurdu. [fxFreezeUnavailableIncome] / [fxFreezeUnavailableEdit]:
+  // kur bulunamayınca aynı ret, ama "harcama kaydedilmedi" demek gelirde
+  // ve düzenlemede yanıltır — ne kaydedilmediği doğru söylenmeli.
+  final String accountToTitle;
+  final String fxFreezeUnavailableIncome;
+  final String fxFreezeUnavailableEdit;
+
+  // ── Giriş ve güvenlik (2026-10) ────────────────────────────────────────
+  // [signinBodyMember] / [signinBodyAnon]: ekran başı paragrafı. Anonim ve
+  // üye için AYRI: anonimde ekranın derdi "hesabın korunmuyor, bağla";
+  // üyede "hangi yollarla giriyorsun". Tek metin ikisini de yarım anlatırdı.
+  // [signinConnected]: bağlı sağlayıcının yanındaki rozet. "Birincil" DEĞİL —
+  // Firebase'de birincil sağlayıcı kavramı yok, providerData düz liste.
+  // Olmayan bir statüyü ekrana yazmaktansa olanı ("bağlı") yazıyoruz.
+  // [signinLastTpl] `{date}` alır. [signinEmailAccount] e-posta satırının
+  // alt yazısı (şifre yoksa); [signinEmailChangePassword] şifre varsa.
+  final String signinBodyMember;
+  final String signinBodyAnon;
+  final String signinMethodsLabel;
+  final String signinConnected;
+  final String signinConnectGoogle;
+  final String signinConnectApple;
+  final String signinEmailPassword;
+  final String signinLastTpl;
+  final String signinEmailLabel;
+  final String signinEmailAccount;
+  final String signinEmailChangePassword;
+
+  // Ayarlar → Görünüm: kart etiketleri, kontrast anahtarı, kurulum sihirbazı.
+  final String appearancePrefsLabel;
+  final String appearanceReadabilityLabel;
+  final String appearanceSetupLabel;
+  final String highContrastTitle;
+  final String highContrastBody;
+  final String rerunOnboardingTitle;
+  final String rerunOnboardingBody;
+  final String rerunOnboardingDialogTitle;
+  final String rerunOnboardingDialogBody;
+  final String rerunOnboardingConfirm;
+
   static RS of(String code) => switch (code) {
     'tr' => tr,
     'ru' => ru,
@@ -1335,6 +1401,37 @@ class RS {
         'This card uses {from}; your main currency is {to}. The amount will be converted at today\'s rate.',
     fxFreezeUnavailable:
         'Couldn\'t get the exchange rate — try again in a moment. The expense was not saved.',
+    accountToTitle: 'To which account?',
+    fxFreezeUnavailableIncome:
+        'Couldn\'t get the exchange rate — try again in a moment. The income was not saved.',
+    fxFreezeUnavailableEdit:
+        'Couldn\'t get the exchange rate — try again in a moment. The changes were not saved.',
+    signinBodyMember:
+        'The ways you can sign in to this account, and the email it belongs to. Link another method and both will work.',
+    signinBodyAnon:
+        'This account isn\'t protected: your data can only be reached from this phone. Link Google or Apple so it follows you to a new one.',
+    signinMethodsLabel: 'Sign-in methods',
+    signinConnected: 'Linked',
+    signinConnectGoogle: 'Link Google',
+    signinConnectApple: 'Link Apple',
+    signinEmailPassword: 'Email & password',
+    signinLastTpl: 'Last sign-in: {date}',
+    signinEmailLabel: 'Email',
+    signinEmailAccount: 'Account email',
+    signinEmailChangePassword: 'Change password',
+    appearancePrefsLabel: 'Preferences',
+    appearanceReadabilityLabel: 'Readability',
+    appearanceSetupLabel: 'Setup',
+    highContrastTitle: 'Increase text contrast',
+    highContrastBody:
+        'Makes secondary grey text darker so it\'s easier to read.',
+    rerunOnboardingTitle: 'Show setup wizard',
+    rerunOnboardingBody:
+        'Walk through the first-time setup again: currency, wallet, categories.',
+    rerunOnboardingDialogTitle: 'Show the setup wizard?',
+    rerunOnboardingDialogBody:
+        'Your data stays exactly as it is — nothing is deleted. You\'ll just see the first-time setup again, and anything you pick there is added on top of what you already have.',
+    rerunOnboardingConfirm: 'Show wizard',
   );
 
   static const tr = RS(
@@ -1777,6 +1874,37 @@ class RS {
         'Bu kart {from} ile çalışıyor; ana para biriminiz {to}. Tutar günün kuruyla çevrilecek.',
     fxFreezeUnavailable:
         'Kur alınamadı — birazdan tekrar dene. Harcama kaydedilmedi.',
+    accountToTitle: 'Hangi hesaba?',
+    fxFreezeUnavailableIncome:
+        'Kur alınamadı — birazdan tekrar dene. Gelir kaydedilmedi.',
+    fxFreezeUnavailableEdit:
+        'Kur alınamadı — birazdan tekrar dene. Değişiklik kaydedilmedi.',
+    signinBodyMember:
+        'Bu hesaba hangi yollarla girebildiğin ve bağlı olduğu e-posta. Başka bir yöntem bağlarsan ikisi de çalışır.',
+    signinBodyAnon:
+        'Bu hesap korunmuyor: verilerine yalnızca bu telefondan ulaşılabiliyor. Google ya da Apple bağla, yeni telefonda da seninle gelsin.',
+    signinMethodsLabel: 'Giriş yöntemleri',
+    signinConnected: 'Bağlı',
+    signinConnectGoogle: 'Google\'ı bağla',
+    signinConnectApple: 'Apple\'ı bağla',
+    signinEmailPassword: 'E-posta ve şifre',
+    signinLastTpl: 'Son giriş: {date}',
+    signinEmailLabel: 'E-posta',
+    signinEmailAccount: 'Hesap e-postası',
+    signinEmailChangePassword: 'Şifreni değiştir',
+    appearancePrefsLabel: 'Tercihler',
+    appearanceReadabilityLabel: 'Okunabilirlik',
+    appearanceSetupLabel: 'Kurulum',
+    highContrastTitle: 'Yazı kontrastını artır',
+    highContrastBody:
+        'İkincil gri yazıları koyulaştırır; okumakta zorlananlar için.',
+    rerunOnboardingTitle: 'Kurulum sihirbazını göster',
+    rerunOnboardingBody:
+        'İlk kurulumu baştan geç: para birimi, cüzdan, kategoriler.',
+    rerunOnboardingDialogTitle: 'Kurulum sihirbazı gösterilsin mi?',
+    rerunOnboardingDialogBody:
+        'Verilerin olduğu gibi kalır — hiçbir şey silinmez. Sadece ilk kurulum ekranlarını yeniden görürsün; orada seçtiklerin mevcut olanların üstüne eklenir.',
+    rerunOnboardingConfirm: 'Sihirbazı göster',
   );
 
   static const ru = RS(
@@ -2220,5 +2348,36 @@ class RS {
         'Эта карта в {from}, основная валюта — {to}. Сумма будет пересчитана по курсу на сегодня.',
     fxFreezeUnavailable:
         'Курс не получен — попробуй чуть позже. Трата не сохранена.',
+    accountToTitle: 'На какой счёт?',
+    fxFreezeUnavailableIncome:
+        'Курс не получен — попробуй чуть позже. Доход не сохранён.',
+    fxFreezeUnavailableEdit:
+        'Курс не получен — попробуй чуть позже. Изменения не сохранены.',
+    signinBodyMember:
+        'Способы входа в этот аккаунт и почта, к которой он привязан. Привяжи ещё один способ — будут работать оба.',
+    signinBodyAnon:
+        'Этот аккаунт не защищён: данные доступны только с этого телефона. Привяжи Google или Apple, чтобы они перешли с тобой на новый.',
+    signinMethodsLabel: 'Способы входа',
+    signinConnected: 'Привязан',
+    signinConnectGoogle: 'Привязать Google',
+    signinConnectApple: 'Привязать Apple',
+    signinEmailPassword: 'Почта и пароль',
+    signinLastTpl: 'Последний вход: {date}',
+    signinEmailLabel: 'Почта',
+    signinEmailAccount: 'Почта аккаунта',
+    signinEmailChangePassword: 'Сменить пароль',
+    appearancePrefsLabel: 'Предпочтения',
+    appearanceReadabilityLabel: 'Читаемость',
+    appearanceSetupLabel: 'Настройка',
+    highContrastTitle: 'Повысить контраст текста',
+    highContrastBody:
+        'Делает серый вспомогательный текст темнее — так его легче читать.',
+    rerunOnboardingTitle: 'Показать мастер настройки',
+    rerunOnboardingBody:
+        'Пройти первоначальную настройку заново: валюта, кошелёк, категории.',
+    rerunOnboardingDialogTitle: 'Показать мастер настройки?',
+    rerunOnboardingDialogBody:
+        'Твои данные останутся как есть — ничего не удалится. Ты просто снова увидишь экраны первоначальной настройки; всё выбранное там добавится к тому, что уже есть.',
+    rerunOnboardingConfirm: 'Показать мастер',
   );
 }

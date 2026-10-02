@@ -6,6 +6,7 @@ import '../../core/l10n.dart';
 import '../../core/redesign_l10n.dart';
 import '../envelopes/budget_repository.dart';
 import '../home/fx_providers.dart';
+import '../onboarding/onboarding_flow.dart';
 import '../profile/currency_screen.dart';
 import '../profile/language_screen.dart';
 import 'app_settings.dart';
@@ -14,12 +15,85 @@ import 'voice_language_screen.dart';
 
 /// Görünüm — hub'daki "Uygulama" bölümünün alt ekranı.
 ///
-/// Budgy'nin nasıl göründüğü ve konuştuğu: tuş takımı düzeni, dil, para
-/// birimi, sesli giriş dili. Hepsi tek kartta: dördü de "tercih" türünden,
-/// hiçbiri tehlikeli değil ve her satır sağda mevcut değerini gösteriyor —
-/// kullanıcı ekrana girmeden ne seçili olduğunu görür.
+/// Üç kart:
+///  1. Tercihler — tuş takımı düzeni, dil, para birimi, sesli giriş dili.
+///     Dördü de "tercih" türünden, hiçbiri tehlikeli değil ve her satır
+///     sağda mevcut değerini gösteriyor — kullanıcı ekrana girmeden ne
+///     seçili olduğunu görür.
+///  2. Okunabilirlik — "Yazı kontrastını artır" anahtarı (erişilebilirlik).
+///  3. Kurulum — "Kurulum sihirbazını göster": onboarding'i yeniden açar.
+///
+/// BİLİNÇLİ OLARAK "TEMA" SATIRI YOK. Uygulama tek temalı (app.dart →
+/// `ThemeMode.light`) ve ekranların büyük kısmı `Ex.*` derleme-zamanı
+/// sabitleriyle boyanıyor (~850 kullanım); tema anahtarı koysak hiçbir şey
+/// değişmezdi. Hiçbir işe yaramayan ayar, olmayan ayardan kötüdür — sahibin
+/// kararı. `themeMode` alanı veride duruyor (onboarding "dünya" seçimini
+/// yazıyor) ama burada okunmaz/yazılmaz. Bunu geri getirecek olan önce
+/// `Ex`'i çalışma zamanına taşımalı; test dosyası satırın yokluğunu sınar.
 class SettingsAppearanceScreen extends ConsumerWidget {
   const SettingsAppearanceScreen({super.key});
+
+  /// Onboarding'i yeniden aç — ama veriyi silmeden.
+  ///
+  /// Neden bayrağı sıfırlamak YETMİYOR: auth kapısı onboarding'i yalnız
+  /// `onboardingDone != true && zarf yok` ise gösteriyor. Mevcut
+  /// kullanıcının zarfları var; bayrağı düşürsek de kapı ana ekranda kalır.
+  /// Bu yüzden akış buradan `Navigator.push` ile üste açılıyor —
+  /// `auth_gate` değişmiyor, yeni kullanıcı mantığı olduğu gibi kalıyor.
+  ///
+  /// Akışın sonu ([OnboardingFlow]'un `_closeOnboarding`'i) route'u
+  /// kapatmaz; yalnız `onboardingDone = true` yazar ve auth kapısının
+  /// ekranı değiştirmesini bekler. Üste açılmış bir route'u kapı
+  /// kapatamaz; o yüzden:
+  ///   1. Açmadan önce bayrak `false` yapılır — böylece akışın bitişi
+  ///      gerçek bir `false → true` geçişi olur.
+  ///   2. [_OnboardingRerunHost] bu geçişi dinler ve köke kadar pop eder.
+  ///   3. Route kapanınca bayrak koşulsuz `true` yazılır: akış bittiyse
+  ///      zaten true (idempotent), yarıda bırakıldıysa (geri hareketi)
+  ///      eski hâline döner — hesap "kurulmamış" görünmesin.
+  ///
+  /// Veri güvenliği: [OnboardingFlow] var olan preset'li kategorileri
+  /// atlar, para birimi/cüzdan adı/başlangıç bakiyesi yalnız kullanıcı
+  /// seçtiğinde ÜSTÜNE yazılır; hiçbir şey silinmez. Diyalog bunu açıkça
+  /// söyler ki kimse bunu "her şeyi sıfırla" sanmasın.
+  Future<void> _rerunOnboarding(BuildContext context, WidgetRef ref) async {
+    final rs = ref.read(rsProvider);
+    final str = ref.read(strProvider);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Ex.surface,
+        title: Text(rs.rerunOnboardingDialogTitle),
+        content: Text(rs.rerunOnboardingDialogBody,
+            style: const TextStyle(color: Ex.text, height: 1.35)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: Text(str.cancel)),
+          TextButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: Text(rs.rerunOnboardingConfirm,
+                  style: const TextStyle(color: Ex.mint))),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+
+    // Repository'yi push'tan ÖNCE al: akış köke kadar pop edince bu ekran
+    // da gidiyor, dispose'dan sonra `ref` kullanılamaz.
+    final repo = ref.read(budgetRepositoryProvider);
+    await repo.saveProfile({'onboardingDone': false});
+    if (!context.mounted) return;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(builder: (_) => const _OnboardingRerunHost()),
+    );
+    // Route kapandı: ya akış bitti (bayrak zaten true → bu yazı idempotent
+    // bir tekrar) ya da geri hareketiyle yarıda bırakıldı (bayrak false →
+    // geri koy; bu kullanıcı zaten kurulmuştu, yarım sihirbaz onu bozmasın).
+    // Önce okuyup sonra yazmak yerine koşulsuz yazıyoruz: iki durumda da
+    // doğru sonuç aynı ve ekstra bir snapshot beklemeye gerek kalmıyor.
+    await repo.setOnboardingDone();
+  }
 
   Future<void> _pickKeypad(BuildContext context, WidgetRef ref) async {
     final rs = ref.read(rsProvider);
@@ -56,6 +130,7 @@ class SettingsAppearanceScreen extends ConsumerWidget {
     final currency = ref.watch(currencyCodeProvider);
     final keypadTop = ref.watch(keypadOneTwoThreeOnTopProvider);
     final voice = ref.watch(voiceLocaleProvider) ?? rs.voiceAppLanguage;
+    final highContrast = ref.watch(highContrastProvider).value ?? false;
 
     return SettingsPage(
       hero: SettingsHero(
@@ -64,7 +139,7 @@ class SettingsAppearanceScreen extends ConsumerWidget {
         body: rs.hubAppearanceBody,
       ),
       children: [
-        SettingsCard(rows: [
+        SettingsCard(label: rs.appearancePrefsLabel, rows: [
           SettingsRow(
             icon: Icons.dialpad_rounded,
             title: rs.keypadLayout,
@@ -90,8 +165,61 @@ class SettingsAppearanceScreen extends ConsumerWidget {
             onTap: () => pushSettings(context, const VoiceLanguageScreen()),
           ),
         ]),
+        // Erişilebilirlik ayrı kartta: "tercih" değil, ihtiyaç. Satırın
+        // tamamı dokunulabilir (yalnız anahtar değil) — küçük anahtara
+        // nişan almak zaten görme zorluğu çekenler için en zor hareket.
+        SettingsCard(label: rs.appearanceReadabilityLabel, rows: [
+          SettingsRow(
+            icon: Icons.contrast_rounded,
+            title: rs.highContrastTitle,
+            description: rs.highContrastBody,
+            trailing: Switch.adaptive(
+              value: highContrast,
+              activeTrackColor: Ex.mint,
+              onChanged: (on) =>
+                  ref.read(budgetRepositoryProvider).setHighContrast(on),
+            ),
+            onTap: () => ref
+                .read(budgetRepositoryProvider)
+                .setHighContrast(!highContrast),
+          ),
+        ]),
+        // Eylem satırı: ikon + açıklama + ok. [SettingsActionRow] (ikonsuz
+        // yeşil metin) "tümünü aç" gibi küçük eylemler için; burada
+        // kullanıcı neyin açılacağını ve verisine dokunmayacağını okumalı.
+        SettingsCard(label: rs.appearanceSetupLabel, rows: [
+          SettingsRow(
+            icon: Icons.auto_awesome_rounded,
+            title: rs.rerunOnboardingTitle,
+            description: rs.rerunOnboardingBody,
+            onTap: () => _rerunOnboarding(context, ref),
+          ),
+        ]),
       ],
     );
+  }
+}
+
+/// Yeniden açılan onboarding'in kabuğu: akış `onboardingDone`'ı true yapınca
+/// köke kadar pop eder (auth kapısı ana ekranı zaten gösteriyor).
+///
+/// Neden [OnboardingFlow]'un içinde değil: onboarding klasörü yeni kullanıcı
+/// akışıdır ve auth kapısına güvenir; "üste açıldım, kendimi kapatmalıyım"
+/// bilgisi oraya ait değil. Kabuk bu ekranın özelidir ve yalnız buradan
+/// kullanılır.
+class _OnboardingRerunHost extends ConsumerWidget {
+  const _OnboardingRerunHost();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.listen<AsyncValue<bool>>(onboardingDoneProvider, (prev, next) {
+      // Yalnız true'ya GEÇİŞ: ekran açılırken gelen ilk false'a ya da
+      // olası tekrar false'a tepki verme.
+      if (next.value == true && prev?.value != true) {
+        Navigator.of(context).popUntil((route) => route.isFirst);
+      }
+    });
+    return const OnboardingFlow();
   }
 }
 
