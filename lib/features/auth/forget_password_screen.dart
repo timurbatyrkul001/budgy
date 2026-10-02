@@ -41,8 +41,7 @@ class ForgetPasswordScreen extends ConsumerStatefulWidget {
       _ForgetPasswordScreenState();
 }
 
-class _ForgetPasswordScreenState
-    extends ConsumerState<ForgetPasswordScreen> {
+class _ForgetPasswordScreenState extends ConsumerState<ForgetPasswordScreen> {
   final _email = TextEditingController();
   bool _sending = false;
 
@@ -130,10 +129,7 @@ class _ForgetPasswordScreenState
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
           children: [
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: _BackButton(),
-            ),
+            const Align(alignment: Alignment.centerLeft, child: _BackButton()),
             const SizedBox(height: 20),
             // İkon rozeti — kilit (ResetPasswordScreen tasarımındaki 60×60).
             Container(
@@ -144,8 +140,11 @@ class _ForgetPasswordScreenState
                 color: c.envFatura,
                 borderRadius: BorderRadius.circular(18),
               ),
-              child: Icon(Icons.lock_outline_rounded,
-                  size: 28, color: c.accentStrong),
+              child: Icon(
+                Icons.lock_outline_rounded,
+                size: 28,
+                color: c.accentStrong,
+              ),
             ),
             const SizedBox(height: 20),
             Text(
@@ -160,8 +159,7 @@ class _ForgetPasswordScreenState
             const SizedBox(height: 8),
             Text(
               str.forgetSubtitle,
-              style:
-                  TextStyle(fontSize: 15, height: 1.45, color: c.textMuted),
+              style: TextStyle(fontSize: 15, height: 1.45, color: c.textMuted),
             ),
             const SizedBox(height: 24),
             _AuthField(
@@ -182,7 +180,9 @@ class _ForgetPasswordScreenState
                   disabledForegroundColor: Ex.onBrand.withValues(alpha: 0.7),
                   minimumSize: const Size.fromHeight(56),
                   textStyle: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w800),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(15),
                   ),
@@ -240,14 +240,16 @@ Future<void> showCheckEmailDialog(
             Text(
               str.checkEmailTitle,
               style: TextStyle(
-                  fontSize: 18, fontWeight: FontWeight.w800, color: c.text),
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: c.text,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               tpl(str.checkEmailBody, {'email': email}),
               textAlign: TextAlign.center,
-              style:
-                  TextStyle(fontSize: 14, height: 1.4, color: c.textMuted),
+              style: TextStyle(fontSize: 14, height: 1.4, color: c.textMuted),
             ),
             // body ↓ butonlar = 12
             const SizedBox(height: 12),
@@ -331,11 +333,14 @@ class _AuthField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: c.textMuted)),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: c.textMuted,
+          ),
+        ),
         const SizedBox(height: 7),
         TextField(
           controller: controller,
@@ -349,8 +354,10 @@ class _AuthField extends StatelessWidget {
             prefixIcon: leading != null
                 ? Icon(leading, size: 20, color: c.textFaint)
                 : null,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 15,
+            ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
               borderSide: BorderSide(color: c.borderStrong),
@@ -382,8 +389,11 @@ class _BackButton extends StatelessWidget {
         child: SizedBox(
           width: 40,
           height: 40,
-          child: Icon(Icons.arrow_back_ios_new_rounded,
-              size: 18, color: c.text),
+          child: Icon(
+            Icons.arrow_back_ios_new_rounded,
+            size: 18,
+            color: c.text,
+          ),
         ),
       ),
     );

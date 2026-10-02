@@ -42,6 +42,9 @@ class RecurringRule {
     this.envelopeId,
     this.envelopeName,
     this.note,
+    this.accountId,
+    this.accountName,
+    this.holdReason,
   });
 
   final String id;
@@ -50,7 +53,10 @@ class RecurringRule {
   /// 'expense' | 'income'
   final String type;
 
-  /// 'TRY' = nakit cüzdan; başka kod = döviz cüzdanı (envelopeId zorunlu).
+  /// Hesapsız (eski) kuralda: 'TRY' = nakit cüzdan; başka kod = döviz
+  /// cüzdanı (envelopeId zorunlu). Hesaba bağlı kuralda hesabın birimi —
+  /// yalnız liste satırında göstermek için; işleme yazılırken hesabın O
+  /// ANKİ birimi esastır (nakit ana birimi izler).
   final String currency;
   final Recurrence freq;
   final DateTime nextDate;
@@ -60,6 +66,28 @@ class RecurringRule {
   final String? envelopeId;
   final String? envelopeName;
   final String? note;
+
+  /// Paranın çıktığı/girdiği hesap (`users/{uid}/accounts/{id}`). Hesaplar
+  /// gelmeden önce yazılmış kurallarda yok — o kurallar eskisi gibi tek
+  /// kasa (nakit / döviz zarfı) yolundan işlenir, davranışları DEĞİŞMEZ.
+  /// Dolu kural, işlemi elle aynı karttan girilmiş gibi yazar: `accountId`,
+  /// hesabın kendi biriminde bakiye düşümü, dondurulmuş kur.
+  final String? accountId;
+
+  /// Hesabın adı, liste satırı için denormalize (zarf adı gibi).
+  final String? accountName;
+
+  /// Materyalizasyon bu kuralı neden ATLADI (null = sorun yok).
+  /// [holdAccountMissing] | [holdFxUnavailable]. `nextDate` ilerletilmez;
+  /// engel kalkınca (hesap arşivden çıktı, kur geldi) bir sonraki açılış
+  /// biriken tekrarları yetişerek yazar — ödeme sessizce kaybolmaz.
+  final String? holdReason;
+
+  /// Kuralın hesabı silinmiş ya da arşivlenmiş.
+  static const holdAccountMissing = 'accountMissing';
+
+  /// Hesabın birimi ana birimden farklı ve o an kur yok (çevrimdışı).
+  static const holdFxUnavailable = 'fxUnavailable';
 
   bool get isExpense => type == 'expense';
 
@@ -80,6 +108,26 @@ class RecurringRule {
       envelopeId: d['envelopeId'] as String?,
       envelopeName: d['envelopeName'] as String?,
       note: d['note'] as String?,
+      accountId: d['accountId'] as String?,
+      accountName: d['accountName'] as String?,
+      holdReason: d['holdReason'] as String?,
     );
   }
+
+  RecurringRule copyWith({DateTime? nextDate, String? holdReason}) =>
+      RecurringRule(
+        id: id,
+        amount: amount,
+        type: type,
+        currency: currency,
+        freq: freq,
+        nextDate: nextDate ?? this.nextDate,
+        anchorDay: anchorDay,
+        envelopeId: envelopeId,
+        envelopeName: envelopeName,
+        note: note,
+        accountId: accountId,
+        accountName: accountName,
+        holdReason: holdReason ?? this.holdReason,
+      );
 }

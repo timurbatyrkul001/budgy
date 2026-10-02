@@ -8,14 +8,46 @@ import '../../core/redesign_l10n.dart';
 import '../../core/tokens.dart';
 import 'auth_service.dart';
 import 'forget_password_screen.dart';
+import 'sign_in_guard.dart';
 import 'sign_up_screen.dart';
+
+/// Giriş ekranının üç eylemi. Varsayılanlar gerçek [AuthService]; widget
+/// testinde Firebase olmadığı için sahteleriyle değiştirilebiliyor.
+class SignInActions {
+  const SignInActions({
+    this.google = AuthService.signInWithGoogle,
+    this.apple = AuthService.signInWithApple,
+    this.email = _emailDefault,
+  });
+
+  final Future<void> Function() google;
+  final Future<void> Function() apple;
+  final Future<void> Function(String email, String password) email;
+
+  static Future<void> _emailDefault(String email, String password) =>
+      AuthService.signInWithEmail(email: email, password: password);
+}
 
 /// Экран входа: email + пароль, соц-входы, ошибка.
 /// [onSignedIn] вызывается при успешном входе (или соц-входе).
+///
+/// Her üç yol da [signInGuardingData]'dan geçer: anonim hesaptaki kayıtlar
+/// başka bir hesaba geçilirken sessizce kaybolmasın.
+///
+/// [actions] ve [hasData] test kancaları; null → gerçek Firebase.
 class SignInScreen extends ConsumerStatefulWidget {
-  const SignInScreen({super.key, required this.onSignedIn});
+  const SignInScreen({
+    super.key,
+    required this.onSignedIn,
+    this.actions = const SignInActions(),
+    this.hasData,
+  });
 
   final VoidCallback onSignedIn;
+  final SignInActions actions;
+
+  /// Testte "anonim hesapta veri var mı" cevabı; null → gerçek sorgu.
+  final Future<bool> Function()? hasData;
 
   @override
   ConsumerState<SignInScreen> createState() => _SignInScreenState();
@@ -36,9 +68,16 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   }
 
   /// Sosyal giriş (Google/Apple) — başarılıysa içeri al, hata olursa göster.
-  Future<void> _social(Future<dynamic> Function() signIn) async {
+  Future<void> _social(Future<void> Function() signIn) async {
     try {
-      await signIn();
+      final ok = await signInGuardingData(
+        context,
+        ref,
+        signIn,
+        hasData: widget.hasData,
+      );
+      // Diyalogda vazgeçti: iptal gibi, sessizce olduğu yerde kalır.
+      if (!ok) return;
       if (mounted) widget.onSignedIn();
     } catch (e) {
       if (!mounted) return;
@@ -67,11 +106,17 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       _error = false;
     });
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: _email.text.trim(),
-        password: _password.text,
+      // E-posta girişi hesabı DEĞİŞTİRİR (bağlamaz — nedeni
+      // AuthService.signInWithEmail'de). O yüzden uyarı önceden sorulur:
+      // kaybedilecek kayıt varsa kullanıcı girmeden önce görür.
+      final ok = await signInSwitchingAccount(
+        context,
+        ref,
+        () => widget.actions.email(_email.text.trim(), _password.text),
+        hasData: widget.hasData,
       );
-      widget.onSignedIn();
+      if (!ok) return;
+      if (mounted) widget.onSignedIn();
     } on FirebaseAuthException {
       if (mounted) setState(() => _error = true);
     } finally {
@@ -118,8 +163,11 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                     ),
                   ],
                 ),
-                child: const Icon(Icons.mail_outline_rounded,
-                    color: Ex.onBrand, size: 30),
+                child: const Icon(
+                  Icons.mail_outline_rounded,
+                  color: Ex.onBrand,
+                  size: 30,
+                ),
               ),
             ),
             const SizedBox(height: 20),
@@ -169,7 +217,10 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
               Text(
                 str.signInError,
                 style: const TextStyle(
-                    fontSize: 14, height: 1.4, color: Ex.red),
+                  fontSize: 14,
+                  height: 1.4,
+                  color: Ex.red,
+                ),
               ),
             ],
             const SizedBox(height: 14),
@@ -181,18 +232,18 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                 GestureDetector(
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) => ForgetPasswordScreen(
-                        onDone: widget.onSignedIn,
-                      ),
+                      builder: (_) =>
+                          ForgetPasswordScreen(onDone: widget.onSignedIn),
                     ),
                   ),
                   child: Text(
                     str.forgotPassword,
                     textAlign: TextAlign.end,
                     style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: c.accent),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: c.accent,
+                    ),
                   ),
                 ),
               ],
@@ -207,7 +258,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                   disabledBackgroundColor: c.accent.withValues(alpha: 0.4),
                   minimumSize: const Size.fromHeight(56),
                   textStyle: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w800),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(15),
                   ),
@@ -218,7 +271,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Ex.onBrand),
+                          strokeWidth: 2,
+                          color: Ex.onBrand,
+                        ),
                       )
                     : Text(str.signInButton),
               ),
@@ -229,11 +284,14 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                 Expanded(child: Container(height: 1, color: c.borderStrong)),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Text(str.orSignUpWith,
-                      style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: c.textFaint)),
+                  child: Text(
+                    str.orSignUpWith,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: c.textFaint,
+                    ),
+                  ),
                 ),
                 Expanded(child: Container(height: 1, color: c.borderStrong)),
               ],
@@ -244,18 +302,21 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
             _SocialButton(
               label: str.continueGoogle,
               leading: Image.asset('assets/brand/google.png', height: 22),
-              onTap: () => _social(AuthService.signInWithGoogle),
+              onTap: () => _social(widget.actions.google),
             ),
             const SizedBox(height: 11),
             // Apple marka kuralı: siyah dolgu + beyaz logo/metin. Bunlar
             // MARKA renkleri, palete uydurulmaz — bilerek Ex.* değil.
             _SocialButton(
               label: str.continueApple,
-              leading: Image.asset('assets/brand/apple.png',
-                  height: 22, color: Colors.white),
+              leading: Image.asset(
+                'assets/brand/apple.png',
+                height: 22,
+                color: Colors.white,
+              ),
               fill: Colors.black,
               foreground: Colors.white,
-              onTap: () => _social(AuthService.signInWithApple),
+              onTap: () => _social(widget.actions.apple),
             ),
             const SizedBox(height: 20),
             // Hesabın yok mu? Kaydol
@@ -263,8 +324,10 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Flexible(
-                  child: Text(str.dontHaveAccount,
-                      style: TextStyle(fontSize: 14, color: c.textMuted)),
+                  child: Text(
+                    str.dontHaveAccount,
+                    style: TextStyle(fontSize: 14, color: c.textMuted),
+                  ),
                 ),
                 const SizedBox(width: 6),
                 GestureDetector(
@@ -277,9 +340,10 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                   child: Text(
                     str.navSignUp,
                     style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        color: c.accent),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: c.accent,
+                    ),
                   ),
                 ),
               ],
@@ -288,8 +352,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
             Text(
               str.termsNote,
               textAlign: TextAlign.center,
-              style:
-                  TextStyle(fontSize: 12, height: 1.4, color: c.textFaint),
+              style: TextStyle(fontSize: 12, height: 1.4, color: c.textFaint),
             ),
           ],
         ),
@@ -327,11 +390,14 @@ class AuthField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: c.textMuted)),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: c.textMuted,
+          ),
+        ),
         const SizedBox(height: 7),
         TextField(
           controller: controller,
@@ -343,21 +409,24 @@ class AuthField extends StatelessWidget {
             hintStyle: TextStyle(fontSize: 15, color: c.textFaint),
             filled: true,
             fillColor: c.surface,
-            prefixIcon:
-                leading != null ? Icon(leading, size: 20, color: c.textFaint) : null,
+            prefixIcon: leading != null
+                ? Icon(leading, size: 20, color: c.textFaint)
+                : null,
             suffixIcon: trailing,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 15, vertical: 15),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 15,
+              vertical: 15,
+            ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: BorderSide(
-                color: error ? Ex.red : c.borderStrong,
-              ),
+              borderSide: BorderSide(color: error ? Ex.red : c.borderStrong),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
               borderSide: BorderSide(
-                  color: error ? Ex.red : c.accent, width: 1.5),
+                color: error ? Ex.red : c.accent,
+                width: 1.5,
+              ),
             ),
           ),
         ),
@@ -410,9 +479,13 @@ class _SocialButton extends StatelessWidget {
             leading,
             const SizedBox(width: 10),
             Flexible(
-              child: Text(label,
-                  style: const TextStyle(
-                      fontSize: 15, fontWeight: FontWeight.w700)),
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
           ],
         ),

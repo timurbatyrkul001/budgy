@@ -45,6 +45,13 @@ class Account {
   final String name;
 
   /// Hesabın kendi para birimi. İşlemler bu birimde kaydedilir.
+  ///
+  /// Nakit ([cashId]) için bu alan TANIM GEREĞİ kullanıcının ana para
+  /// birimidir (`settings/main.currency`): cüzdandaki para hiçbir zaman
+  /// çevrilmez. Belgede ne yazarsa yazsın (eski göç `'TRY'` yazıyordu, bu
+  /// "ana birim" anlamında bir yer tutucuydu — bkz. `Tx.legacyMainCode`)
+  /// okuyan taraf [withMainCurrency] ile ana birime çeker. Tenge seçmiş bir
+  /// kullanıcının nakit harcaması ₺ sanılıp çapraz kurla ×13 yazılmasın.
   final String currency;
 
   final AccountKind kind;
@@ -84,13 +91,25 @@ class Account {
 
   bool get isCash => id == cashId;
 
+  /// Nakit ise birimi [mainCurrency] olan kopya; kartlar olduğu gibi.
+  ///
+  /// Kural TEK yerde (burada) ve okuma anında uygulanır, belge
+  /// değiştirilmez: ana birim sonradan değişse de nakit kendiliğinden
+  /// onu izler, eski `accounts/cash` belgelerine göç gerekmez.
+  Account withMainCurrency(String mainCurrency) =>
+      isCash && currency != mainCurrency
+          ? copyWith(currency: mainCurrency)
+          : this;
+
   factory Account.fromDoc(DocumentSnapshot<Map<String, dynamic>> doc) {
     final d = doc.data() ?? const {};
     return Account(
       id: doc.id,
       name: (d['name'] as String?) ?? '',
       // Eski `accounts/cash` belgesinde yalnız `balance` var; kalan alanlar
-      // okunurken varsayılana düşer, yazma gerektirmez.
+      // okunurken varsayılana düşer, yazma gerektirmez. Nakit için bu
+      // varsayılan da belgedeki değer de son söz değil — bkz.
+      // [withMainCurrency]; kartlar birimi her zaman kendileri taşır.
       currency: (d['currency'] as String?) ?? 'TRY',
       kind: AccountKind.values.firstWhere(
         (k) => k.name == d['kind'],

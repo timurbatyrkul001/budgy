@@ -106,6 +106,7 @@ class RecurringScreen extends ConsumerWidget {
                                 if (r.note != null && r.note!.isNotEmpty)
                                   r.note!,
                                 if (r.envelopeName != null) r.envelopeName!,
+                                if (r.accountName != null) r.accountName!,
                                 tpl(rs.nextTpl, {
                                   'date': DateFormat(
                                     'd MMM',

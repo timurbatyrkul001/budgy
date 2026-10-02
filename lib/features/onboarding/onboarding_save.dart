@@ -1,12 +1,12 @@
 import 'dart:io' show Platform;
 
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/redesign_l10n.dart';
 import '../auth/auth_service.dart';
+import '../auth/sign_in_guard.dart';
 import '../../core/formatters.dart';
 import 'onboarding_palette.dart';
 import 'widgets/budgy_money_envelope.dart';
@@ -17,7 +17,9 @@ import 'widgets/budgy_money_envelope.dart';
 /// kategorilerini, para birimini, ilk gününü yazdı. O veri cihazdaki anonim
 /// kimliğe bağlı — telefon kaybolursa gider. [AuthService] anonim hesabı
 /// sağlayıcıya BAĞLADIĞI için (`linkWithProvider`) buradaki giriş hiçbir şeyi
-/// silmez, aynı kullanıcıya kimlik ekler.
+/// silmez, aynı kullanıcıya kimlik ekler. Kimlik zaten başka bir hesabınsa
+/// [signInGuardingData] devreye girer: başlangıç bakiyesi gibi kaybedilecek
+/// bir şey varsa önce sorar.
 ///
 /// Üç çıkış da aynı yere gider: [onDone]. Bağlanamasa bile onboarding biter —
 /// kullanıcıyı kapıda tutmuyoruz, uyarıyı gösterip içeri alıyoruz.
@@ -26,6 +28,9 @@ class SaveBookPage extends ConsumerStatefulWidget {
     super.key,
     required this.onDone,
     this.currencyCode = 'TRY',
+    this.connectGoogle,
+    this.connectApple,
+    this.hasData,
   });
 
   /// Bağlandı, atlandı ya da başarısız oldu — her hâlde onboarding biter.
@@ -33,6 +38,12 @@ class SaveBookPage extends ConsumerStatefulWidget {
 
   /// Katlanmadan önceki düz sayfanın üstünde duran simge.
   final String currencyCode;
+
+  /// Test kancaları: sağlayıcı akışı ve "veri var mı" cevabı. null →
+  /// gerçek [AuthService] / Firestore.
+  final Future<void> Function()? connectGoogle;
+  final Future<void> Function()? connectApple;
+  final Future<bool> Function()? hasData;
 
   @override
   ConsumerState<SaveBookPage> createState() => _SaveBookPageState();
@@ -50,15 +61,21 @@ class _SaveBookPageState extends ConsumerState<SaveBookPage> {
   /// hiç çizilmez (App Store şartı iOS için, tersi yok).
   bool get _showApple => !kIsWeb && (Platform.isIOS || Platform.isMacOS);
 
-  Future<void> _connect(Future<UserCredential> Function() run) async {
+  Future<void> _connect(Future<void> Function() run) async {
     if (_busy) return;
     setState(() {
       _busy = true;
       _error = null;
     });
     try {
-      await run();
+      final ok = await signInGuardingData(context, ref, run,
+          hasData: widget.hasData);
       if (!mounted) return;
+      if (!ok) {
+        // Diyalogda vazgeçti: sayfa olduğu gibi, düğmeler yeniden açık.
+        setState(() => _busy = false);
+        return;
+      }
       // Zarf kapanıp onay işaretini gösterene kadar bekle; kullanıcı neyin
       // olduğunu görmeden ekran değişmesin.
       setState(() => _sealed = true);
@@ -145,7 +162,8 @@ class _SaveBookPageState extends ConsumerState<SaveBookPage> {
                     fill: Poster.ink,
                     foreground: Poster.paper,
                     busy: _busy,
-                    onTap: () => _connect(AuthService.signInWithApple),
+                    onTap: () => _connect(
+                        widget.connectApple ?? AuthService.signInWithApple),
                   ),
                   const SizedBox(height: 10),
                 ],
@@ -156,7 +174,8 @@ class _SaveBookPageState extends ConsumerState<SaveBookPage> {
                   foreground: Poster.ink,
                   border: true,
                   busy: _busy,
-                  onTap: () => _connect(AuthService.signInWithGoogle),
+                  onTap: () => _connect(
+                      widget.connectGoogle ?? AuthService.signInWithGoogle),
                 ),
                 const SizedBox(height: 14),
                 Center(

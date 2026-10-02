@@ -12,6 +12,7 @@ import '../../core/l10n.dart';
 import '../../core/redesign_l10n.dart';
 import '../auth/auth_service.dart';
 import '../auth/forget_password_screen.dart';
+import '../auth/sign_in_guard.dart';
 import 'settings_hub.dart';
 
 /// Bağlanabilen sosyal sağlayıcılar. `password` burada yok: şifreyi bu
@@ -70,20 +71,13 @@ SignInSnapshot _readSnapshot() {
   }
 }
 
-/// Varsayılan bağlama: mevcut [AuthService] akışı (anonimde
-/// `linkWithCredential`, aksi hâlde `signInWithCredential`), ardından
-/// kullanıcıyı yeniden yükleyip `providerData`'yı taze okuma.
+/// Bağlama sonrası taze fotoğraf: kullanıcıyı yeniden yükleyip
+/// `providerData`'yı yeniden okuma.
 ///
 /// Reload şart: link sonrası `currentUser.providerData` bazı sürümlerde
 /// bir sonraki token yenilemesine kadar eski kalıyor; ekran "bağladım ama
 /// hâlâ bağla diyor" görüntüsü vermemeli.
-Future<SignInSnapshot> _connectWithFirebase(SignInProvider provider) async {
-  switch (provider) {
-    case SignInProvider.google:
-      await AuthService.signInWithGoogle();
-    case SignInProvider.apple:
-      await AuthService.signInWithApple();
-  }
+Future<SignInSnapshot> _reloadSnapshot() async {
   final user = FirebaseAuth.instance.currentUser;
   try {
     await user?.reload();
@@ -148,6 +142,20 @@ class _SettingsSignInSecurityScreenState
     _snap = widget.initial ?? _readSnapshot();
   }
 
+  /// Varsayılan bağlama: [AuthService] akışı [signInGuardingData]
+  /// kapısından (anonimde `link`, kimlik başka hesabınsa ve kaybedilecek
+  /// kayıt varsa önce sor), ardından taze fotoğraf.
+  ///
+  /// Kullanıcı diyalogda vazgeçtiyse de fotoğraf yeniden okunur: hiçbir şey
+  /// değişmediği için aynı anonim fotoğraf gelir, ekran olduğu gibi kalır.
+  Future<SignInSnapshot> _connectWithFirebase(SignInProvider provider) async {
+    await signInGuardingData(context, ref, switch (provider) {
+      SignInProvider.google => AuthService.signInWithGoogle,
+      SignInProvider.apple => AuthService.signInWithApple,
+    });
+    return _reloadSnapshot();
+  }
+
   Future<void> _connect(SignInProvider provider) async {
     // Çift dokunuş iki sağlayıcı sayfası açmasın.
     if (_busy) return;
@@ -156,8 +164,8 @@ class _SettingsSignInSecurityScreenState
       final next = await (widget.connect ?? _connectWithFirebase)(provider);
       if (!mounted) return;
       // Ne olduysa Firebase'in dediği odur: anonimde bağlandı, üyede o
-      // kimliğin hesabına geçildi — ekran ikisini de taze fotoğraftan
-      // çizer, varsayım yapmaz.
+      // kimliğin hesabına geçildi, diyalogda vazgeçildiyse hiçbir şey —
+      // ekran hepsini taze fotoğraftan çizer, varsayım yapmaz.
       setState(() => _snap = next);
     } catch (e) {
       if (!mounted) return;

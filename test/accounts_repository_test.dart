@@ -253,6 +253,65 @@ void main() {
     );
   });
 
+  group('nakit birimi = ana birim', () {
+    DocumentReference<Map<String, dynamic>> settings() =>
+        db.collection('users').doc(_uid).collection('settings').doc('main');
+
+    test('ayar yoksa ₺ (eski varsayılan)', () async {
+      await db.accounts.doc(Account.cashId).set({'balance': 10});
+      expect((await current()).single.currency, 'TRY');
+    });
+
+    test('ana birim ₸: belgede TRY yazsa da nakit ₸, kart kendi biriminde',
+        () async {
+      await settings().set({'currency': 'KZT'});
+      // Eski göçün yazdığı gibi.
+      await db.accounts
+          .doc(Account.cashId)
+          .set({'balance': 50000, 'currency': 'TRY'});
+      await repo.add(name: 'Kaspi', currency: 'KZT', kind: AccountKind.card);
+      await repo.add(name: 'Enpara', currency: 'TRY', kind: AccountKind.card);
+
+      final list = await current();
+      expect(list.map((a) => a.currency), ['KZT', 'KZT', 'TRY']);
+      expect(list.first.isCash, isTrue);
+      expect(list.first.balance, 50000, reason: 'bakiye çevrilmez');
+      // Belge değişmedi — okuma anında kural.
+      final doc = await db.accounts.doc(Account.cashId).get();
+      expect(doc.data()!['currency'], 'TRY');
+    });
+
+    test('ana birim değişince akış nakdi yeni birimle yeniden yayınlar',
+        () async {
+      await db.accounts.doc(Account.cashId).set({'balance': 10});
+      final seen = <String>[];
+      final sub = repo.watchAccounts().listen(
+            (list) => seen.add(list.single.currency),
+          );
+      await Future<void>.delayed(Duration.zero);
+      await settings().set({'currency': 'USD'});
+      await Future<void>.delayed(Duration.zero);
+      await sub.cancel();
+      expect(seen.first, 'TRY');
+      expect(seen.last, 'USD');
+    });
+
+    test('withMainCurrency yalnız nakde dokunur', () {
+      const cash = Account(
+          id: Account.cashId,
+          name: '',
+          currency: 'TRY',
+          kind: AccountKind.cash,
+          balance: 5);
+      const card = Account(
+          id: 'c', name: 'K', currency: 'AZN', kind: AccountKind.card, balance: 5);
+      expect(cash.withMainCurrency('KZT').currency, 'KZT');
+      expect(cash.withMainCurrency('KZT').balance, 5);
+      expect(identical(cash.withMainCurrency('TRY'), cash), isTrue);
+      expect(identical(card.withMainCurrency('KZT'), card), isTrue);
+    });
+  });
+
   group('providers', () {
     /// Riverpod 3: dinleyicisi olmayan provider bir sonraki döngüde
     /// atılır, `read(.future)` yüklenirken askıda kalır. Testte canlı

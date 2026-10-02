@@ -35,6 +35,40 @@ import 'onboarding_questions.dart';
 import 'onboarding_response.dart';
 import 'onboarding_save.dart';
 
+// ── Başlangıç parasının ikizlenmesine karşı ──────────────────────────────
+// Onboarding'in para yazan adımları bir kez çalışmalı. Kararlar saf
+// fonksiyonlarda: widget durumuna bağlı olmadıkları için test edilebiliyor.
+
+/// Profilde "başlangıç parası yazıldı" işaretinin anahtarı.
+const kOnboardingSeededKey = 'onboardingSeeded';
+
+/// Başlangıç bakiyesi daha önce yazıldı mı?
+///
+/// [inMemory] aynı oturumdaki tekrar denemeyi, [profile] ise uygulama
+/// öldürülüp onboarding'in yeniden açıldığı durumu yakalar. İkisi de
+/// yoksa yazmak güvenli.
+bool onboardingSeeded(Map<String, dynamic>? profile, {bool inMemory = false}) =>
+    inMemory || profile?[kOnboardingSeededKey] == true;
+
+/// Henüz oluşturulmamış döviz cüzdanlarının kodları, giriş sırasıyla.
+///
+/// Cüzdan zarfının `currency` alanı kendi işaretidir: ilk denemede yazılan
+/// cüzdan ikinci denemede [existingCurrencies] içinde görünür ve atlanır.
+/// Aynı kod istekte iki kez geçse bile bir kez döner.
+List<String> missingWalletCodes(
+  Iterable<String> existingCurrencies,
+  Iterable<String> wanted,
+) {
+  final have = {...existingCurrencies.where((c) => c.isNotEmpty)};
+  final out = <String>[];
+  for (final code in wanted) {
+    if (code.isEmpty || have.contains(code)) continue;
+    have.add(code);
+    out.add(code);
+  }
+  return out;
+}
+
 // ── Sayfa sırası ─────────────────────────────────────────────────────────
 // Geri düğmesi, önizleme (PREVIEW_STEP) ve testler bu indekslere göre.
 const _pWelcome = 0;
@@ -320,11 +354,42 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
     }
 
     // Başlangıç bakiyesi: ₺ cüzdana gelir; dövizler ayrı kumbara zarfı.
+    //
+    // BU ADIMLAR İKİ KEZ ÇALIŞMAMALI. Kategoriler `presetKey` ile zaten
+    // tekilleniyordu ama para yazan bu iki çağrı koşulsuzdu: ağ son adımda
+    // (`setDay`, transaction — çevrimdışı patlar) koparsa kullanıcı hata
+    // şeridini görüp tekrar deniyor ve başlangıç bakiyesi İKİ KEZ
+    // yazılıyordu. 5.000 ₺ giren biri 10.000 ₺ ile açılıyordu.
+    //
+    // İki ayrı koruma var, çünkü iki ayrı senaryo var:
+    //   • Aynı oturumda tekrar deneme → [_seeded] (bellekte, kesin).
+    //   • Uygulama öldü, onboarding yeniden açıldı → profildeki bayrak.
+    //
+    // Kalan dar aralık: `addCashIncome` yazıldı ama bayrak yazılamadan
+    // bağlantı koptuysa tekrar denemede bakiye yine ikizlenebilir. İkisini
+    // tek yazmada birleştirmek repo tarafında bir değişiklik ister;
+    // bugünkü hâli, koşulsuz çağrıya göre kıyas kabul etmez ölçüde iyi.
+    final alreadySeeded = onboardingSeeded(
+      ref.read(profileProvider).value,
+      inMemory: _seeded,
+    );
+
     final mainAmount = parseAmount(_mainAmount.text) ?? 0;
-    if (mainAmount > 0) {
+    if (mainAmount > 0 && !alreadySeeded) {
       await repo.addCashIncome(amount: mainAmount, note: rs.startingBalance);
+      _seeded = true;
+      await repo.saveProfile({kOnboardingSeededKey: true});
     }
+
+    // Döviz cüzdanları kendi işaretini taşıyor: zarfın `currency` alanı.
+    // İlk denemede yazılan cüzdan `existing` içinde geri geliyor, yani
+    // ayrı bir bayrağa gerek yok.
+    final todo = missingWalletCodes(
+      [for (final e in existing) e.currency],
+      [for (final e in _extras) e.code],
+    ).toSet();
     for (final e in _extras) {
+      if (!todo.remove(e.code)) continue;
       await repo.addCurrencyWallet(
         code: e.code,
         name: walletNameFor(rs, e.code),
@@ -341,6 +406,10 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
       await workDays.setDay(DateTime.now(), amount: firstDay);
     }
   }
+
+  /// Aynı oturumdaki tekrar denemelerde bellekten cevap: profil akışının
+  /// tazelenmesini beklemeden kesin bilgi.
+  bool _seeded = false;
 
   /// Katalog/hazır anahtar → zarf kaydı. Ad `displayName` ile aynı öncelik:
   /// önce hazır set çevirisi, sonra katalog; emoji katalogdan, yoksa hazır

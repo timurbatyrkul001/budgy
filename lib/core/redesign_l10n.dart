@@ -459,6 +459,10 @@ class RS {
     required this.addIncomeManual,
     required this.addScanReceipt,
     required this.addByVoice,
+    required this.conflictTitle,
+    required this.conflictBody,
+    required this.conflictSignIn,
+    required this.conflictKeep,
   });
 
   final String onbTitle;
@@ -1007,6 +1011,18 @@ class RS {
   final String addScanReceipt;
   final String addByVoice;
 
+  /// Giriş sırasında kimlik BAŞKA bir hesaba aitken ve anonim hesapta
+  /// kaybedilecek kayıt varken çıkan diyalog (bkz. auth/sign_in_guard.dart).
+  /// "Birleştirme" sözü vermez; iki hesap birleştirilmiyor.
+  final String conflictTitle;
+  final String conflictBody;
+
+  /// Kırmızı metin düğmesi: o hesaba geç, buradaki kayıtlar erişilmez olur.
+  final String conflictSignIn;
+
+  /// Güvenli seçenek (dolu düğme): hiçbir şey değişmez.
+  final String conflictKeep;
+
   static RS of(String code) => switch (code) {
     'tr' => tr,
     'ru' => ru,
@@ -1509,6 +1525,11 @@ class RS {
     addIncomeManual: 'Add income\nmanually',
     addScanReceipt: 'Scan\nreceipt',
     addByVoice: 'Add by\nvoice',
+    conflictTitle: 'That account has its own records',
+    conflictBody:
+        "What you've written in this app so far isn't tied to an account yet. The account you picked already has records of its own, and the two can't be combined.\n\nIf you sign in to it, the records on this phone will no longer be reachable. You can stay as you are for now and connect a different account later in Settings.",
+    conflictSignIn: 'Sign in anyway',
+    conflictKeep: 'Keep my records',
   );
 
   static const tr = RS(
@@ -2003,6 +2024,11 @@ class RS {
     addIncomeManual: 'Elle gelir\nekle',
     addScanReceipt: 'Fiş\ntara',
     addByVoice: 'Sesle\nekle',
+    conflictTitle: 'Bu hesabın kendi kayıtları var',
+    conflictBody:
+        'Bu uygulamada şimdiye kadar yazdıkların henüz bir hesaba bağlı değil. Seçtiğin hesabın ise kendi kayıtları var ve ikisi birleştirilemiyor.\n\nO hesaba girersen bu telefondaki kayıtlara bir daha ulaşamazsın. Şimdilik böyle kalabilir, sonra Ayarlar\'dan başka bir hesapla bağlanabilirsin.',
+    conflictSignIn: 'Yine de gir',
+    conflictKeep: 'Kayıtlarımı koru',
   );
 
   static const ru = RS(
@@ -2498,5 +2524,10 @@ class RS {
     addIncomeManual: 'Доход\nвручную',
     addScanReceipt: 'Сканировать\nчек',
     addByVoice: 'Добавить\nголосом',
+    conflictTitle: 'У этого аккаунта свои записи',
+    conflictBody:
+        'Всё, что ты записал в приложении до сих пор, ещё не привязано к аккаунту. У выбранного аккаунта уже есть свои записи, и объединить их нельзя.\n\nЕсли войти в него, записи на этом телефоне станут недоступны. Можно оставить всё как есть и позже привязать другой аккаунт в настройках.',
+    conflictSignIn: 'Всё равно войти',
+    conflictKeep: 'Оставить мои записи',
   );
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -45,6 +47,9 @@ class AccountsRepository {
   CollectionReference<Map<String, dynamic>> get _accounts =>
       _db.collection('users').doc(_uid).collection('accounts');
 
+  DocumentReference<Map<String, dynamic>> get _settings =>
+      _db.collection('users').doc(_uid).collection('settings').doc('main');
+
   /// Arşivlenmemiş hesaplar, `sortOrder`'a göre.
   ///
   /// Filtre ve sıralama bilerek İSTEMCİDE: Firestore'da `orderBy('sortOrder')`
@@ -53,9 +58,69 @@ class AccountsRepository {
   /// belgesinde yalnız `balance` var — sunucu tarafı sorgu onu görünmez
   /// yapardı ve kullanıcı cüzdanını kaybetmiş sanırdı. Koleksiyon küçük
   /// (birkaç hesap), istemcide sıralamanın maliyeti yok.
-  Stream<List<Account>> watchAccounts() => _accounts.snapshots().map(
-    (snap) => _sorted(snap.docs.map(Account.fromDoc).where((a) => !a.archived)),
-  );
+  ///
+  /// Nakit hesabının birimi belgeden değil `settings/main.currency`'den
+  /// gelir ([Account.withMainCurrency]): iki akış birleştirilir, ana birim
+  /// değişince liste kendiliğinden yenilenir. Ayar belgesi yoksa ₺ —
+  /// uygulamanın her yerindeki varsayılanla aynı.
+  Stream<List<Account>> watchAccounts() => _combineLatest(
+        _accounts.snapshots().map(
+          (snap) => snap.docs.map(Account.fromDoc).where((a) => !a.archived),
+        ),
+        _settings.snapshots().map(
+          (doc) => doc.data()?['currency'] as String? ?? 'TRY',
+        ),
+        (accounts, main) =>
+            _sorted(accounts.map((a) => a.withMainCurrency(main))),
+      );
+
+  /// İki akışın son değerlerini birleştirir (rxdart'sız `combineLatest`):
+  /// ikisi de en az bir kez yayınladıktan sonra her yeni değerde [combine]
+  /// çağrılır. Dinleyici ayrılınca iki kaynak da kapatılır.
+  static Stream<R> _combineLatest<A, B, R>(
+    Stream<A> a,
+    Stream<B> b,
+    R Function(A, B) combine,
+  ) {
+    late final StreamController<R> ctrl;
+    StreamSubscription<A>? subA;
+    StreamSubscription<B>? subB;
+    A? lastA;
+    B? lastB;
+    var hasA = false;
+    var hasB = false;
+    void emit() {
+      if (hasA && hasB) ctrl.add(combine(lastA as A, lastB as B));
+    }
+
+    ctrl = StreamController<R>(
+      onListen: () {
+        subA = a.listen((v) {
+          lastA = v;
+          hasA = true;
+          emit();
+        }, onError: ctrl.addError);
+        subB = b.listen((v) {
+          lastB = v;
+          hasB = true;
+          emit();
+        }, onError: ctrl.addError);
+      },
+      onPause: () {
+        subA?.pause();
+        subB?.pause();
+      },
+      onResume: () {
+        subA?.resume();
+        subB?.resume();
+      },
+      onCancel: () async {
+        await subA?.cancel();
+        await subB?.cancel();
+      },
+    );
+    return ctrl.stream;
+  }
 
   static List<Account> _sorted(Iterable<Account> accounts) {
     final list = accounts.toList()

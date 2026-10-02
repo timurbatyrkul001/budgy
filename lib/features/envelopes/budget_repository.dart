@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/category_visual.dart';
 import '../../core/formatters.dart';
+import '../../core/fx.dart';
+import '../../core/fx_freeze.dart';
 import '../../core/l10n.dart';
 import '../accounts/account.dart';
 import '../auth/auth_gate.dart';
@@ -134,8 +136,15 @@ final recurringRulesProvider = StreamProvider<List<RecurringRule>>((ref) {
 });
 
 /// Açılışta vadesi gelen tekrarları işler — RootScreen bir kez izler.
+///
+/// Kur tablosu yalnız GEREKİRSE (ana birimden farklı bir karta bağlı kural
+/// varsa) [loadFxSnapshot] ile yüklenir: önbellek tazeyse ağa çıkılmaz.
+/// Tablo gelmezse o kural bu açılışta atlanır, `nextDate` ilerlemez —
+/// bkz. [BudgetRepository.materializeRecurring].
 final recurringMaterializerProvider = FutureProvider<int>((ref) {
-  return ref.watch(budgetRepositoryProvider).materializeRecurring();
+  return ref
+      .watch(budgetRepositoryProvider)
+      .materializeRecurring(loadFx: loadFxSnapshot);
 });
 
 /// Geçmiş ekranı (arama + filtre) için daha geniş pencere.
@@ -241,6 +250,20 @@ class BudgetRepository {
         SetOptions(merge: true));
   }
 
+  /// Hesap bakiyesini [batch] içinde değiştirir. Nakit (`accounts/cash`)
+  /// [_cashDelta] ile `set+merge`: belge eski kurulumda henüz yoksa
+  /// `update` patlardı. Kartlar `update` — silinmiş kartı yalnız `balance`
+  /// alanıyla yarım diriltmeyelim (bkz. [_applyDeltas]).
+  void _accountDelta(WriteBatch batch, String accountId, double delta) {
+    if (accountId == Account.cashId) {
+      _cashDelta(batch, delta);
+      return;
+    }
+    batch.update(_accounts.doc(accountId), {
+      'balance': FieldValue.increment(delta),
+    });
+  }
+
   Stream<double> watchCashBalance() => _cash.snapshots().map(
       (doc) => (doc.data()?['balance'] as num?)?.toDouble() ?? 0);
 
@@ -286,12 +309,20 @@ class BudgetRepository {
 
     batch.set(_cash, {
       'name': 'wallet',
-      'currency': 'TRY',
+      // Nakit tanım gereği ana birimde. Buradaki değer bilgi amaçlı:
+      // okuyan taraf (AccountsRepository.watchAccounts) her durumda
+      // `settings/main.currency`'yi esas alır — bkz. Account.withMainCurrency.
+      'currency': await mainCurrency(),
       'balance': balance,
       'createdAt': FieldValue.serverTimestamp(),
     });
     await batch.commit();
   }
+
+  /// Kullanıcının ana para birimi (`settings/main.currency`), yoksa ₺.
+  /// Tek seferlik okuma; akış için [watchCurrency].
+  Future<String> mainCurrency() async =>
+      (await _settings.get()).data()?['currency'] as String? ?? 'TRY';
 
   CollectionReference<Map<String, dynamic>> get _txs =>
       _db.collection('users').doc(_uid).collection('transactions');
@@ -990,9 +1021,7 @@ class BudgetRepository {
     if (accountId != null) {
       // Para seçilen karttan çıkar; bakiye hesabın KENDİ biriminde tutulur,
       // o yüzden çevrilmiş değil ham tutar düşülür.
-      batch.update(_accounts.doc(accountId), {
-        'balance': FieldValue.increment(-amount),
-      });
+      _accountDelta(batch, accountId, -amount);
     } else if (currency == 'TRY') {
       // Hesap seçilmeden gelen eski yol: tek kasa modeli. Dokunulmadı ki
       // kartını hiç eklememiş kullanıcıda akış birebir aynı kalsın.
@@ -1080,9 +1109,7 @@ class BudgetRepository {
       // Para seçilen hesaba girer; bakiye hesabın KENDİ biriminde tutulur,
       // o yüzden çevrilmiş değil ham tutar eklenir (_writeExpense'in aynası:
       // oradan −amount, buradan +amount).
-      batch.update(_accounts.doc(accountId), {
-        'balance': FieldValue.increment(amount),
-      });
+      _accountDelta(batch, accountId, amount);
     } else {
       // Hesap seçilmeden gelen eski yol: tek kasa modeli, olduğu gibi.
       _cashDelta(batch, amount);
@@ -1118,6 +1145,11 @@ class BudgetRepository {
 
   /// Kural yaz: ilk işlem normal yoldan kaydedildikten SONRA çağrılır;
   /// [nextDate] ilk tekrar (bkz. [nextOccurrence]).
+  ///
+  /// [accountId]: ilk işlem hangi hesaptan yazıldıysa o — tekrarlar da
+  /// aynı hesaptan çıkar/girer. Verilmezse (tek hesaplı kullanıcı, hesap
+  /// seçimi devrede değil) kural hesapsızdır ve eski tek-kasa yolundan
+  /// işlenir; hesaplar öncesi yazılmış kurallarla birebir aynı.
   Future<String> addRecurringRule({
     required double amount,
     required String type,
@@ -1127,6 +1159,8 @@ class BudgetRepository {
     String? envelopeId,
     String? envelopeName,
     String? note,
+    String? accountId,
+    String? accountName,
   }) async {
     final doc = _recurring.doc();
     await doc.set({
@@ -1140,6 +1174,8 @@ class BudgetRepository {
       'envelopeId': ?envelopeId,
       'envelopeName': ?envelopeName,
       'note': ?note,
+      'accountId': ?accountId,
+      'accountName': ?accountName,
       'createdAt': FieldValue.serverTimestamp(),
     });
     return doc.id;
@@ -1148,51 +1184,190 @@ class BudgetRepository {
   /// Vadesi gelen tekrarları bugüne kadar işler (yetişme). Her tekrar TEK
   /// batch: işlem + bakiye + kuralın nextDate'i — yarıda kalsa da aynı
   /// tekrar iki kez yazılmaz. İşlenen tekrar sayısını döndürür.
-  Future<int> materializeRecurring({DateTime? now}) async {
+  ///
+  /// Hesaba bağlı kural ([RecurringRule.accountId]) elle aynı karttan
+  /// girilmiş gibi yazılır: `accountId`, hesabın KENDİ biriminde bakiye,
+  /// ana birime DONDURULMUŞ kur. Bunun için kural işlenmeden önce iki şey
+  /// çözülür ve çözülemezse kural bu açılışta ATLANIR — `nextDate`
+  /// ilerlemez, kurala [RecurringRule.holdReason] yazılır, diğer kurallar
+  /// etkilenmez:
+  ///
+  /// * Hesap silinmiş ya da arşivlenmiş → [RecurringRule.holdAccountMissing].
+  ///   Nakitten düşmek parayı yanlış yerden çıkarırdı; arşivli karta yazmak
+  ///   parayı listede görünmeyen bir yere akıtırdı. Kullanıcı kartı
+  ///   arşivden çıkarınca ya da kuralı silince düğüm çözülür; o zamana
+  ///   kadar biriken tekrarlar kaybolmaz, sonraki açılışta yetişir.
+  /// * Hesabın birimi ana birimden farklı ve kur yok (çevrimdışı, servis
+  ///   kapalı, çift tabloda yok) → [RecurringRule.holdFxUnavailable]. Kur
+  ///   bir kez dondurulur ve bir daha değişmez; uydurma ya da sıfır kurla
+  ///   yazmak ay toplamını kalıcı bozardı. Bir sonraki açılış yeniden dener.
+  ///   Dondurulan kur yetişme GÜNÜNÜN kurudur, vade gününün değil — elle
+  ///   geç girilen işlemle aynı kural.
+  ///
+  /// Nakit ([Account.cashId]) hiç eksik sayılmaz (silinemez/arşivlenemez)
+  /// ve birimi ana birimdir — kur gerekmez, ağa çıkılmaz.
+  ///
+  /// [loadFx]: ana birim tabanlı kur tablosu; yalnız gerektiğinde, en fazla
+  /// bir kez çağrılır. Verilmezse döviz kartına bağlı kurallar atlanır.
+  Future<int> materializeRecurring({
+    DateTime? now,
+    Future<FxSnapshot?> Function(String base)? loadFx,
+  }) async {
     final today = now ?? DateTime.now();
     final endOfToday = DateTime(today.year, today.month, today.day, 23, 59, 59);
     final snap = await _recurring
         .where('nextDate', isLessThanOrEqualTo: Timestamp.fromDate(endOfToday))
         .get();
     var posted = 0;
+    // Tembel: hesapsız kurallar için ne ayar okunur ne kur yüklenir.
+    String? main;
+    FxSnapshot? fx;
+    var fxTried = false;
     for (final doc in snap.docs) {
       var rule = RecurringRule.fromDoc(doc);
+
+      Account? account;
+      ({double baseAmount, double rate})? frozen;
+      if (rule.accountId != null) {
+        main ??= await mainCurrency();
+        account = await _ruleAccount(rule.accountId!, main);
+        if (account == null) {
+          await _holdRule(doc.reference, rule, RecurringRule.holdAccountMissing);
+          continue;
+        }
+        FxSnapshot? table;
+        if (account.currency == main) {
+          // Aynı birim: `freezeToBase` tabloya bakmaz, boş tablo yeter.
+          table = FxSnapshot(base: main, rates: const {}, fetchedAt: today);
+        } else {
+          if (!fxTried) {
+            fxTried = true;
+            try {
+              fx = await loadFx?.call(main);
+            } catch (_) {
+              fx = null; // yükleyici hatası da "kur yok" demektir
+            }
+          }
+          table = fx;
+        }
+        if (table != null) {
+          try {
+            frozen = freezeToBase(
+              amount: rule.amount,
+              from: account.currency,
+              to: main,
+              fx: table,
+            );
+          } on FxUnavailable {
+            frozen = null;
+          }
+        }
+        if (frozen == null) {
+          await _holdRule(doc.reference, rule, RecurringRule.holdFxUnavailable);
+          continue;
+        }
+      }
+
       var next = rule.nextDate;
       // Güvenlik sınırı: çok eski bir kural yüzlerce işlem üretmesin.
       var guard = 0;
       while (!next.isAfter(endOfToday) && guard++ < 400) {
         final batch = _db.batch();
         final txDoc = _txs.doc();
-        _writeRule(batch, txDoc, rule, next);
+        _writeRule(batch, txDoc, rule, next,
+            account: account, baseCurrency: main, frozen: frozen);
         final after = nextOccurrence(next, rule.freq, anchorDay: rule.anchorDay);
-        batch.update(doc.reference, {'nextDate': Timestamp.fromDate(after)});
+        batch.update(doc.reference, {
+          'nextDate': Timestamp.fromDate(after),
+          // Engel kalkmış: işaret de kalksın (varsa).
+          if (rule.holdReason != null) 'holdReason': FieldValue.delete(),
+        });
         await batch.commit();
         posted++;
         next = after;
-        rule = RecurringRule(
-          id: rule.id,
-          amount: rule.amount,
-          type: rule.type,
-          currency: rule.currency,
-          freq: rule.freq,
-          nextDate: after,
-          anchorDay: rule.anchorDay,
-          envelopeId: rule.envelopeId,
-          envelopeName: rule.envelopeName,
-          note: rule.note,
-        );
+        rule = rule.copyWith(nextDate: after);
       }
     }
     return posted;
   }
 
+  /// Kuralın hesabı, işleme yazılabilir hâliyle; yazılamazsa null.
+  /// Nakit her zaman vardır ve ana birimdedir (belge henüz yazılmamış olsa
+  /// bile — `_cashDelta` set+merge ile açar). Kart: belge yoksa ya da
+  /// arşivliyse null.
+  Future<Account?> _ruleAccount(String accountId, String main) async {
+    final snap = await _accounts.doc(accountId).get();
+    if (accountId == Account.cashId) {
+      final cash = snap.exists
+          ? Account.fromDoc(snap)
+          : const Account(
+              id: Account.cashId,
+              name: '',
+              currency: 'TRY',
+              kind: AccountKind.cash,
+              balance: 0,
+            );
+      return cash.withMainCurrency(main);
+    }
+    if (!snap.exists) return null;
+    final account = Account.fromDoc(snap);
+    return account.archived ? null : account;
+  }
+
+  /// Kurala "neden atlandı" işareti; zaten aynıysa yazma yok (her açılışta
+  /// boş yere belge güncellenmesin).
+  Future<void> _holdRule(
+    DocumentReference<Map<String, dynamic>> ref,
+    RecurringRule rule,
+    String reason,
+  ) async {
+    if (rule.holdReason == reason) return;
+    await ref.update({'holdReason': reason});
+  }
+
   /// Kuralı, hızlı girişle aynı yazma yollarından işleme çevirir.
+  ///
+  /// [account] doluysa hesaba bağlı yol: işlem o hesaba, hesabın O ANKİ
+  /// biriminde (nakit ana birimi izler), [frozen] kurla. Null ise hesaplar
+  /// öncesi yol — hesapsız kurallar için davranış DEĞİŞMEDİ.
   void _writeRule(
     WriteBatch batch,
     DocumentReference<Map<String, dynamic>> doc,
     RecurringRule rule,
-    DateTime date,
-  ) {
+    DateTime date, {
+    Account? account,
+    String? baseCurrency,
+    ({double baseAmount, double rate})? frozen,
+  }) {
+    if (account != null && frozen != null) {
+      if (rule.isExpense) {
+        _writeExpense(batch, doc,
+            envelopeId: rule.envelopeId,
+            envelopeName: rule.envelopeName,
+            amount: rule.amount,
+            currency: account.currency,
+            note: rule.note,
+            date: date,
+            accountId: account.id,
+            baseAmount: frozen.baseAmount,
+            baseCurrency: baseCurrency,
+            fxRate: frozen.rate);
+      } else {
+        // Hesaba bağlı gelirde envelopeId gelir kaynağı etiketi (bakiye yok).
+        _writeCashIncome(batch, doc,
+            amount: rule.amount,
+            note: rule.note,
+            date: date,
+            envelopeId: rule.envelopeId,
+            envelopeName: rule.envelopeName,
+            currency: account.currency,
+            accountId: account.id,
+            baseAmount: frozen.baseAmount,
+            baseCurrency: baseCurrency,
+            fxRate: frozen.rate);
+      }
+      return;
+    }
     if (rule.isExpense) {
       _writeExpense(batch, doc,
           envelopeId: rule.envelopeId,

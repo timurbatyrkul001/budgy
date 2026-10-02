@@ -37,7 +37,10 @@ class _EmailVerifyScreenState extends ConsumerState<EmailVerifyScreen> {
     _send(initial: true);
     // Arka planda her 4 sn'de bir doğrulanmış mı diye bak — link tıklanınca
     // ekran kendiliğinden geçsin.
-    _poll = Timer.periodic(const Duration(seconds: 4), (_) => _check(silent: true));
+    _poll = Timer.periodic(
+      const Duration(seconds: 4),
+      (_) => _check(silent: true),
+    );
   }
 
   @override
@@ -54,9 +57,9 @@ class _EmailVerifyScreenState extends ConsumerState<EmailVerifyScreen> {
     } catch (_) {}
     if (!mounted) return;
     if (!initial) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(ref.read(strProvider).verifySent)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(ref.read(strProvider).verifySent)));
     }
     setState(() => _cooldown = 45);
     _cooldownTimer?.cancel();
@@ -103,10 +106,7 @@ class _EmailVerifyScreenState extends ConsumerState<EmailVerifyScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
           children: [
-            const Align(
-              alignment: Alignment.centerLeft,
-              child: _BackButton(),
-            ),
+            const Align(alignment: Alignment.centerLeft, child: _BackButton()),
             const SizedBox(height: 20),
             // İkon rozeti — posta zarfı, 60×60 kare.
             Container(
@@ -117,29 +117,35 @@ class _EmailVerifyScreenState extends ConsumerState<EmailVerifyScreen> {
                 color: c.envMarket,
                 borderRadius: BorderRadius.circular(18),
               ),
-              child: Icon(Icons.mail_outline_rounded,
-                  size: 30, color: c.accentStrong),
+              child: Icon(
+                Icons.mail_outline_rounded,
+                size: 30,
+                color: c.accentStrong,
+              ),
             ),
             const SizedBox(height: 24),
             Text(
               str.verifyEmailTitle,
               style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  color: c.text,
-                  letterSpacing: -0.5),
+                fontSize: 28,
+                fontWeight: FontWeight.w800,
+                color: c.text,
+                letterSpacing: -0.5,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               str.verifyEmailBody,
-              style:
-                  TextStyle(fontSize: 15, height: 1.45, color: c.textMuted),
+              style: TextStyle(fontSize: 15, height: 1.45, color: c.textMuted),
             ),
             const SizedBox(height: 6),
             Text(
               widget.email,
               style: TextStyle(
-                  fontSize: 15, fontWeight: FontWeight.w700, color: c.text),
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: c.text,
+              ),
             ),
             const SizedBox(height: 32),
             SizedBox(
@@ -150,9 +156,12 @@ class _EmailVerifyScreenState extends ConsumerState<EmailVerifyScreen> {
                   foregroundColor: Ex.onBrand,
                   minimumSize: const Size.fromHeight(56),
                   textStyle: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w800),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15)),
+                    borderRadius: BorderRadius.circular(15),
+                  ),
                 ),
                 onPressed: () => _check(),
                 child: Text(str.verifyDone),
@@ -166,12 +175,16 @@ class _EmailVerifyScreenState extends ConsumerState<EmailVerifyScreen> {
                   foregroundColor: c.accent,
                   disabledForegroundColor: c.textFaint,
                   textStyle: const TextStyle(
-                      fontSize: 14, fontWeight: FontWeight.w700),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 onPressed: _cooldown == 0 ? () => _send() : null,
-                child: Text(_cooldown == 0
-                    ? str.verifyResend
-                    : '${str.verifyResend} (${_cooldown}s)'),
+                child: Text(
+                  _cooldown == 0
+                      ? str.verifyResend
+                      : '${str.verifyResend} (${_cooldown}s)',
+                ),
               ),
             ),
           ],
@@ -197,8 +210,11 @@ class _BackButton extends StatelessWidget {
         child: SizedBox(
           width: 40,
           height: 40,
-          child: Icon(Icons.arrow_back_ios_new_rounded,
-              size: 18, color: c.text),
+          child: Icon(
+            Icons.arrow_back_ios_new_rounded,
+            size: 18,
+            color: c.text,
+          ),
         ),
       ),
     );

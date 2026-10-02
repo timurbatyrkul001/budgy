@@ -1,5 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../accounts/account.dart';
+
 enum TxType { income, expense, transfer }
 
 /// Операция: доход (распределён по конвертам) или расход (из одного конверта).
@@ -81,6 +83,8 @@ class Tx {
   ///
   /// Sıra:
   /// 1. Dondurulmuş [baseAmount] varsa o. Yeni kayıtların hepsinde var.
+  ///    Tek istisna [isMislabeledCash]: nakit kaydı ama yanlış kurla
+  ///    dondurulmuş — orada [amount] zaten ana birimde.
   /// 2. Hesaplar öncesinden kalma ana cüzdan kaydıysa [amount]. O dönemde
   ///    tüm para tek kasadaydı ve `currency` alanına kullanıcının seçtiği
   ///    birim değil, "ana birim" anlamında sabit [legacyMainCode] yazılıyordu.
@@ -94,10 +98,28 @@ class Tx {
   ///    yanlış rakamdansa eksik rakam.
   double baseOr(String mainCurrency) {
     final frozen = baseAmount;
-    if (frozen != null) return frozen;
+    if (frozen != null) return isMislabeledCash ? amount : frozen;
     if (accountId == null && currency == legacyMainCode) return amount;
     return currency == mainCurrency ? amount : 0;
   }
+
+  /// Nakit hesabına bağlı, `currency` alanı [legacyMainCode] ama başka bir
+  /// ana birime "çevrilmiş" kayıt — bir dönem nakit belgesinin birimi
+  /// sabit 'TRY' yazıyordu ve ana birimi tenge/dolar olan kullanıcının
+  /// nakit harcaması gerçek ₺→₸ çapraz kuruyla dondurulmuştu (5 000 ₸
+  /// → 65 000 ₸). Nakit tanım gereği ana birimdedir, yani [amount] o anki
+  /// ana birimde girilmiş ham tutardır; dondurulmuş [baseAmount] yanlıştır.
+  ///
+  /// Okuma anında düzeltilir, belge yeniden yazılmaz: koşul kesindir (nakit
+  /// + legacy kod + farklı baseCurrency) ve düzeltme bir kur ARAMAZ — tutar
+  /// olduğu gibi alınır; "kur bir kez dondurulur, bir daha hesaplanmaz"
+  /// kuralı çiğnenmiyor. Yeni kayıtlarda nakit `currency == baseCurrency`
+  /// olduğundan bu koşul bir daha tutmaz.
+  bool get isMislabeledCash =>
+      accountId == Account.cashId &&
+      currency == legacyMainCode &&
+      baseCurrency != null &&
+      baseCurrency != legacyMainCode;
 
   /// Hesaplar gelmeden önce ana cüzdan işlemlerine yazılan sabit kod.
   /// Gerçek bir para birimi seçimi değil — o dönemde ana birimin kodu

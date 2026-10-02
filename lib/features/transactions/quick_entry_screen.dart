@@ -501,10 +501,14 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
     final wallet = _wallet;
     final isExpense = _mode == QuickMode.expense;
     final editing = widget.editing;
+    // Nakit TANIM GEREĞİ ana birimde (bkz. Account.withMainCurrency). Liste
+    // zaten öyle gelir; burada bir kez daha uygulamak, tenge kullanıcısının
+    // nakit harcamasının hiçbir yoldan ₺ sanılıp çapraz kurla
+    // dondurulmamasını garanti eder — kur dondurma `currency`'den okuyor.
     final account = _currentAccount(
       ref.read(accountsProvider).value ?? const <Account>[],
       ref.read(recentTxsProvider).value ?? const <Tx>[],
-    );
+    )?.withMainCurrency(ref.read(currencyCodeProvider));
     // Hesap kimliği: formdaki seçim; düzenlemede seçim yoksa kaydın kendi
     // hesabı — liste henüz gelmemiş ya da hesap arşivlenmiş olsa bile bağ
     // kopmaz, yoksa kayıt sessizce nakde taşınırdı. Döviz zarfına geçildiyse
@@ -650,6 +654,9 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
         );
       }
       if (_recurrence != Recurrence.none) {
+        // Kural ilk işlemle AYNI hesabı hatırlar: tekrarlar o karttan
+        // düşer (ya da ona girer), kur her tekrarda yeniden dondurulur.
+        // Hesap yoksa (tek hesaplı kullanıcı) kural hesapsız — eski yol.
         await repo.addRecurringRule(
           amount: amount,
           type: isExpense ? 'expense' : 'income',
@@ -659,6 +666,10 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
           envelopeId: envelopeId,
           envelopeName: envelopeName,
           note: note,
+          accountId: account?.id,
+          accountName: account == null || account.name.trim().isEmpty
+              ? null
+              : account.name,
         );
       }
     }, reason: 'quickEntry');

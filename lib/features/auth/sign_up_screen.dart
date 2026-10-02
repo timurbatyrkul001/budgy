@@ -61,7 +61,6 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   bool get _ruleSymbol =>
       RegExp(r'[0-9!@#\$%^&*(),.?":{}|<>_\-]').hasMatch(_password.text);
 
-
   /// Buton her zaman basılır; eksik varsa onu söyler (kullanıcı neden
   /// ilerlemediğini görsün).
   void _tryContinue() {
@@ -79,9 +78,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
       problem = str.passwordsDontMatch;
     }
     if (problem != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(problem)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(problem)));
       return;
     }
     _continue();
@@ -116,9 +115,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
             // olmadığı için genel metin doğru olanı.
             _ => str.errorGeneric,
           };
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(message)),
-          );
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(message)));
         }
         return;
       }
@@ -130,9 +129,8 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
           email: _email.text.trim(),
           onVerified: () => Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) => CompleteProfileScreen(
-                onComplete: widget.onSignedUp,
-              ),
+              builder: (_) =>
+                  CompleteProfileScreen(onComplete: widget.onSignedUp),
             ),
           ),
         ),
@@ -177,7 +175,10 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                   Text(
                     str.signUpSubtitle,
                     style: TextStyle(
-                        fontSize: 15, height: 1.4, color: c.textMuted),
+                      fontSize: 15,
+                      height: 1.4,
+                      color: c.textMuted,
+                    ),
                   ),
                   const SizedBox(height: 18),
                   AuthField(
@@ -233,11 +234,14 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                       style: FilledButton.styleFrom(
                         backgroundColor: c.accent,
                         foregroundColor: Ex.onBrand,
-                        disabledBackgroundColor:
-                            c.accent.withValues(alpha: 0.4),
+                        disabledBackgroundColor: c.accent.withValues(
+                          alpha: 0.4,
+                        ),
                         minimumSize: const Size.fromHeight(56),
                         textStyle: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w800),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(15),
                         ),
@@ -321,17 +325,21 @@ class _Rule extends StatelessWidget {
             color: met ? c.accent : c.track,
             borderRadius: BorderRadius.circular(7),
           ),
-          child: Icon(Icons.check,
-              size: 14, color: met ? Ex.onBrand : c.textFaint),
+          child: Icon(
+            Icons.check,
+            size: 14,
+            color: met ? Ex.onBrand : c.textFaint,
+          ),
         ),
         const SizedBox(width: 11),
         Expanded(
           child: Text(
             text,
             style: TextStyle(
-                fontSize: 13.5,
-                height: 1.35,
-                color: met ? c.text : c.textMuted),
+              fontSize: 13.5,
+              height: 1.35,
+              color: met ? c.text : c.textMuted,
+            ),
           ),
         ),
       ],

@@ -18,8 +18,7 @@ class CompleteProfileScreen extends ConsumerStatefulWidget {
       _CompleteProfileScreenState();
 }
 
-class _CompleteProfileScreenState
-    extends ConsumerState<CompleteProfileScreen> {
+class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
   final _name = TextEditingController();
   final _phone = TextEditingController();
   String _dialCode = '+1';
@@ -97,7 +96,10 @@ class _CompleteProfileScreenState
                   Text(
                     str.profileSubtitle,
                     style: TextStyle(
-                        fontSize: 15, height: 1.4, color: c.textMuted),
+                      fontSize: 15,
+                      height: 1.4,
+                      color: c.textMuted,
+                    ),
                   ),
                   const SizedBox(height: 20),
                   // Dekoratif avatar: isim yazıldıkça baş harf güncellenir.
@@ -115,8 +117,11 @@ class _CompleteProfileScreenState
                             shape: BoxShape.circle,
                           ),
                           child: t.isEmpty
-                              ? Icon(Icons.person_rounded,
-                                  color: c.accent, size: 44)
+                              ? Icon(
+                                  Icons.person_rounded,
+                                  color: c.accent,
+                                  size: 44,
+                                )
                               : Text(
                                   t.characters.first.toUpperCase(),
                                   style: TextStyle(
@@ -163,15 +168,18 @@ class _CompleteProfileScreenState
                       style: FilledButton.styleFrom(
                         backgroundColor: c.accent,
                         foregroundColor: Ex.onBrand,
-                        disabledBackgroundColor:
-                            c.accent.withValues(alpha: 0.5),
+                        disabledBackgroundColor: c.accent.withValues(
+                          alpha: 0.5,
+                        ),
                         disabledForegroundColor: Ex.onBrand,
                         minimumSize: const Size.fromHeight(54),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(15),
                         ),
                         textStyle: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w800),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                        ),
                       ),
                       onPressed: _saving ? null : _saveAndContinue,
                       child: Text(_saving ? '...' : str.continueButton),
@@ -201,8 +209,10 @@ class _CompleteProfileScreenState
           children: [
             for (final code in codes)
               ListTile(
-                leading: Text(flagFor(code),
-                    style: const TextStyle(fontSize: 22)),
+                leading: Text(
+                  flagFor(code),
+                  style: const TextStyle(fontSize: 22),
+                ),
                 title: Text(code, style: TextStyle(color: c.text)),
                 onTap: () => Navigator.of(context).pop(code),
               ),
@@ -216,14 +226,14 @@ class _CompleteProfileScreenState
 
 /// Флаг-эмодзи по коду страны.
 String flagFor(String dialCode) => switch (dialCode) {
-      '+1' => '🇺🇸',
-      '+7' => '🇷🇺',
-      '+44' => '🇬🇧',
-      '+90' => '🇹🇷',
-      '+49' => '🇩🇪',
-      '+33' => '🇫🇷',
-      _ => '🏳️',
-    };
+  '+1' => '🇺🇸',
+  '+7' => '🇷🇺',
+  '+44' => '🇬🇧',
+  '+90' => '🇹🇷',
+  '+49' => '🇩🇪',
+  '+33' => '🇫🇷',
+  _ => '🏳️',
+};
 
 /// Etiketli metin alanı: surface zemin + ince kenarlık (token'lı).
 class _LabeledField extends StatelessWidget {
@@ -245,11 +255,14 @@ class _LabeledField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: c.textMuted)),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: c.textMuted,
+          ),
+        ),
         const SizedBox(height: 7),
         TextField(
           controller: controller,
@@ -260,8 +273,10 @@ class _LabeledField extends StatelessWidget {
             hintStyle: TextStyle(fontSize: 15, color: c.textFaint),
             filled: true,
             fillColor: c.surface,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 15,
+              vertical: 14,
+            ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
               borderSide: BorderSide(color: c.borderStrong),
@@ -299,11 +314,14 @@ class _PhoneField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: c.textMuted)),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: c.textMuted,
+          ),
+        ),
         const SizedBox(height: 7),
         Container(
           decoration: BoxDecoration(
@@ -317,8 +335,10 @@ class _PhoneField extends StatelessWidget {
                 onTap: onPickCode,
                 borderRadius: BorderRadius.circular(14),
                 child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 15,
+                    vertical: 14,
+                  ),
                   child: Row(
                     children: [
                       // 20×20 ülke bayrağı
@@ -326,18 +346,26 @@ class _PhoneField extends StatelessWidget {
                         width: 20,
                         height: 20,
                         child: Center(
-                          child: Text(flagFor(dialCode),
-                              style: const TextStyle(fontSize: 18)),
+                          child: Text(
+                            flagFor(dialCode),
+                            style: const TextStyle(fontSize: 18),
+                          ),
                         ),
                       ),
                       const SizedBox(width: 6),
-                      Text(dialCode,
-                          style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: c.text)),
-                      Icon(Icons.expand_more_rounded,
-                          size: 18, color: c.textMuted),
+                      Text(
+                        dialCode,
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: c.text,
+                        ),
+                      ),
+                      Icon(
+                        Icons.expand_more_rounded,
+                        size: 18,
+                        color: c.textMuted,
+                      ),
                     ],
                   ),
                 ),
@@ -349,11 +377,9 @@ class _PhoneField extends StatelessWidget {
                   style: TextStyle(fontSize: 15, color: c.text),
                   decoration: InputDecoration(
                     hintText: hint,
-                    hintStyle:
-                        TextStyle(fontSize: 15, color: c.textFaint),
+                    hintStyle: TextStyle(fontSize: 15, color: c.textFaint),
                     border: InputBorder.none,
-                    contentPadding:
-                        const EdgeInsets.symmetric(vertical: 14),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                 ),
               ),
