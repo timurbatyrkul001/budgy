@@ -62,6 +62,7 @@ class AutomationScreen extends ConsumerWidget {
       body: SafeArea(
         // Kategori otomasyonu Pro'ya kilitli: kural listesi bulanık görünür,
         // "+" dahil hiçbir şeye basılamaz; kilit kartı paywall'a götürür.
+        // kProEnabled kapalıyken (1.0) ProGate çocuğu olduğu gibi çizer.
         child: ProGate(
           feature: ProFeature.automation,
           child: ListView(

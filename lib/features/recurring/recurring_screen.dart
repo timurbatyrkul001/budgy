@@ -36,7 +36,8 @@ class RecurringScreen extends ConsumerWidget {
       body: SafeArea(
         // Tekrarlayan işlemler Pro'ya kilitli: liste bulanık görünür,
         // kullanıcı kuralların orada durduğunu görür; kilit kartı paywall'a
-        // götürür.
+        // götürür. kProEnabled kapalıyken (1.0) ProGate çocuğu olduğu gibi
+        // çizer.
         child: ProGate(
           feature: ProFeature.automation,
           child: ListView(

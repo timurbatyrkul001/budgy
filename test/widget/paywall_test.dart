@@ -3,13 +3,30 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:kopilka_app/core/l10n.dart';
 import 'package:kopilka_app/core/redesign_l10n.dart';
+import 'package:kopilka_app/features/pro/pro_state.dart';
 import 'package:kopilka_app/features/stats/stats_screen.dart';
 
 import '../support/harness.dart';
 
+/// "1.0 ÜCRETSİZ" hâli: analiz ekranı herkese açık, paywall yok (bkz.
+/// pro_state.dart, [kProEnabled]).
+///
+/// Bu dosya eskiden paywall'ın kendisini doğruluyordu (marka kilidi, üç
+/// plan, fiyatlar, deneme düğmesi, yasal bağlantılar, dar ekranda taşma).
+/// Satın alma bağlanmadan paywall gösterilemeyeceği için şimdi tersini
+/// doğruluyor: abonesi olmayan kullanıcı analizi kilitsiz görür, hiçbir
+/// yoldan paywall/fiyat/deneme düğmesi çıkmaz.
+///
+/// ABONELİK GERİ GELİNCE ([kProEnabled] = true) bu dosya YENİDEN YAZILMALI:
+/// paywall'ın eski testleri git geçmişinde duruyor.
 void main() {
-  group('Pro kilidi', () {
-    testWidgets('abonesi olmayan analizde kilit kartını görür', (tester) async {
+  final trialButton = find.widgetWithText(
+    FilledButton,
+    RS.tr.paywallTrialTpl.replaceFirst('{days}', '14'),
+  );
+
+  group('Analiz · kilit yok', () {
+    testWidgets('abonesi olmayan analizi kilitsiz görür', (tester) async {
       await pumpBudgyScreen(
         tester,
         const StatsScreen(),
@@ -17,12 +34,14 @@ void main() {
         language: AppLanguage.tr,
       );
 
-      expect(find.text(RS.tr.proLocked), findsOneWidget);
-      // İçerik silinmiyor, bulanıklaştırılıyor — başlık hâlâ ağaçta.
       expect(find.text(RS.tr.spending), findsWidgets);
+      expect(find.text(RS.tr.proLocked), findsNothing);
+      expect(trialButton, findsNothing);
+      expect(find.text(RS.tr.paywallBrand), findsNothing);
+      expect(find.text(RS.tr.paywallProPill), findsNothing);
     });
 
-    testWidgets('Pro kullanıcı kilit görmez', (tester) async {
+    testWidgets('Pro kullanıcı da aynı ekranı görür', (tester) async {
       await pumpBudgyScreen(
         tester,
         const StatsScreen(),
@@ -31,61 +50,11 @@ void main() {
         pro: true,
       );
 
+      expect(find.text(RS.tr.spending), findsWidgets);
       expect(find.text(RS.tr.proLocked), findsNothing);
     });
 
-    testWidgets('kilit kartına basınca paywall açılır', (tester) async {
-      await pumpBudgyScreen(
-        tester,
-        const StatsScreen(),
-        db: FakeFirebaseFirestore(),
-        language: AppLanguage.tr,
-      );
-
-      await tester.tap(
-        find.widgetWithText(
-          FilledButton,
-          RS.tr.paywallTrialTpl.replaceFirst('{days}', '14'),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      // Paywall açıldı: marka kilidi ("Budgy" + "Pro" hapı), üç plan.
-      // Geri yükleme düğmesi bilerek yok.
-      expect(find.text(RS.tr.paywallBrand), findsOneWidget);
-      expect(find.text(RS.tr.paywallProPill), findsOneWidget);
-      expect(find.text(RS.tr.paywallYearly), findsOneWidget);
-      expect(find.text(RS.tr.paywallMonthly), findsOneWidget);
-      expect(find.text(RS.tr.paywallLifetime), findsOneWidget);
-      // Yıllık varsayılan: indirim rozeti ve deneme düğmesi görünür.
-      expect(
-        find.text(RS.tr.paywallSaveTpl.replaceFirst('{n}', '32')),
-        findsOneWidget,
-      );
-      expect(
-        find.text(RS.tr.paywallStartTrialTpl.replaceFirst('{days}', '14')),
-        findsOneWidget,
-      );
-      // Apple'ın zorunlu tuttuğu metinler: otomatik yenileme, şartlar,
-      // gizlilik.
-      expect(find.text(RS.tr.paywallAutoRenew), findsOneWidget);
-      expect(find.text(RS.tr.paywallTerms), findsOneWidget);
-      expect(find.text(RS.tr.privacyPolicy), findsOneWidget);
-      // "Neler var" üst başlığı ve beş bölüm başlığı — referanstaki gibi
-      // normal yazımla çizilir, büyük harfe çevrilmez.
-      expect(find.text(RS.tr.paywallBenefitsTitle), findsOneWidget);
-      for (final g in [
-        RS.tr.paywallGroupSpaces,
-        RS.tr.paywallGroupMoney,
-        RS.tr.paywallGroupAutomation,
-        RS.tr.paywallGroupEntry,
-        RS.tr.paywallGroupInsights,
-      ]) {
-        expect(find.text(g), findsOneWidget);
-      }
-    });
-
-    testWidgets('ömür boyu seçilince deneme yerine tek seferlik satın alma', (
+    testWidgets('fiyat, plan ve satın alma metinleri hiçbir yerde yok', (
       tester,
     ) async {
       await pumpBudgyScreen(
@@ -95,33 +64,32 @@ void main() {
         language: AppLanguage.tr,
       );
 
-      await tester.tap(
-        find.widgetWithText(
-          FilledButton,
-          RS.tr.paywallTrialTpl.replaceFirst('{days}', '14'),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text(RS.tr.paywallLifetime));
-      await tester.pumpAndSettle();
-
-      // Tek seferlik üründe deneme yok: düğme fiyatı söyler, not abonelik
-      // yerine tek ödemeyi anlatır.
-      expect(
-        find.text(
-          RS.tr.paywallBuyLifetimeTpl.replaceFirst('{price}', '₺3.999,99'),
-        ),
-        findsOneWidget,
-      );
-      expect(find.text(RS.tr.paywallLifetimeNote), findsOneWidget);
-      expect(find.text(RS.tr.paywallAutoRenew), findsNothing);
+      // İnceleyenin görmemesi gereken her şey: plan adları, fiyat etiketi,
+      // deneme/satın alma düğmeleri, otomatik yenileme notu.
+      for (final t in [
+        RS.tr.paywallYearly,
+        RS.tr.paywallMonthly,
+        RS.tr.paywallLifetime,
+        RS.tr.paywallStartTrialTpl.replaceFirst('{days}', '14'),
+        RS.tr.paywallAutoRenew,
+        RS.tr.paywallBenefitsTitle,
+      ]) {
+        expect(find.text(t), findsNothing, reason: t);
+      }
+      // Plan fiyatları (ekrandaki tutarlar ₺ taşır; fiyat etiketlerinin
+      // kendisi aranıyor).
+      for (final plan in ProPlan.values) {
+        expect(find.textContaining(plan.priceLabel), findsNothing,
+            reason: plan.priceLabel);
+      }
     });
   });
 
+  // Eski paywall taşma testlerinin yerine: kilitsiz analiz ekranı dar
+  // ekranda ve her dilde taşmadan çizilir.
   for (final width in [320.0, 360.0]) {
     for (final lang in AppLanguage.values) {
-      testWidgets('paywall · ${width.toInt()}dp · ${lang.code} taşmıyor', (
+      testWidgets('analiz · ${width.toInt()}dp · ${lang.code} taşmıyor', (
         tester,
       ) async {
         await pumpBudgyScreen(
@@ -132,15 +100,7 @@ void main() {
           logicalSize: Size(width, 800),
         );
 
-        final rs = RS.of(lang.code);
-        await tester.tap(
-          find.widgetWithText(
-            FilledButton,
-            rs.paywallTrialTpl.replaceFirst('{days}', '14'),
-          ),
-        );
-        await tester.pumpAndSettle();
-
+        expect(find.text(RS.of(lang.code).proLocked), findsNothing);
         expect(tester.takeException(), isNull);
       });
     }

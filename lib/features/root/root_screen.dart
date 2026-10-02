@@ -251,7 +251,11 @@ class _RootScreenState extends ConsumerState<RootScreen> {
     // Tekrarlayan işlemler Pro: abonelik yokken (ya da bittiğinde) kurallar
     // sessizce durur, işlem üretmez. Hak sahipliği akışı geç gelirse
     // isProProvider değişir, bu build yeniden çalışır ve yetişme o an olur.
-    if (ref.watch(isProProvider)) ref.watch(recurringMaterializerProvider);
+    // kProEnabled kapalıyken (1.0) proUnlockedProvider herkes için true:
+    // kurallar herkeste üretilir — yoksa tekrarlar sessizce dururdu.
+    if (ref.watch(proUnlockedProvider)) {
+      ref.watch(recurringMaterializerProvider);
+    }
     // Eski varsayılan cüzdan adını ("Cüzdanım") yeni varsayılana taşı.
     ref.watch(spaceNameMigrationProvider);
 

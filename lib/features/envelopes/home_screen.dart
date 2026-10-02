@@ -52,11 +52,20 @@ final greetingNameProvider = Provider<String?>((ref) {
   }
 });
 
+/// Bu ay harcanan, ANA PARA BİRİMİNDE.
+///
+/// Eskiden burada `if (t.currency != 'TRY') return sum;` vardı: döviz
+/// kartlarından yapılan her harcama toplamın DIŞINDA kalıyordu. Aynı
+/// ekranda bütçe kartı (`periodSpentProvider`) aynı harcamaları doğru
+/// sayınca, ana ekranda iki ayrı "bu ay harcanan" çıkıyordu — üstte
+/// "0 ₺", hemen altta "591 ₺". Artık ikisi de `baseOr` kullanıyor,
+/// yani dondurulmuş kuru olan kayıt ana birime çevrilmiş hâliyle,
+/// kuru olmayan eski kayıt ise 0 olarak sayılıyor.
 final monthSpentProvider = Provider<double>((ref) {
+  final main = ref.watch(currencyCodeProvider);
   return ref.watch(currentMonthTxsProvider).fold<double>(0, (sum, t) {
     if (t.type != TxType.expense || t.isConvert || t.isGoalFund) return sum;
-    if (t.currency != 'TRY') return sum;
-    return sum + t.amount;
+    return sum + t.baseOr(main);
   });
 });
 

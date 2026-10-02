@@ -27,11 +27,20 @@ class _SmoothTransitions extends PageTransitionsBuilder {
   }
 }
 
+/// iOS'ta kenardan kaydırarak geri gitme Cupertino geçişinin içinde
+/// geliyor; kendi geçişimizi koyunca o jest de gidiyordu. Yani uygulamada
+/// HİÇBİR ekranda kaydırarak geri dönülemiyordu — geri düğmesi olmayan
+/// bir ekran iOS kullanıcısı için kapan oluyordu.
+///
+/// Jesti elde tutup kendi animasyonumuzu sürdürmek Flutter'ın özel
+/// (private) geri-jest kodunu kopyalamayı gerektiriyor. Onun yerine
+/// iOS'ta sistemin kendi geçişini kullanıyoruz: alışıldık görünüm,
+/// çalışan jest, sıfır bakım. Yumuşak geçiş Android'de kalıyor.
 const _transitions = PageTransitionsTheme(
   builders: {
-    TargetPlatform.iOS: _SmoothTransitions(),
+    TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
     TargetPlatform.android: _SmoothTransitions(),
-    TargetPlatform.macOS: _SmoothTransitions(),
+    TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
   },
 );
 

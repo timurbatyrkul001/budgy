@@ -1,10 +1,13 @@
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:kopilka_app/core/l10n.dart';
 import 'package:kopilka_app/core/redesign_l10n.dart';
 import 'package:kopilka_app/features/automation/automation_screen.dart';
+import 'package:kopilka_app/features/envelopes/budget_repository.dart';
+import 'package:kopilka_app/features/pro/pro_state.dart';
 import 'package:kopilka_app/features/recurring/recurring_screen.dart';
 import 'package:kopilka_app/features/root/bottom_tab_bar.dart';
 import 'package:kopilka_app/features/root/root_screen.dart';
@@ -12,12 +15,18 @@ import 'package:kopilka_app/features/transactions/quick_entry_screen.dart';
 
 import '../support/harness.dart';
 
-/// Pro kilitleri (analiz dışındakiler; analiz için bkz. paywall_test.dart).
+/// "1.0 ÜCRETSİZ" hâli: Pro kilitleri KAPALI (bkz. pro_state.dart,
+/// [kProEnabled]). Satın alma altyapısı olmadan App Store'a çıkıldığı için
+/// bütün Pro özellikleri herkese açık; paywall hiçbir yoldan açılmaz.
 ///
-/// İki kalıp: ekran kilidi (ProGate — içerik bulanık, kilit kartı paywall'a
-/// götürür) ve eylem kilidi (düğme görünür, Pro rozeti taşır, basınca
-/// paywall açılır). Her kilit için üç soru: Pro olmayan kilidi görür mü,
-/// Pro görmez mi, kilide basınca paywall açılır mı?
+/// Bu dosya eskiden kilitlerin ÇALIŞTIĞINI doğruluyordu (bulanık ekran,
+/// kilit kartı, basınca paywall). Şimdi tersini doğruluyor: abonesi olmayan
+/// sıradan kullanıcı (harness'te `pro: false`) kilit görmez, özellik doğrudan
+/// açılır ve davranış kilitleri (nottan kategori, tekrarlayan işlem üretimi)
+/// herkes için çalışır.
+///
+/// ABONELİK GERİ GELİNCE ([kProEnabled] = true) bu testler YENİDEN
+/// YAZILMALI: eski kilitli davranışın testleri git geçmişinde duruyor.
 void main() {
   setUpAll(() async {
     for (final lang in AppLanguage.values) {
@@ -29,92 +38,81 @@ void main() {
     FilledButton,
     RS.tr.paywallTrialTpl.replaceFirst('{days}', '14'),
   );
+  final lockCard = find.text(RS.tr.proLocked);
   final paywall = find.text(RS.tr.paywallBrand);
   final badge = find.text(RS.tr.paywallProPill);
 
-  // ── A. ekran kilidi ─────────────────────────────────────────────────────
+  test('kProEnabled 1.0 için kapalı', () {
+    // Bayrak yanlışlıkla açılırsa bu dosyadaki her test anlamını yitirir;
+    // en önce bunu söyle.
+    expect(kProEnabled, isFalse,
+        reason: 'Satın alma bağlanmadan Pro açılamaz (App Store reddi)');
+  });
 
-  for (final entry in <String, Widget>{
-    'Tekrarlayan işlemler': const RecurringScreen(),
-    'Kategori otomasyonu': const AutomationScreen(),
+  // ── A. eski ekran kilitleri: artık yok ────────────────────────────────
+
+  for (final entry in <String, (Widget, String)>{
+    'Tekrarlayan işlemler': (const RecurringScreen(), RS.tr.recurringTitle),
+    'Kategori otomasyonu': (const AutomationScreen(), RS.tr.automation),
   }.entries) {
-    group('${entry.key} · ekran kilidi', () {
-      testWidgets('abonesi olmayan kilit kartını görür, içerik ağaçta kalır', (
+    final (screen, title) = entry.value;
+
+    group('${entry.key} · kilit yok', () {
+      testWidgets('abonesi olmayan kilit kartı görmez, içerik açık', (
         tester,
       ) async {
         await pumpBudgyScreen(
           tester,
-          entry.value,
+          screen,
           db: FakeFirebaseFirestore(),
           language: AppLanguage.tr,
         );
 
-        expect(find.text(RS.tr.proLocked), findsOneWidget);
-        expect(trialButton, findsOneWidget);
+        expect(find.text(title), findsOneWidget);
+        expect(lockCard, findsNothing);
+        expect(trialButton, findsNothing);
+        expect(badge, findsNothing);
+        expect(paywall, findsNothing);
       });
 
-      testWidgets('Pro kullanıcı kilit görmez', (tester) async {
+      testWidgets('Pro kullanıcı da aynı ekranı görür', (tester) async {
         await pumpBudgyScreen(
           tester,
-          entry.value,
+          screen,
           db: FakeFirebaseFirestore(),
           language: AppLanguage.tr,
           pro: true,
         );
 
-        expect(find.text(RS.tr.proLocked), findsNothing);
+        expect(find.text(title), findsOneWidget);
+        expect(lockCard, findsNothing);
         expect(trialButton, findsNothing);
-      });
-
-      testWidgets('kilit kartına basınca paywall açılır', (tester) async {
-        await pumpBudgyScreen(
-          tester,
-          entry.value,
-          db: FakeFirebaseFirestore(),
-          language: AppLanguage.tr,
-        );
-
-        await tester.tap(trialButton);
-        await tester.pumpAndSettle();
-
-        expect(paywall, findsOneWidget);
       });
     });
   }
 
-  testWidgets('tekrarlayan ekranı kilitliyken başlık bulanık ama yerinde', (
+  testWidgets('otomasyonda "+" herkes için çalışır: kategori sayfası açılır', (
     tester,
   ) async {
-    await pumpBudgyScreen(
-      tester,
-      const RecurringScreen(),
-      db: FakeFirebaseFirestore(),
-      language: AppLanguage.tr,
-    );
-    // İçerik silinmiyor, bulanıklaştırılıyor.
-    expect(find.text(RS.tr.recurringTitle), findsOneWidget);
-  });
-
-  testWidgets('otomasyon kilitliyken "+" düğmesine basılamaz', (tester) async {
     await pumpBudgyScreen(
       tester,
       const AutomationScreen(),
       db: FakeFirebaseFirestore(),
       language: AppLanguage.tr,
     );
-    // Bulanık katman IgnorePointer: dokunuş yutulur, kategori sayfası açılmaz.
-    await tester.tap(find.byIcon(Icons.add_rounded), warnIfMissed: false);
+    // Eskiden bulanık katman (IgnorePointer) dokunuşu yutuyordu; şimdi
+    // düğme gerçekten basılır ve kural ekleme akışı başlar.
+    await tester.tap(find.byIcon(Icons.add_rounded));
     await tester.pumpAndSettle();
-    expect(find.text(RS.tr.proLocked), findsOneWidget);
+
+    expect(find.text(RS.tr.pickCategory), findsOneWidget);
     expect(paywall, findsNothing);
+    expect(lockCard, findsNothing);
   });
 
-  // ── B. eylem kilidi: "+" seçim sayfası (fiş tarama + sesli giriş) ───────
-  //
-  // Dock kaldırıldı: fiş tarama ve sesli giriş artık kök ekrandaki "+"
-  // düğmesinin açtığı seçim sayfasında kart. Kilit davranışı aynı.
+  // ── B. eski eylem kilitleri: "+" seçim sayfası (fiş tarama + sesli) ───
 
-  group('"+" seçim sayfası · eylem kilidi', () {
+  group('"+" seçim sayfası · kilit yok', () {
     final scanCard = find.text(RS.tr.addScanReceipt);
     final micCard = find.text(RS.tr.addByVoice);
 
@@ -130,79 +128,59 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('abonesi olmayan kilitli kartları görür; rozet yok', (
-      tester,
-    ) async {
+    testWidgets('abonesi olmayan dört kartı rozetsiz görür', (tester) async {
       await openSheet(tester);
-
-      // Kartlar gizlenmiyor — gizlenen özellik satılamaz. Ama rozet de yok:
-      // kilidi paywall anlatıyor, listede dört kart aynı duruyor.
-      expect(scanCard, findsOneWidget);
-      expect(micCard, findsOneWidget);
-      expect(badge, findsNothing);
-    });
-
-    testWidgets('Pro kullanıcı aynı kartları görür', (tester) async {
-      await openSheet(tester, pro: true);
 
       expect(scanCard, findsOneWidget);
       expect(micCard, findsOneWidget);
       expect(badge, findsNothing);
     });
 
-    testWidgets('fiş tarama: Pro değilse paywall, kaynak seçimi açılmaz', (
+    testWidgets('fiş tarama: paywall açılmaz, tarama akışı başlar', (
       tester,
     ) async {
       await openSheet(tester);
-
-      await tester.tap(scanCard);
-      await tester.pumpAndSettle();
-
-      expect(paywall, findsOneWidget);
-      expect(find.text(RS.tr.scanTitle), findsNothing);
-      // AI anahtarı yok uyarısı bile çıkmaz: AI yoluna hiç girilmedi.
-      expect(find.text(RS.tr.aiKeyMissing), findsNothing);
-    });
-
-    testWidgets('fiş tarama: Pro ise paywall açılmaz, tarama akışı başlar', (
-      tester,
-    ) async {
-      await openSheet(tester, pro: true);
 
       await tester.tap(scanCard);
       await tester.pumpAndSettle();
 
       expect(paywall, findsNothing);
       // Testte API anahtarı yok: akış ilk adımında "anahtar yok" der. Bu,
-      // kilidin geçildiğinin kanıtı — paywall değil, özelliğin kendisi konuştu.
+      // kilidin olmadığının kanıtı — paywall değil, özelliğin kendisi konuştu.
       expect(find.text(RS.tr.aiKeyMissing), findsOneWidget);
     });
 
-    testWidgets('sesli giriş: Pro değilse paywall', (tester) async {
+    testWidgets('sesli giriş: paywall açılmaz, AI giriş sayfası açılır', (
+      tester,
+    ) async {
       await openSheet(tester);
 
       await tester.tap(micCard);
       await tester.pumpAndSettle();
 
-      expect(paywall, findsOneWidget);
+      expect(paywall, findsNothing);
+      expect(find.text(Strings.tr.aiAddTitle), findsOneWidget);
     });
 
-    testWidgets('sesli giriş: Pro ise paywall açılmaz', (tester) async {
+    testWidgets('Pro kullanıcı için de aynı: fiş tarama akışı başlar', (
+      tester,
+    ) async {
       await openSheet(tester, pro: true);
 
-      await tester.tap(micCard);
+      await tester.tap(scanCard);
       await tester.pumpAndSettle();
 
       expect(paywall, findsNothing);
+      expect(find.text(RS.tr.aiKeyMissing), findsOneWidget);
     });
   });
 
-  // ── B. eylem kilidi: hızlı girişte tekrar düğmesi ───────────────────────
+  // ── B. eski eylem kilidi: hızlı girişte tekrar düğmesi ────────────────
 
   group('hızlı giriş · tekrar düğmesi', () {
     final repeatButton = find.byIcon(Icons.repeat_rounded);
 
-    testWidgets('abonesi olmayan düğmeyi görür (rozetsiz); basınca paywall', (
+    testWidgets('abonesi olmayan basınca sıklık sayfası açılır, paywall yok', (
       tester,
     ) async {
       await pumpBudgyScreen(
@@ -212,33 +190,7 @@ void main() {
         language: AppLanguage.tr,
       );
 
-      // Düğme gizlenmiyor ama "Pro" etiketi de taşımıyor: kilidi paywall
-      // anlatıyor. Rozetler arayüzden tamamen kaldırıldı.
       expect(repeatButton, findsOneWidget);
-      expect(badge, findsNothing);
-
-      await tester.tap(repeatButton);
-      await tester.pumpAndSettle();
-
-      expect(paywall, findsOneWidget);
-      expect(
-        find.text(RS.tr.repeat),
-        findsNothing,
-        reason: 'sıklık sayfası açılmamalı',
-      );
-    });
-
-    testWidgets('Pro: basınca sıklık sayfası açılır', (
-      tester,
-    ) async {
-      await pumpBudgyScreen(
-        tester,
-        const QuickEntryScreen(),
-        db: FakeFirebaseFirestore(),
-        language: AppLanguage.tr,
-        pro: true,
-      );
-
       expect(badge, findsNothing);
 
       await tester.tap(repeatButton);
@@ -250,7 +202,7 @@ void main() {
     });
   });
 
-  // ── C. sessiz atlama: nottan kategori otomasyonu ────────────────────────
+  // ── C. davranış kilidi: nottan kategori otomasyonu herkes için ────────
 
   group('hızlı giriş · nottan kategori', () {
     Future<Map<String, dynamic>> saveWithNote(
@@ -290,7 +242,7 @@ void main() {
       return snap.docs.single.data();
     }
 
-    testWidgets('Pro değilse kural çalışmaz, kayıt kategorisiz düşer', (
+    testWidgets('abonesi olmayan için de kural kategoriyi seçer', (
       tester,
     ) async {
       final db = FakeFirebaseFirestore();
@@ -299,16 +251,46 @@ void main() {
       expect(tx['note'], 'kahve');
       expect(
         tx['envelopeId'],
-        isNull,
-        reason: 'otomasyon Pro; sessizce atlanır, hata yok',
+        isNotNull,
+        reason: '1.0: kategori otomasyonu herkes için açık',
       );
       expect(paywall, findsNothing, reason: 'kayıt akışı bölünmez');
     });
 
-    testWidgets('Pro ise kural kategoriyi seçer', (tester) async {
+    testWidgets('Pro ise de kural kategoriyi seçer', (tester) async {
       final db = FakeFirebaseFirestore();
       final tx = await saveWithNote(tester, db, pro: true);
       expect(tx['envelopeId'], isNotNull);
     });
+  });
+
+  // ── D. davranış kilidi: tekrarlayan işlemler herkes için üretilir ─────
+  //
+  // Kök ekran açılışta vadesi gelen kuralları işler (recurringMaterializer).
+  // Eskiden yalnız Pro için izleniyordu; abonesi olmayanın kuralları sessizce
+  // dururdu. 1.0'da herkes için izlenmeli — yoksa tekrarlar hiç oluşmaz.
+
+  group('kök ekran · tekrarlayan işlem üretimi', () {
+    for (final pro in [false, true]) {
+      testWidgets('pro=$pro: materializer açılışta izlenir', (tester) async {
+        await pumpBudgyScreen(
+          tester,
+          const RootScreen(),
+          db: FakeFirebaseFirestore(),
+          language: AppLanguage.tr,
+          pro: pro,
+        );
+
+        final container = ProviderScope.containerOf(
+          tester.element(find.byType(RootScreen)),
+        );
+        expect(
+          container.exists(recurringMaterializerProvider),
+          isTrue,
+          reason: 'kök ekran kuralları herkes için işlemeli',
+        );
+        expect(container.read(proUnlockedProvider), isTrue);
+      });
+    }
   });
 }

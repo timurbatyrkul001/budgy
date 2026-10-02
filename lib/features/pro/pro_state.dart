@@ -10,7 +10,56 @@ import '../envelopes/budget_repository.dart';
 // kilitli ekranlar olduğu gibi kalır. Apple Developer hesabı onaylanmadan
 // mağazada ürün tanımlanamadığı için şimdilik bağlanamıyor.
 
-/// Kullanıcı Pro mu?
+// ── 1.0 sürümü: PRO KAPALI, HER ŞEY ÜCRETSİZ ────────────────────────────────
+//
+// Uygulama App Store'a çıkıyor ama satın alma altyapısı yok: pubspec'te ne
+// `in_app_purchase` ne `purchases_flutter` var; paywall'daki "deneme başlat"
+// düğmesi yalnız "yakında" diyor. Apple bunu iki ayrı gerekçeyle reddeder:
+// bitmemiş özellik (Guideline 2.1) ve uygulama içi satın alma olmadan dijital
+// ürün fiyatı göstermek (Guideline 3.1.1). Üstelik kilitli üç ekranı
+// inceleyen kişi hiç göremezdi.
+//
+// Çözüm: SİLMEK DEĞİL, KAPATMAK. Pro mantığı (paywall, ProGate, requirePro,
+// planlar, hak sahipliği akışı) olduğu gibi duruyor; tek bir anahtarın
+// arkasına alındı. [kProEnabled] false iken:
+//   • [proUnlockedProvider] herkes için `true` döner — ProGate içeriği
+//     bulanıklaştırmaz, requirePro paywall açmadan `true` döner.
+//   • Ayarlar'daki Pro tanıtım kartı ("Pro'ya geç" + "satın alımları geri
+//     yükle") hiç çizilmez.
+//   • Davranış kilitleri de açılır: tekrarlayan işlemler herkes için
+//     üretilir (root_screen), nottan kategori otomasyonu herkes için
+//     çalışır (quick_entry_screen).
+//   • Paywall hiçbir yoldan açılmaz; fiyat, rozet, "Pro" etiketi görünmez.
+//
+// GERİ AÇMAK İÇİN:
+//   1. Satın almayı bağla (RevenueCat / purchases_flutter): [ProStatus.build]
+//      `CustomerInfo.entitlements.active`'i dinlesin, paywall'daki
+//      `_subscribe` gerçek satın almayı başlatsın, [ProPlan] fiyatları
+//      mağazadan gelsin.
+//   2. [kProEnabled] = true yap. Başka kod değişikliği gerekmez: tüm kilitler
+//      [proUnlockedProvider] üzerinden bu bayrağa bağlı.
+//   3. test/widget/pro_locks_test.dart, paywall_test.dart, bottom_tabs_test
+//      ("+" grubu) ve settings_hub_test (Pro kartı) "1.0 ücretsiz" hâlini
+//      doğruluyor; kilitli davranışı yeniden yazmak gerekir (git geçmişinde
+//      eski hâlleri duruyor).
+//
+// Dikkat: bu bayrak [isProProvider]'ı DEĞİŞTİRMEZ — o abonelik gerçeğini
+// söylemeye devam eder (test harness'i de onu override ediyor). Kilitler
+// "Pro mu?" yerine "Pro özellikleri bu kullanıcıya açık mı?" sorusunu
+// [proUnlockedProvider]'a sorar.
+const kProEnabled = false;
+
+/// Pro özellikleri bu kullanıcıya açık mı?
+///
+/// [kProEnabled] kapalıyken herkes için `true` (1.0: her şey ücretsiz);
+/// açıkken [isProProvider]'ın değeri. Kilitlerin tek kapısı burası:
+/// ProGate, requirePro, Ayarlar'daki Pro kartı ve davranış kilitleri
+/// (tekrarlayan işlem üretimi, nottan kategori) hep buraya bakar.
+final proUnlockedProvider = Provider<bool>(
+  (ref) => !kProEnabled || ref.watch(isProProvider),
+);
+
+/// Kullanıcı Pro mu? (Abonelik gerçeği; kilitler için [proUnlockedProvider].)
 ///
 /// RevenueCat geldiğinde [ProStatus.build] `CustomerInfo.entitlements.active`
 /// akışını dinleyecek; paywall ve kilitli ekranlar değişmeyecek.

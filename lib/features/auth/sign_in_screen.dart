@@ -90,6 +90,15 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(26, 18, 26, 32),
           children: [
+            // Çıkış yolu. Bu ekranda hiç yoktu: ne geri düğmesi, ne AppBar,
+            // ne kapatma. iOS'ta kenardan kaydırma da çalışmadığı için
+            // "giriş nasıl görünüyor" diye bakan biri içeride kalıyordu —
+            // tek çıkışı uygulamayı öldürmekti.
+            //
+            // BudgyBackButton push edilmediyse kendini gizler, yani
+            // onboarding içinde kök olarak açılırsa fazladan bir şey
+            // çizilmiyor.
+            const BudgyBackButton(),
             // Logo mark: accent kare + zarf ikonu.
             Align(
               alignment: Alignment.centerLeft,

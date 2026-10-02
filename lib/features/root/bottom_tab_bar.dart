@@ -316,6 +316,8 @@ Future<void> showAddSheet(
       // Fiş tarama ve sesli giriş Pro: kartlar herkese görünür (gizlenen
       // özellik satılamaz), Pro değilse rozet taşır ve basınca paywall
       // açılır. AI çağrısı Pro olmadan hiç yapılmaz.
+      // kProEnabled kapalıyken (1.0) requirePro herkes için geçer; bkz.
+      // pro_state.dart.
       if (!await requirePro(context, ref, ProFeature.aiEntry)) return;
       if (context.mounted) await startReceiptScan(context, ref);
     case _AddChoice.voice:

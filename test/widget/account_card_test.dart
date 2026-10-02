@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kopilka_app/core/ex_style.dart';
 import 'package:kopilka_app/features/accounts/account.dart';
@@ -47,12 +48,16 @@ void main() {
     Widget child, {
     double screenWidth = 390,
   }) async {
+    // ProviderScope: nakit kartı üstündeki "nakit" notunu dilden okuyor
+    // (RS.cash). Gerçek uygulamada kart her zaman kapsamın içinde.
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          backgroundColor: Ex.bg,
-          body: Center(
-            child: SizedBox(width: screenWidth, child: Center(child: child)),
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(
+            backgroundColor: Ex.bg,
+            body: Center(
+              child: SizedBox(width: screenWidth, child: Center(child: child)),
+            ),
           ),
         ),
       ),

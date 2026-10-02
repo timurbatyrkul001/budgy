@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kopilka_app/core/ex_style.dart';
 import 'package:kopilka_app/features/accounts/account.dart';
@@ -40,9 +41,12 @@ void main() {
     tester.view.physicalSize = Size(screenWidth, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
+    // ProviderScope: nakit kartı "nakit" notunu dilden okuyor (RS.cash).
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(backgroundColor: Ex.bg, body: child),
+      ProviderScope(
+        child: MaterialApp(
+          home: Scaffold(backgroundColor: Ex.bg, body: child),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -53,10 +57,12 @@ void main() {
 
   /// Kartın dış halka rengi (`AnimatedContainer`'ın border'ı).
   Color ringColor(WidgetTester tester, String id) {
-    final container = tester.widget<AnimatedContainer>(find.descendant(
-      of: find.byKey(ValueKey('account-card-$id')),
-      matching: find.byType(AnimatedContainer),
-    ));
+    final container = tester.widget<AnimatedContainer>(
+      find.descendant(
+        of: find.byKey(ValueKey('account-card-$id')),
+        matching: find.byType(AnimatedContainer),
+      ),
+    );
     final deco = container.decoration as BoxDecoration;
     return deco.border!.top.color;
   }
@@ -65,11 +71,7 @@ void main() {
     testWidgets('şerit render olur: her hesap için bir kart', (tester) async {
       await pump(
         tester,
-        AccountPicker(
-          accounts: three,
-          selectedId: 'a1',
-          onChanged: (_) {},
-        ),
+        AccountPicker(accounts: three, selectedId: 'a1', onChanged: (_) {}),
       );
       expect(find.byType(AccountCard), findsNWidgets(3));
       expect(find.text('Enpara'), findsOneWidget);
@@ -80,11 +82,7 @@ void main() {
     testWidgets('yalnız seçili kartın halkası var', (tester) async {
       await pump(
         tester,
-        AccountPicker(
-          accounts: three,
-          selectedId: 'a1',
-          onChanged: (_) {},
-        ),
+        AccountPicker(accounts: three, selectedId: 'a1', onChanged: (_) {}),
       );
       expect(cardOf(tester, 'a1').selected, isTrue);
       expect(cardOf(tester, 'cash').selected, isFalse);
@@ -93,16 +91,13 @@ void main() {
       expect(ringColor(tester, 'cash'), Colors.transparent);
     });
 
-    testWidgets('dokunma seçimi değiştirir; seçiliye dokunmak çağırmaz',
-        (tester) async {
+    testWidgets('dokunma seçimi değiştirir; seçiliye dokunmak çağırmaz', (
+      tester,
+    ) async {
       final picked = <String>[];
       await pump(
         tester,
-        AccountPicker(
-          accounts: three,
-          selectedId: 'a1',
-          onChanged: picked.add,
-        ),
+        AccountPicker(accounts: three, selectedId: 'a1', onChanged: picked.add),
       );
       await tester.tap(find.byKey(const ValueKey('account-card-a2')));
       await tester.pump();
@@ -113,17 +108,20 @@ void main() {
       expect(picked, ['a2'], reason: 'zaten seçili karta dokunmak sessiz');
     });
 
-    testWidgets('seçim üstten değişince halka yeni karta geçer',
-        (tester) async {
+    testWidgets('seçim üstten değişince halka yeni karta geçer', (
+      tester,
+    ) async {
       String? selected = 'a1';
       await tester.pumpWidget(
-        MaterialApp(
-          home: StatefulBuilder(
-            builder: (context, setState) => Scaffold(
-              body: AccountPicker(
-                accounts: three,
-                selectedId: selected,
-                onChanged: (id) => setState(() => selected = id),
+        ProviderScope(
+          child: MaterialApp(
+            home: StatefulBuilder(
+              builder: (context, setState) => Scaffold(
+                body: AccountPicker(
+                  accounts: three,
+                  selectedId: selected,
+                  onChanged: (id) => setState(() => selected = id),
+                ),
               ),
             ),
           ),
@@ -154,11 +152,7 @@ void main() {
     testWidgets('boş listede de çizilmez', (tester) async {
       await pump(
         tester,
-        AccountPicker(
-          accounts: const [],
-          selectedId: null,
-          onChanged: (_) {},
-        ),
+        AccountPicker(accounts: const [], selectedId: null, onChanged: (_) {}),
       );
       expect(find.byType(AccountCard), findsNothing);
     });
@@ -170,7 +164,8 @@ void main() {
           accounts: three,
           selectedId: 'a2',
           onChanged: (_) {},
-          warning: 'Bu kart AZN ile çalışıyor; ana para biriminiz TRY. '
+          warning:
+              'Bu kart AZN ile çalışıyor; ana para biriminiz TRY. '
               'Tutar günün kuruyla çevrilecek.',
         ),
         screenWidth: 320,
@@ -178,33 +173,29 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.textContaining('kuruyla'), findsOneWidget);
       // Şerit ekran genişliğini aşmıyor.
-      expect(tester.getSize(find.byType(ListView)).width, lessThanOrEqualTo(320));
+      expect(
+        tester.getSize(find.byType(ListView)).width,
+        lessThanOrEqualTo(320),
+      );
     });
 
     testWidgets('uyarı yoksa not satırı yok', (tester) async {
       await pump(
         tester,
-        AccountPicker(
-          accounts: three,
-          selectedId: 'a1',
-          onChanged: (_) {},
-        ),
+        AccountPicker(accounts: three, selectedId: 'a1', onChanged: (_) {}),
       );
       // Şeridin yüksekliği tam kart yüksekliği: altında ek satır yok.
       final probe = const AccountCard(account: cash, width: 168);
       expect(tester.getSize(find.byType(AccountPicker)).height, probe.height);
     });
 
-    testWidgets('semantics: her kart button, seçili olan selected',
-        (tester) async {
+    testWidgets('semantics: her kart button, seçili olan selected', (
+      tester,
+    ) async {
       final handle = tester.ensureSemantics();
       await pump(
         tester,
-        AccountPicker(
-          accounts: three,
-          selectedId: 'a1',
-          onChanged: (_) {},
-        ),
+        AccountPicker(accounts: three, selectedId: 'a1', onChanged: (_) {}),
       );
       expect(
         tester.getSemantics(find.byKey(const ValueKey('account-card-a1'))),
@@ -236,12 +227,13 @@ void main() {
   });
 
   group('AccountChip', () {
-    testWidgets('ad + para birimi gösterir, dokununca çağırır',
-        (tester) async {
+    testWidgets('ad + para birimi gösterir, dokununca çağırır', (tester) async {
       var taps = 0;
       await pump(
         tester,
-        Center(child: AccountChip(account: kapital, onTap: () => taps++)),
+        Center(
+          child: AccountChip(account: kapital, onTap: () => taps++),
+        ),
       );
       expect(find.text('Kapital Bank'), findsOneWidget);
       expect(find.text('AZN'), findsOneWidget);
@@ -255,22 +247,27 @@ void main() {
         Center(
           child: AccountChip(
             account: enpara.copyWith(
-                name: 'Enpara Maaş Hesabım Çok Uzun Bir Ad İle'),
+              name: 'Enpara Maaş Hesabım Çok Uzun Bir Ad İle',
+            ),
             onTap: () {},
           ),
         ),
         screenWidth: 320,
       );
       expect(tester.takeException(), isNull);
-      expect(tester.getSize(find.byType(AccountChip)).width,
-          lessThanOrEqualTo(320));
+      expect(
+        tester.getSize(find.byType(AccountChip)).width,
+        lessThanOrEqualTo(320),
+      );
     });
 
     testWidgets('semantics: button + etiket', (tester) async {
       final handle = tester.ensureSemantics();
       await pump(
         tester,
-        Center(child: AccountChip(account: enpara, onTap: () {})),
+        Center(
+          child: AccountChip(account: enpara, onTap: () {}),
+        ),
       );
       expect(
         tester.getSemantics(find.byType(AccountChip)),
@@ -293,22 +290,24 @@ void main() {
       String? result;
       var opened = false;
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: Builder(
-              builder: (context) => TextButton(
-                onPressed: () async {
-                  opened = true;
-                  result = await showAccountPicker(
-                    context,
-                    selectedId: 'a1',
-                    accounts: three,
-                    title: 'Hangi hesaptan?',
-                    addLabel: addLabel,
-                    onAddAccount: onAdd,
-                  );
-                },
-                child: const Text('aç'),
+        ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => TextButton(
+                  onPressed: () async {
+                    opened = true;
+                    result = await showAccountPicker(
+                      context,
+                      selectedId: 'a1',
+                      accounts: three,
+                      title: 'Hangi hesaptan?',
+                      addLabel: addLabel,
+                      onAddAccount: onAdd,
+                    );
+                  },
+                  child: const Text('aç'),
+                ),
               ),
             ),
           ),
@@ -320,23 +319,24 @@ void main() {
       return result;
     }
 
-    testWidgets('sheet açılır, satıra dokununca id ile döner',
-        (tester) async {
+    testWidgets('sheet açılır, satıra dokununca id ile döner', (tester) async {
       String? result;
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: Builder(
-              builder: (context) => TextButton(
-                onPressed: () async {
-                  result = await showAccountPicker(
-                    context,
-                    selectedId: 'a1',
-                    accounts: three,
-                    title: 'Hangi hesaptan?',
-                  );
-                },
-                child: const Text('aç'),
+        ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => TextButton(
+                  onPressed: () async {
+                    result = await showAccountPicker(
+                      context,
+                      selectedId: 'a1',
+                      accounts: three,
+                      title: 'Hangi hesaptan?',
+                    );
+                  },
+                  child: const Text('aç'),
+                ),
               ),
             ),
           ),
@@ -354,26 +354,29 @@ void main() {
       expect(find.text('Hangi hesaptan?'), findsNothing);
     });
 
-    testWidgets('"Kart ekle" sheet\'i kapatır, null döner, callback çağrılır',
-        (tester) async {
+    testWidgets('"Kart ekle" sheet\'i kapatır, null döner, callback çağrılır', (
+      tester,
+    ) async {
       var added = 0;
       String? result = 'unset';
       await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: Builder(
-              builder: (context) => TextButton(
-                onPressed: () async {
-                  result = await showAccountPicker(
-                    context,
-                    selectedId: 'a1',
-                    accounts: three,
-                    title: 'Hangi hesaptan?',
-                    addLabel: 'Kart ekle',
-                    onAddAccount: () => added++,
-                  );
-                },
-                child: const Text('aç'),
+        ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => TextButton(
+                  onPressed: () async {
+                    result = await showAccountPicker(
+                      context,
+                      selectedId: 'a1',
+                      accounts: three,
+                      title: 'Hangi hesaptan?',
+                      addLabel: 'Kart ekle',
+                      onAddAccount: () => added++,
+                    );
+                  },
+                  child: const Text('aç'),
+                ),
               ),
             ),
           ),
@@ -388,8 +391,9 @@ void main() {
       expect(find.text('Hangi hesaptan?'), findsNothing);
     });
 
-    testWidgets('semantics: satırlar button, seçili satır selected',
-        (tester) async {
+    testWidgets('semantics: satırlar button, seçili satır selected', (
+      tester,
+    ) async {
       final handle = tester.ensureSemantics();
       await open(tester);
       expect(

@@ -51,7 +51,9 @@ class SettingsHubScreen extends ConsumerWidget {
     final rs = ref.watch(rsProvider);
     final str = ref.watch(strProvider);
     final categoryCount = ref.watch(categoryCountProvider);
-    final isPro = ref.watch(isProProvider);
+    // Pro özellikleri bu kullanıcıya açık mı? kProEnabled kapalıyken (1.0,
+    // her şey ücretsiz) herkes için true → tanıtım kartı hiç çizilmez.
+    final proUnlocked = ref.watch(proUnlockedProvider);
 
     return Scaffold(
       backgroundColor: Ex.bg,
@@ -82,7 +84,9 @@ class SettingsHubScreen extends ConsumerWidget {
             // ona satmaya çalışmak hem güven kırar hem de ekranın en değerli
             // yerini (ilk görünen alan) boşa harcar. Pro olan için burada
             // gösterilecek bir şey yok — abonelik yönetimi mağazanın işi.
-            if (!isPro) ...[
+            // kProEnabled kapalıyken de çizilmez: satın alma yokken fiyat ya
+            // da "geri yükle" göstermek App Store incelemesinde ret sebebi.
+            if (!proUnlocked) ...[
               _ProCard(
                 rs: rs,
                 onUpgrade: () => showPaywall(context, ProFeature.analytics),

@@ -51,9 +51,10 @@ class RemindersScreen extends ConsumerWidget {
               child: reminders.when(
                 loading: () =>
                     const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(
+                // Ham Firestore istisnası yerine insanca metin.
+                error: (_, _) => Center(
                   child: Text(
-                    '${str.errorPrefix}: $e',
+                    str.errorGeneric,
                     style: TextStyle(color: c.textMuted),
                   ),
                 ),

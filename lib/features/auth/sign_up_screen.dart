@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/ex_style.dart';
 import '../../core/l10n.dart';
+import '../../core/redesign_l10n.dart';
 import '../../core/tokens.dart';
 import 'complete_profile_screen.dart';
 import 'email_verify_screen.dart';
@@ -99,12 +100,24 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
         );
         await user.linkWithCredential(cred);
       } on FirebaseAuthException catch (e) {
-        // operation-not-allowed → konsolda Email/Password kapalı.
-        // email-already-in-use → bu email zaten var.
-        // Gerçek akış: hatayı göster, devam etme.
+        // Ham `e.message` Firebase'in İNGİLİZCE metnidir: Türkçe ya da
+        // Rusça arayüzde "The email address is already in use by another
+        // account." çıkıyordu. Tanıdığımız kodları kendi dilimizde
+        // söylüyoruz, kalanı genel metne düşüyor — koda bakmak
+        // kullanıcının işi değil.
         if (mounted) {
+          final rs = ref.read(rsProvider);
+          final message = switch (e.code) {
+            'email-already-in-use' => rs.saveErrDifferent,
+            'network-request-failed' => rs.saveErrOffline,
+            'invalid-email' => str.invalidEmail,
+            // operation-not-allowed → konsolda Email/Password kapalı.
+            // Bizim yapılandırma hatamız; kullanıcı yapabileceği bir şey
+            // olmadığı için genel metin doğru olanı.
+            _ => str.errorGeneric,
+          };
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('${str.errorPrefix}: ${e.message ?? e.code}')),
+            SnackBar(content: Text(message)),
           );
         }
         return;

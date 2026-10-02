@@ -1,8 +1,10 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/ex_style.dart';
+import '../../core/redesign_l10n.dart';
 import 'account.dart';
 import 'bank_catalog.dart';
 
@@ -521,7 +523,12 @@ class SplitFacePainter extends CustomPainter {
 }
 
 /// Nakit için kâğıt yüz: beyaz, ince kenarlık, mürekkep yazı.
-class _PaperFace extends StatelessWidget {
+/// Nakit kartının kâğıt yüzü.
+///
+/// [ConsumerWidget]: üstündeki "nakit" notu üç dilde yazılmalı. Eskiden
+/// burada düz 'Nakit' sabiti vardı — İngilizce ve Rusça arayüzde de
+/// Türkçe görünüyordu.
+class _PaperFace extends ConsumerWidget {
   const _PaperFace({
     required this.name,
     required this.currency,
@@ -535,7 +542,8 @@ class _PaperFace extends StatelessWidget {
   final double radius;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final rs = ref.watch(rsProvider);
     final pad = width * 0.07;
     final titleSize = width * 0.085;
     return DecoratedBox(
@@ -569,7 +577,7 @@ class _PaperFace extends StatelessWidget {
                 // Küçük "nakit" notu: kâğıdın neden kart olmadığını söyler.
                 Expanded(
                   child: Text(
-                    'Nakit',
+                    rs.cash,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(

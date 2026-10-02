@@ -289,6 +289,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
   Future<void> _pickRecurrence() async {
     // Tekrarlayan işlem kuralı Pro: düğme görünür kalır, Pro değilse
     // sıklık sayfası yerine paywall açılır (Tekrarlayan ekranıyla aynı kilit).
+    // kProEnabled kapalıyken (1.0) requirePro doğrudan geçer.
     if (!await requirePro(context, ref, ProFeature.automation)) return;
     if (!mounted) return;
     final rs = ref.read(rsProvider);
@@ -529,11 +530,13 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
     // Kategori otomasyonu Pro: Pro değilse çözümleme HİÇ çağrılmaz, sessizce
     // atlanır — kullanıcı kategoriyi elle seçer. Düğmesi olmayan bir özellik
     // için paywall açmak kaydı bölerdi; satış noktası Otomasyon ekranı.
+    // kProEnabled kapalıyken (1.0) proUnlockedProvider herkes için true:
+    // kural herkeste çalışır.
     if (isExpense &&
         wallet == null &&
         envelopeId == null &&
         note != null &&
-        ref.read(isProProvider)) {
+        ref.read(proUnlockedProvider)) {
       final auto = await resolveCategoryFromText(ref, note);
       if (auto != null) {
         envelopeId = auto.id;

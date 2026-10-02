@@ -506,8 +506,10 @@ class EnvelopeDetailScreen extends ConsumerWidget {
                       padding: EdgeInsets.only(top: 24),
                       child: Center(child: CircularProgressIndicator()),
                     ),
-                    error: (e, _) => Text(
-                      '${str.errorPrefix}: $e',
+                    // Ham Firestore istisnası yerine insanca metin:
+                    // kullanıcı "failed-precondition" ile ne yapsın?
+                    error: (_, _) => Text(
+                      str.errorGeneric,
                       style: TextStyle(color: c.textMuted),
                     ),
                     data: (list) => list.isEmpty

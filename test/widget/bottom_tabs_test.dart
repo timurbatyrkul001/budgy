@@ -347,35 +347,42 @@ void main() {
       expect(find.byType(QuickEntryScreen), findsOneWidget);
     });
 
-    testWidgets('fiş tara: Pro değilse paywall', (tester) async {
+    // "1.0 ÜCRETSİZ": fiş tarama ve sesli giriş herkese açık, paywall yok
+    // (bkz. pro_state.dart, kProEnabled). Abonelik geri gelince bu dört test
+    // eski kilitli hâle (Pro değilse paywall) geri yazılmalı.
+
+    testWidgets('fiş tara: abonesi olmayan için paywall yok, tarama akışı', (
+      tester,
+    ) async {
       await openSheet(tester);
       await tester.tap(find.text(RS.tr.addScanReceipt));
       await tester.pumpAndSettle();
 
-      expect(paywall, findsOneWidget);
-      expect(find.text(RS.tr.aiKeyMissing), findsNothing);
+      expect(paywall, findsNothing);
+      // Testte API anahtarı yok: akışın ilk adımı bunu söyler — kilit yok.
+      expect(find.text(RS.tr.aiKeyMissing), findsOneWidget);
     });
 
-    testWidgets('fiş tara: Pro ise tarama akışı', (tester) async {
+    testWidgets('fiş tara: Pro ise de tarama akışı', (tester) async {
       await openSheet(tester, pro: true);
       await tester.tap(find.text(RS.tr.addScanReceipt));
       await tester.pumpAndSettle();
 
       expect(paywall, findsNothing);
-      // Testte API anahtarı yok: akışın ilk adımı bunu söyler — kilit geçildi.
       expect(find.text(RS.tr.aiKeyMissing), findsOneWidget);
     });
 
-    testWidgets('sesle ekle: Pro değilse paywall, Pro ise değil', (
+    testWidgets('sesle ekle: abonesi olmayan için paywall yok', (
       tester,
     ) async {
       await openSheet(tester);
       await tester.tap(find.text(RS.tr.addByVoice));
       await tester.pumpAndSettle();
-      expect(paywall, findsOneWidget);
+      expect(paywall, findsNothing);
+      expect(find.text(Strings.tr.aiAddTitle), findsOneWidget);
     });
 
-    testWidgets('sesle ekle: Pro ise paywall açılmaz', (tester) async {
+    testWidgets('sesle ekle: Pro ise de paywall yok', (tester) async {
       await openSheet(tester, pro: true);
       await tester.tap(find.text(RS.tr.addByVoice));
       await tester.pumpAndSettle();

@@ -188,6 +188,7 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
       body: SafeArea(
         // Analiz Pro'ya kilitli: kilitliyken içerik bulanık görünür,
         // kullanıcı kendi verisinin orada durduğunu görür.
+        // kProEnabled kapalıyken (1.0) ProGate çocuğu olduğu gibi çizer.
         child: ProGate(
           feature: ProFeature.analytics,
           child: ListView(

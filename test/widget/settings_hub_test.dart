@@ -140,12 +140,19 @@ void main() {
       expect(find.text(rs.hubAbout), findsOneWidget);
     });
 
-    testWidgets('Pro değilse tanıtım kartı var, Pro ise hiç çizilmez',
+    // "1.0 ÜCRETSİZ" (bkz. pro_state.dart, kProEnabled): satın alma
+    // bağlanmadan Pro kartı ("Pro'ya geç", "satın alımları geri yükle")
+    // kimseye çizilmez. Abonelik geri gelince bu iki test eski hâline
+    // (Pro değilse kart var, basınca paywall) geri yazılmalı.
+    testWidgets('abonesi olmayana da tanıtım kartı çizilmez (1.0 ücretsiz)',
         (tester) async {
       await pumpBudgyScreen(tester, const SettingsHubScreen(),
           db: FakeFirebaseFirestore(), language: AppLanguage.tr, pro: false);
-      expect(find.text(RS.tr.hubProCta), findsOneWidget);
-      expect(find.text(RS.tr.hubProRestore), findsOneWidget);
+      expect(find.text(RS.tr.hubProTitle), findsNothing);
+      expect(find.text(RS.tr.hubProCta), findsNothing);
+      expect(find.text(RS.tr.hubProRestore), findsNothing);
+      // İlk kart doğrudan "Hesabım" ile başlıyor; üstte boşluk/dikiş yok.
+      expect(find.text(RS.tr.hubMyAccount), findsOneWidget);
     });
 
     testWidgets('Pro üyeye tanıtım kartı gösterilmez', (tester) async {
@@ -155,13 +162,12 @@ void main() {
       expect(find.text(RS.tr.hubProTitle), findsNothing);
     });
 
-    testWidgets('Pro\'ya geç düğmesi paywall\'ı açar', (tester) async {
+    testWidgets('ayarlarda paywall\'a giden hiçbir düğme yok', (tester) async {
       await pumpBudgyScreen(tester, const SettingsHubScreen(),
           db: FakeFirebaseFirestore(), language: AppLanguage.en);
-      await tester.tap(find.text(RS.en.hubProCta));
-      await tester.pumpAndSettle();
-      // Paywall, analiz kilidinin başlığıyla açılır.
-      expect(find.text(RS.en.paywallTitleAnalytics), findsOneWidget);
+      expect(find.text(RS.en.hubProCta), findsNothing);
+      expect(find.text(RS.en.paywallTitleAnalytics), findsNothing);
+      expect(find.text(RS.en.paywallBrand), findsNothing);
     });
 
     testWidgets('Hesabım / Görünüm / Hakkında alt ekranları açılır',

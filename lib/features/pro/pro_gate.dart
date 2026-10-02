@@ -24,7 +24,9 @@ class ProGate extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (ref.watch(isProProvider)) return child;
+    // [proUnlockedProvider]: kProEnabled kapalıyken (1.0) herkes için true —
+    // kilit hiç çizilmez. Bkz. pro_state.dart'taki açıklama.
+    if (ref.watch(proUnlockedProvider)) return child;
     final rs = ref.watch(rsProvider);
 
     return Stack(
@@ -188,7 +190,8 @@ Future<bool> requirePro(
   WidgetRef ref,
   ProFeature feature,
 ) async {
-  if (ref.read(isProProvider)) return true;
+  // kProEnabled kapalıyken (1.0) herkes için true: paywall hiç açılmaz.
+  if (ref.read(proUnlockedProvider)) return true;
   await showPaywall(context, feature);
   return false;
 }

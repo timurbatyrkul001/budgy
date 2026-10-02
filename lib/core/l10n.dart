@@ -362,6 +362,7 @@ class Strings {
     required this.termsNote,
     required this.errorPrefix,
     required this.errorSaveFailed,
+    required this.savedOffline,
     required this.errorGeneric,
     required this.channelPaymentsName,
     required this.channelPaymentsDesc,
@@ -708,6 +709,9 @@ class Strings {
 
   /// Kaydetme sırasında (ağ/Firestore) hata — kullanıcıya SnackBar.
   final String errorSaveFailed;
+
+  /// Çevrimdışı yazma: kayıt yerel kuyrukta, ağ gelince gidecek.
+  final String savedOffline;
 
   /// Beklenmedik durum: seçilen zarf silinmiş, birimler uyuşmuyor vb.
   final String errorGeneric;
@@ -1105,6 +1109,7 @@ class Strings {
         'By signing up you acknowledge and agree to Budgy Terms of Use and Privacy Policy',
     errorPrefix: 'Error',
     errorSaveFailed: "Couldn't save. Check your connection and try again.",
+    savedOffline: 'Saved. It will sync when you are back online.',
     errorGeneric: 'Something went wrong. Please try again.',
     channelPaymentsName: 'Payment reminders',
     channelPaymentsDesc: 'Reminders for rent, bills and other regular payments',
@@ -1498,6 +1503,7 @@ class Strings {
         'Kaydolarak Budgy Kullanım Koşulları ve Gizlilik Politikası\'nı kabul etmiş olursun',
     errorPrefix: 'Hata',
     errorSaveFailed: 'Kaydedilemedi. Bağlantını kontrol edip tekrar dene.',
+    savedOffline: 'Kaydedildi. Bağlantı gelince eşitlenecek.',
     errorGeneric: 'Bir şeyler ters gitti. Lütfen tekrar dene.',
     channelPaymentsName: 'Ödeme hatırlatmaları',
     channelPaymentsDesc: 'Kira, fatura ve diğer düzenli ödemeler için hatırlatma',
@@ -1890,6 +1896,7 @@ class Strings {
         'Регистрируясь, ты принимаешь Условия использования и Политику конфиденциальности Budgy',
     errorPrefix: 'Ошибка',
     errorSaveFailed: 'Не удалось сохранить. Проверьте соединение и повторите.',
+    savedOffline: 'Сохранено. Синхронизируется, когда появится сеть.',
     errorGeneric: 'Что-то пошло не так. Попробуйте ещё раз.',
     channelPaymentsName: 'Напоминания о платежах',
     channelPaymentsDesc: 'Напоминания об аренде, счетах и других регулярных платежах',
