@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/ex_style.dart';
 import '../../core/l10n.dart';
 import '../../core/tokens.dart';
 import 'new_password_screen.dart';
@@ -94,9 +95,9 @@ class _ForgetPasswordScreenState
               child: FilledButton(
                 style: FilledButton.styleFrom(
                   backgroundColor: c.accent,
-                  foregroundColor: Colors.white,
+                  foregroundColor: Ex.onBrand,
                   disabledBackgroundColor: c.accent.withValues(alpha: 0.4),
-                  disabledForegroundColor: Colors.white70,
+                  disabledForegroundColor: Ex.onBrand.withValues(alpha: 0.7),
                   minimumSize: const Size.fromHeight(56),
                   textStyle: const TextStyle(
                       fontSize: 16, fontWeight: FontWeight.w800),

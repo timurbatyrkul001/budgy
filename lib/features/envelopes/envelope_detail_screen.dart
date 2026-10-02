@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../core/animated_bar.dart';
+import '../../core/ex_style.dart';
 import '../../core/formatters.dart';
 import '../../core/l10n.dart';
 import '../../core/tokens.dart';
@@ -88,7 +89,7 @@ Future<bool> showConfirmDialog(
                     child: FilledButton(
                       style: FilledButton.styleFrom(
                         backgroundColor: c.accent,
-                        foregroundColor: Colors.white,
+                        foregroundColor: Ex.onBrand,
                         minimumSize: const Size.fromHeight(52),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14)),
@@ -356,14 +357,19 @@ class EnvelopeDetailScreen extends ConsumerWidget {
                                             : formatMoney(spent)),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
+                                    // Kahraman tutar: afişteki banknot
+                                    // tipografisi (Inter Display Black,
+                                    // sıkı aralık). Aşımda kırmızı token.
                                     style: TextStyle(
+                                      fontFamily: 'InterDisplay',
                                       fontSize: 36,
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: -0.03 * 36,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: -0.04 * 36,
+                                      height: 1.0,
                                       fontFeatures: const [
                                         FontFeature.tabularFigures()
                                       ],
-                                      color: over ? Colors.red : c.text,
+                                      color: over ? Ex.red : c.text,
                                     ),
                                   ),
                                 ],
@@ -386,8 +392,9 @@ class EnvelopeDetailScreen extends ConsumerWidget {
                                     fontFeatures: const [
                                       FontFeature.tabularFigures()
                                     ],
-                                    color:
-                                        over ? Colors.red : c.accent,
+                                    // Pastel rozet üstünde koyu yeşil /
+                                    // kırmızı mürekkep okunur kalır.
+                                    color: over ? Ex.red : Ex.mint,
                                   ),
                                 ),
                               ),
@@ -396,10 +403,12 @@ class EnvelopeDetailScreen extends ConsumerWidget {
                         ),
                         if (share != null) ...[
                           const SizedBox(height: 16),
+                          // Açık zeminde çubuk: boş kısım ikincil dolgu,
+                          // dolu kısım marka yeşili (aşımda kırmızı).
                           AnimatedBar(
                             value: share,
-                            color: over ? Colors.red : c.accent,
-                            background: c.track,
+                            color: over ? Ex.red : Ex.brand,
+                            background: Ex.surfaceHi,
                             height: 10,
                             radius: 6,
                           ),
@@ -441,7 +450,7 @@ class EnvelopeDetailScreen extends ConsumerWidget {
                           child: FilledButton(
                             style: FilledButton.styleFrom(
                               backgroundColor: c.accent,
-                              foregroundColor: Colors.white,
+                              foregroundColor: Ex.onBrand,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
                               ),
@@ -539,7 +548,7 @@ class EnvelopeDetailScreen extends ConsumerWidget {
                     child: FilledButton.icon(
                       style: FilledButton.styleFrom(
                         backgroundColor: c.accent,
-                        foregroundColor: Colors.white,
+                        foregroundColor: Ex.onBrand,
                         minimumSize: const Size.fromHeight(52),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(14)),
@@ -594,7 +603,7 @@ class EnvelopeDetailScreen extends ConsumerWidget {
             : FilledButton(
                 style: FilledButton.styleFrom(
                   backgroundColor: c.accent,
-                  foregroundColor: Colors.white,
+                  foregroundColor: Ex.onBrand,
                   minimumSize: const Size.fromHeight(52),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14)),

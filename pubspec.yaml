@@ -62,6 +62,15 @@ flutter:
       fonts:
         - asset: assets/fonts/Inter-Regular.ttf
           weight: 400
+        # Inter'in metin kesiminde elimizde yalnız Regular var. Kalın
+        # ağırlıklar tanımlı olmayınca Flutter 400'e düşüyor ve w600 isteyen
+        # her başlık inceliyordu. Aynı ailenin display kesimlerini bu iki
+        # ağırlığa bağlıyoruz: optik boy farkı gövde puntosunda görünmüyor,
+        # eksik ağırlık ise göze batıyordu.
+        - asset: assets/fonts/InterDisplay-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/InterDisplay-Black.ttf
+          weight: 900
     - family: Caveat
       fonts:
         - asset: assets/fonts/Caveat.ttf
@@ -69,13 +78,13 @@ flutter:
 # Budgy app ikonu config'i flutter_launcher_icons.yaml dosyasında.
 
 # Budgy açılış (splash) ekranı — siyah zemin + beyaz monoline zarf.
-# Zemin uygulamanın kendi siyahıyla (Ex.bg #07090A) aynı: açılıştan ana
+# Zemin uygulamanın kâğıdıyla (Ex.bg #FBFAF7) aynı: açılıştan ana
 # ekrana geçerken renk sıçraması olmuyor.
 flutter_native_splash:
-  color: "#07090A"
+  color: "#FBFAF7"
   image: assets/icon/budgy_splash.png
   android_12:
-    color: "#07090A"
+    color: "#FBFAF7"
     image: assets/icon/budgy_splash.png
   ios: true
   android: true

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/ex_style.dart';
 import '../../core/l10n.dart';
 import '../../core/tokens.dart';
 import '../envelopes/budget_repository.dart';
@@ -148,9 +149,11 @@ class _CompleteProfileScreenState
                     width: double.infinity,
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(15),
+                      // Yeşil ışıma yerine mürekkep gölgesi: kâğıt
+                      // üstünde renkli glow dijital duruyordu.
                       boxShadow: [
                         BoxShadow(
-                          color: c.accent.withValues(alpha: 0.32),
+                          color: c.shadowColor,
                           blurRadius: 18,
                           offset: const Offset(0, 8),
                         ),
@@ -159,10 +162,10 @@ class _CompleteProfileScreenState
                     child: FilledButton(
                       style: FilledButton.styleFrom(
                         backgroundColor: c.accent,
-                        foregroundColor: Colors.white,
+                        foregroundColor: Ex.onBrand,
                         disabledBackgroundColor:
                             c.accent.withValues(alpha: 0.5),
-                        disabledForegroundColor: Colors.white,
+                        disabledForegroundColor: Ex.onBrand,
                         minimumSize: const Size.fromHeight(54),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(15),

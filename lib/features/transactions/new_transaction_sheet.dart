@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/app_date_picker.dart';
+import '../../core/ex_style.dart';
 import '../../core/formatters.dart';
 import '../../core/l10n.dart';
 import '../../core/tokens.dart';
@@ -92,10 +93,18 @@ class _NewTransactionSheetState
     setState(() {});
   }
 
-  /// Цвет свечения суммы под текущий режим.
+  /// Tutarın rengi: gider mürekkep, gelir yeşil.
   Color get _glow => switch (_mode) {
-        TxMode.expense => context.budgy.text,
-        TxMode.income => context.budgy.accent,
+        TxMode.expense => Ex.text,
+        TxMode.income => Ex.income,
+      };
+
+  /// Tutar girilince beliren parıltının tepe alfası. Koyu zeminde siyah
+  /// parıltı zaten görünmüyordu; krem kâğıtta ise mürekkep rengi bir
+  /// gölge ağır/kirli duruyor. Gider için çok düşük, gelir için yumuşak.
+  double get _glowAlpha => switch (_mode) {
+        TxMode.expense => 0.08,
+        TxMode.income => 0.18,
       };
 
   @override
@@ -263,7 +272,7 @@ class _NewTransactionSheetState
                                       ? [
                                           BoxShadow(
                                             color: _glow.withValues(
-                                                alpha: 0.22 * (1 - t)),
+                                                alpha: _glowAlpha * (1 - t)),
                                             blurRadius: 28,
                                             spreadRadius: 2,
                                           ),
@@ -280,9 +289,13 @@ class _NewTransactionSheetState
                             keyboardType: const TextInputType.numberWithOptions(
                                 decimal: true),
                             textAlign: TextAlign.center,
+                            // Para kahramanı: afiş tipografisi (Inter
+                            // Display Black, sıkı aralık).
                             style: TextStyle(
+                              fontFamily: 'InterDisplay',
                               fontSize: 36,
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -1.4,
                               color: _amount != null ? _glow : c.text,
                             ),
                             decoration: InputDecoration(
@@ -411,7 +424,7 @@ class _ModeSegmented extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: m == mode ? FontWeight.w700 : FontWeight.w500,
-                    color: m == mode ? Colors.white : c.textMuted,
+                    color: m == mode ? Ex.onBrand : c.textMuted,
                   ),
                 ),
               ),

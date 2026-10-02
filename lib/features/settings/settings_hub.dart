@@ -7,6 +7,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../core/brand.dart';
 import '../../core/ex_style.dart';
+import '../../core/gradient_icon.dart';
 import '../../core/feedback.dart';
 import '../../core/l10n.dart';
 import '../../core/redesign_l10n.dart';
@@ -18,6 +19,7 @@ import '../automation/automation_screen.dart';
 import '../categories/categories_screen.dart';
 import '../envelopes/budget_repository.dart';
 import '../goals/goals_screen.dart';
+import '../accounts/accounts_screen.dart';
 import '../home/accounts_screen.dart';
 import '../home/fx_providers.dart';
 import '../profile/contact_screen.dart';
@@ -194,6 +196,16 @@ class SettingsHubScreen extends ConsumerWidget {
                 icon: Icons.wallet_rounded,
                 title: rs.accounts,
                 onTap: () => _push(context, const AccountsScreen()),
+              ),
+              // Kart yönetimi ayrı bir ekran: yukarıdaki "Hesaplar" nakit ve
+              // döviz kumbaralarını listeliyor, bu ise harcama yapılan
+              // kartları (Enpara ₺, Azeri kart ₼) ekleyip sıralıyor. İkisi
+              // ileride tek ekranda birleşecek; şimdilik ikisi de erişilebilir
+              // kalsın ki mevcut döviz cüzdanı akışı kopmasın.
+              _HubRow(
+                icon: Icons.credit_card_rounded,
+                title: rs.accountsTitle,
+                onTap: () => _push(context, const ManageAccountsScreen()),
               ),
               _HubRow(
                 icon: Icons.grid_view_rounded,
@@ -642,16 +654,18 @@ class _HubRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 9),
         child: Row(
           children: [
-            Container(
+            // DENEME: soluk kutu kaldırıldı, ikon büyütüldü. 34 px'lik
+            // kutunun içindeki 18 px ikonda gradyan okunmuyordu — göz onu
+            // düz renk sanıyor. Referanstaki hava ikonun doğrudan beyaz
+            // kâğıdın üstünde ve iki kat büyük olmasından geliyor.
+            SizedBox(
               width: 34,
               height: 34,
-              decoration: BoxDecoration(
-                color: danger
-                    ? Ex.red.withValues(alpha: 0.14)
-                    : Ex.brand.withValues(alpha: accent ? 0.22 : 0.12),
-                borderRadius: Ex.squircle(34),
+              child: Center(
+                child: danger
+                    ? Icon(icon, size: 26, color: Ex.red)
+                    : GradientIcon(icon, size: 28),
               ),
-              child: Icon(icon, size: 18, color: danger ? Ex.red : Ex.mint),
             ),
             const SizedBox(width: 12),
             Expanded(

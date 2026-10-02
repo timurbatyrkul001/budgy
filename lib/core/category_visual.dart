@@ -3,39 +3,64 @@ import 'package:flutter/material.dart';
 import '../features/envelopes/envelope.dart';
 import 'category_catalog.dart';
 
-/// Kategori görseli: yuvarlak renkli zemin + beyaz Material simgesi.
-/// Katalog (ve eski onboarding preset) anahtarlarının her biri için bir
-/// simge + renk; bölüm bir aile olarak okunsun diye renkler bölüme göre
-/// verilir (günlük: sıcak, ulaşım: mavi/sarı, ev: kırmızı/amber, sağlık:
-/// turkuaz/limon, abonelik: mor...). Marka yeşili (#25BE86) seçili/aktif
-/// durum için ayrılmıştır — paletteki hiçbir ton ona yakın değil.
+/// Kategori görseli: kâğıt-pastel yuvarlak zemin + o rengin mürekkep tonunda
+/// Material simgesi (çizim [CategoryAvatar]'da). Katalog (ve eski onboarding
+/// preset) anahtarlarının her biri için bir simge + renk; bölüm bir aile
+/// olarak okunsun diye renkler bölüme göre verilir (günlük: sıcak, ulaşım:
+/// mavi/sarı, ev: kırmızı/amber, sağlık: turkuaz/limon, abonelik: mor...).
+/// Marka yeşili ([Ex.brand] #17855D) seçili/aktif durum için ayrılmıştır —
+/// paletteki hiçbir ton ona yakın değil.
 class CategoryVisual {
   const CategoryVisual(this.icon, this.color);
 
   final IconData icon;
+
+  /// Kategorinin MÜREKKEP tonu: krem kâğıtta metin, ikon, grafik dilimi ve
+  /// ilerleme çubuğu olarak doğrudan kullanılır. Zemin olarak kullanılacaksa
+  /// [CategoryPalette.paperOf] ile açılır.
   final Color color;
 }
 
-/// Koyu zümrüt zeminde birbirinden ayırt edilebilen, üstünde beyaz glif
-/// okunur 12 ton.
+/// Krem kâğıt (Ex.bg #FBFAF7) üstünde birbirinden ayırt edilebilen 12 mürekkep
+/// tonu. Eski değerler koyu zümrüt zemin için parlaktı (ör. coral #E85D5D);
+/// açık zeminde neon duruyor ve metin olarak okunmuyordu. Yeni tonların her
+/// biri kâğıda karşı ~4.4:1 ve üstü kontrast verir — yani aynı renk hem
+/// avatar glifi hem etiket metni hem donut dilimi olabilir. Hue aileleri
+/// korundu ki kayıtlı `colorIndex`'ler anlamını yitirmesin (kullanıcının
+/// "mavi" seçtiği zarf yine mavi).
 abstract class CategoryPalette {
-  static const coral = Color(0xFFE85D5D);
-  static const orange = Color(0xFFF0863A);
-  static const amber = Color(0xFFD9A020);
-  static const yellow = Color(0xFFC9B227);
-  static const lime = Color(0xFF8DB03A);
-  static const teal = Color(0xFF2299AE);
-  static const sky = Color(0xFF3F8FE0);
-  static const indigo = Color(0xFF5C6CE0);
-  static const violet = Color(0xFF8E5FE0);
-  static const magenta = Color(0xFFC85AB8);
-  static const caramel = Color(0xFFB07A48);
-  static const slate = Color(0xFF6F7F92);
+  static const coral = Color(0xFFC4443F); // kiremit-kırmızı
+  static const orange = Color(0xFFB85C14); // yanık turuncu
+  static const amber = Color(0xFF9A6A05); // hardal
+  static const yellow = Color(0xFF857400); // zeytin-sarı
+  static const lime = Color(0xFF5E7F1A); // yeşil-limon (markadan 75° uzak)
+  static const teal = Color(0xFF137A8A); // petrol
+  static const sky = Color(0xFF2A6FB5); // mavi
+  static const indigo = Color(0xFF4A55B8); // çivit
+  static const violet = Color(0xFF7A4FC0); // mor
+  static const magenta = Color(0xFFA8428F); // fuşya
+  static const caramel = Color(0xFF8E5340); // kakao (düşük doygunluk; turuncudan böyle ayrılır)
+  static const slate = Color(0xFF5F6E80); // gri-mavi
 
   static const all = [
     coral, orange, amber, yellow, lime, teal, sky, indigo, violet, magenta,
     caramel, slate,
   ];
+
+  /// Mürekkep tonunun kâğıt zemini: aynı hue, çok açık ve hafif doygun —
+  /// tokens'taki zarf kâğıtlarıyla (envKira #E4EDF5 vb.) aynı ağırlıkta, böylece
+  /// avatar ve zarf kartı yan yana tek sistem gibi durur. Hesaplanır, çünkü
+  /// kayıtlı renk 12 tonun herhangi biri olabilir ve 12 ayrı pastel sabiti
+  /// tutmak aynı bilgiyi iki yerde yaşatmak olurdu. Doygunluk alt sınırı
+  /// gri tonların (slate) çamura dönmemesi, üst sınırı sarıların şeker gibi
+  /// parlamaması için.
+  static Color paperOf(Color ink) {
+    final hsl = HSLColor.fromColor(ink);
+    return hsl
+        .withSaturation((hsl.saturation * 0.9).clamp(0.18, 0.55))
+        .withLightness(0.925)
+        .toColor();
+  }
 }
 
 const _visuals = <String, CategoryVisual>{
@@ -98,6 +123,9 @@ const _visuals = <String, CategoryVisual>{
   'rentalIncome': CategoryVisual(Icons.holiday_village_rounded, CategoryPalette.coral),
   'pension': CategoryVisual(Icons.elderly_rounded, CategoryPalette.indigo),
   'scholarship': CategoryVisual(Icons.school_rounded, CategoryPalette.orange),
+  // Komşuları turuncu (burs) ve sarı (ek iş); magenta ikisinden de uzak.
+  'familySupport':
+      CategoryVisual(Icons.diversity_1_rounded, CategoryPalette.magenta),
   'sideJob': CategoryVisual(Icons.handyman_rounded, CategoryPalette.yellow),
   'cashback': CategoryVisual(Icons.credit_score_rounded, CategoryPalette.lime),
   'otherIncome': CategoryVisual(Icons.payments_rounded, CategoryPalette.slate),

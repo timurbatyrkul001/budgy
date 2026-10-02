@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/ex_style.dart';
 import '../../core/l10n.dart';
 import '../../core/tokens.dart';
 import 'budget_repository.dart';
@@ -197,10 +198,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 child: FilledButton(
                   style: FilledButton.styleFrom(
                     backgroundColor: c.accent,
-                    foregroundColor: Colors.white,
+                    foregroundColor: Ex.onBrand,
                     disabledBackgroundColor:
                         c.accent.withValues(alpha: 0.4),
-                    disabledForegroundColor: Colors.white,
+                    disabledForegroundColor: Ex.onBrand,
                     minimumSize: const Size.fromHeight(54),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(15),

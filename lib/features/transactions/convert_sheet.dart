@@ -305,7 +305,13 @@ class _AmountField extends StatelessWidget {
     return TextField(
       controller: controller,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+      // Tutar alanı: afiş tipografisi, diğer para kahramanlarıyla aynı.
+      style: const TextStyle(
+        fontFamily: 'InterDisplay',
+        fontSize: 24,
+        fontWeight: FontWeight.w900,
+        letterSpacing: -0.8,
+      ),
       decoration: InputDecoration(
         prefixText: '$symbol  ',
         prefixStyle: TextStyle(

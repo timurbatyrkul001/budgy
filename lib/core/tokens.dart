@@ -97,35 +97,39 @@ class BudgyColors extends ThemeExtension<BudgyColors> {
   static const light = dark;
 
   static const dark = BudgyColors(
-    bg: Color(0xFF070A09),
-    surface: Color(0xFF151918),
-    surface2: Color(0xFF1F2422),
-    text: Color(0xFFFFFFFF),
-    textMuted: Color(0xFF8A918E),
-    textFaint: Color(0xFF5B625F),
-    accent: Color(0xFF25BE86),
-    // Koyu zeminde vurgu metni olarak kullanılıyor — nane tonu okunur.
-    accentStrong: Color(0xFF7FE3B8),
-    accentInk: Color(0xFF8FE9C4),
-    amber: Color(0xFFE3A94F),
-    amberBg: Color(0xFF2C2113),
-    border: Color(0xFF252B29),
-    borderStrong: Color(0xFF343B38),
-    track: Color(0xFF1F2422),
-    tabbar: Color(0xE6151918),
-    shadowColor: Color(0x66000000), // rgba(0,0,0,0.4)
-    heat0: Color(0xFF151918),
-    heat1: Color(0x3325BE86), // accent %20
-    heat2: Color(0x6625BE86), // accent %40
-    heat3: Color(0xA825BE86), // accent %66
-    heat4: Color(0xFF25BE86),
-    envKira: Color(0xFF22303F),
-    envMarket: Color(0xFF1F3527),
-    envUlasim: Color(0xFF38301E),
-    envKeyif: Color(0xFF3A2530),
-    envFatura: Color(0xFF2C2740),
-    envTatil: Color(0xFF1E332E),
-    envAraba: Color(0xFF262C33),
+    // Afiş dili (2026-10): krem kâğıt, siyah mürekkep, beyaz kart. Ad
+    // "dark" olarak kaldı çünkü uygulama hâlâ tek temalı; değerler açık.
+    bg: Color(0xFFFBFAF7),
+    surface: Color(0xFFFFFFFF),
+    surface2: Color(0xFFF1F0EA),
+    text: Color(0xFF111111),
+    textMuted: Color(0xFF76766F),
+    textFaint: Color(0xFF9A9A94),
+    accent: Color(0xFF17855D),
+    // Açık zeminde vurgu metni: daha da koyu yeşil.
+    accentStrong: Color(0xFF0E6B49),
+    accentInk: Color(0xFF0B5540),
+    amber: Color(0xFFA9700C),
+    amberBg: Color(0xFFFBF1DD),
+    border: Color(0xFFE7E5DE),
+    borderStrong: Color(0xFFD4D1C8),
+    track: Color(0xFFEDEBE4),
+    tabbar: Color(0xF7FFFFFF),
+    shadowColor: Color(0x14111111),
+    // Isı haritası: kâğıttan markaya doğru.
+    heat0: Color(0xFFF1F0EA),
+    heat1: Color(0x2617855D),
+    heat2: Color(0x5917855D),
+    heat3: Color(0x9917855D),
+    heat4: Color(0xFF17855D),
+    // Kategori zeminleri: krem üstünde yumuşak pastel kâğıtlar.
+    envKira: Color(0xFFE4EDF5),
+    envMarket: Color(0xFFE2F0E7),
+    envUlasim: Color(0xFFF6EEDC),
+    envKeyif: Color(0xFFF7E6EC),
+    envFatura: Color(0xFFEAE7F7),
+    envTatil: Color(0xFFE0F0EC),
+    envAraba: Color(0xFFE8EAEE),
   );
 
   @override

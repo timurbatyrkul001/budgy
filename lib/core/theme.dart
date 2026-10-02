@@ -41,6 +41,11 @@ ThemeData _build(BudgyColors c, Brightness brightness) {
   return ThemeData(
     useMaterial3: true,
     brightness: brightness,
+    // Uygulamanın tamamı afişin yazı karakterinde. Tek tek ekranlara
+    // yazmak yerine burada: aksi hâlde sistem fontu (SF Pro) ile Inter
+    // ekrandan ekrana karışıyordu. Kahraman rakamlar ayrıca 'InterDisplay'
+    // ailesine geçiyor — o kesim büyük puntoda daha sıkı.
+    fontFamily: 'Inter',
     scaffoldBackgroundColor: c.bg,
     pageTransitionsTheme: _transitions,
     extensions: [c],
@@ -112,8 +117,9 @@ ThemeData _build(BudgyColors c, Brightness brightness) {
   );
 }
 
-/// Tek tema — "dark emerald". Uygulama yalnız koyu; [buildDarkTheme] geri
-/// uyumluluk için aynı temayı döndürür.
-ThemeData buildTheme() => _build(BudgyColors.dark, Brightness.dark);
+/// Tek tema — afiş dili: krem kâğıt, siyah mürekkep. Brightness.light
+/// olmalı, yoksa Material'in kendi parçaları (takvim, menü, metin seçme)
+/// koyu çizilip açık zeminde okunmaz oluyor.
+ThemeData buildTheme() => _build(BudgyColors.dark, Brightness.light);
 
 ThemeData buildDarkTheme() => buildTheme();

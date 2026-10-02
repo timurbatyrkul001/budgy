@@ -28,8 +28,9 @@ class BudgetRing extends StatelessWidget {
   /// false: halka anında yerleşik durumda çizilir (hareket azaltma).
   final bool animate;
 
-  /// Boş halkanın rengi; koyu uygulama yüzeyi varsayılan, açık zeminde
-  /// (onboarding afişi) çağıran soluk bir ton verir.
+  /// Boş halkanın rengi. Varsayılan basılı kâğıt ([Ex.surfaceHi]): beyaz
+  /// kartın üstünde boş kısım belli olsun ama yeşil dolguyla yarışmasın.
+  /// Onboarding afişi gibi farklı bir zemin kendi tonunu verir.
   final Color trackColor;
 
   @override

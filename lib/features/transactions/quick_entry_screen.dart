@@ -842,11 +842,14 @@ class _AmountDisplay extends StatelessWidget {
     final decimal = localeCode == 'tr' || localeCode == 'ru' ? ',' : '.';
     final shown = (expr.isEmpty ? '0' : expr).replaceAll('.', decimal);
     final chars = shown.split('');
+    // Ekranın para kahramanı: afiş tipografisi — InterDisplay Black, sıkı
+    // aralık, dar satır. Onboarding afişindeki rakamlarla aynı ses.
     const style = TextStyle(
+      fontFamily: 'InterDisplay',
       fontSize: 56,
-      height: 1.05,
-      fontWeight: FontWeight.w800,
-      letterSpacing: -2,
+      height: 1.0,
+      fontWeight: FontWeight.w900,
+      letterSpacing: -2.6,
       color: Ex.text,
     );
     // Tutar panelin ortasında (referans ekrandaki gibi).

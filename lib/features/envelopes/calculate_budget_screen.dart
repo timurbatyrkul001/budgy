@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 import '../../core/app_date_picker.dart';
 import '../../core/formatters.dart';
 import '../../core/l10n.dart';
-import '../../core/palette.dart';
+import '../../core/ex_style.dart';
 import '../transactions/budget_completed_screen.dart';
 import 'budget_repository.dart';
 import 'envelope.dart';
@@ -94,7 +94,8 @@ class _CalculateBudgetScreenState
     final canSave = parseAmount(_amount.text) != null;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F8FB),
+      // Kâğıt zemin: afişle aynı krem, eski mavi-gri sabit yerine.
+      backgroundColor: Ex.bg,
       resizeToAvoidBottomInset: false,
       body: SafeArea(
         child: Column(
@@ -116,12 +117,15 @@ class _CalculateBudgetScreenState
                         height: 48,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(
-                          color: const Color(0xFFEDEFF3),
+                          // Basılı hap: ikincil dolgu, krem üstünde hafif koyu.
+                          color: Ex.surfaceHi,
                           borderRadius: BorderRadius.circular(24),
                         ),
                         child: Text(str.calculateBudget,
                             style: const TextStyle(
-                                fontSize: 15, fontWeight: FontWeight.w600)),
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: Ex.text)),
                       ),
                     ),
                   ],
@@ -136,7 +140,7 @@ class _CalculateBudgetScreenState
                       style: const TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.w800,
-                          color: ink)),
+                          color: Ex.text)),
                   const SizedBox(height: 4),
                   Text(
                     tpl(str.setAsideFor, {
@@ -145,7 +149,7 @@ class _CalculateBudgetScreenState
                     }),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 14, color: inkMuted),
+                    style: const TextStyle(fontSize: 14, color: Ex.textMuted),
                   ),
                   const SizedBox(height: 20),
                   // Budget Name (salt-okunur)
@@ -158,7 +162,9 @@ class _CalculateBudgetScreenState
                         const SizedBox(width: 12),
                         Text(e.displayName(str),
                             style: const TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.w600)),
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Ex.text)),
                       ],
                     ),
                   ),
@@ -170,13 +176,24 @@ class _CalculateBudgetScreenState
                       controller: _amount,
                       keyboardType: const TextInputType.numberWithOptions(
                           decimal: true),
+                      // Tutar girişi afiş tipografisinde: mürekkep rengi,
+                      // sıkı aralıklı Inter Display.
                       style: const TextStyle(
-                          fontSize: 18, fontWeight: FontWeight.w700),
+                          fontFamily: 'InterDisplay',
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.04 * 18,
+                          color: Ex.text),
                       decoration: InputDecoration(
                         isDense: true,
                         border: InputBorder.none,
                         prefixText: '$_sym  ',
+                        prefixStyle: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: Ex.textMuted),
                         hintText: '0.0',
+                        hintStyle: const TextStyle(color: Ex.textFaint),
                       ),
                     ),
                   ),
@@ -212,18 +229,18 @@ class _CalculateBudgetScreenState
                       children: [
                         _MiniIcon(
                             child: const Icon(Icons.hourglass_empty_rounded,
-                                size: 18, color: inkMuted)),
+                                size: 18, color: Ex.textMuted)),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(_periodLabel(str),
                               style: TextStyle(
                                   fontSize: 16,
                                   color: _period == null
-                                      ? Colors.grey.shade500
-                                      : ink)),
+                                      ? Ex.textFaint
+                                      : Ex.text)),
                         ),
                         const Icon(Icons.expand_more_rounded,
-                            color: inkMuted),
+                            color: Ex.textMuted),
                       ],
                     ),
                   ),
@@ -233,10 +250,12 @@ class _CalculateBudgetScreenState
                     label: str.noteLabel,
                     child: TextField(
                       controller: _note,
+                      style: const TextStyle(color: Ex.text),
                       decoration: InputDecoration(
                         isDense: true,
                         border: InputBorder.none,
                         hintText: str.noteHint,
+                        hintStyle: const TextStyle(color: Ex.textFaint),
                       ),
                     ),
                   ),
@@ -252,9 +271,12 @@ class _CalculateBudgetScreenState
                     width: double.infinity,
                     child: FilledButton(
                       style: FilledButton.styleFrom(
-                        backgroundColor: accent,
+                        backgroundColor: Ex.brand,
+                        foregroundColor: Ex.onBrand,
                         disabledBackgroundColor:
-                            accent.withValues(alpha: 0.4),
+                            Ex.brand.withValues(alpha: 0.35),
+                        disabledForegroundColor:
+                            Ex.onBrand.withValues(alpha: 0.6),
                         minimumSize: const Size.fromHeight(56),
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(30)),
@@ -266,7 +288,7 @@ class _CalculateBudgetScreenState
                   if (widget.envelope.targetAmount != null)
                     TextButton(
                       style: TextButton.styleFrom(
-                          foregroundColor: Colors.red),
+                          foregroundColor: Ex.red),
                       onPressed: _removeBudget,
                       child: Text(str.removeBudget),
                     ),
@@ -283,7 +305,7 @@ class _CalculateBudgetScreenState
     var sel = _period ?? _Period.monthly;
     final picked = await showModalBottomSheet<_Period>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: Ex.sheet,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -299,10 +321,12 @@ class _CalculateBudgetScreenState
                 children: [
                   Text(str.timePeriod,
                       style: const TextStyle(
-                          fontSize: 18, fontWeight: FontWeight.w800)),
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: Ex.text)),
                   GestureDetector(
                     onTap: () => Navigator.of(ctx).pop(),
-                    child: const Icon(Icons.close, color: inkMuted),
+                    child: const Icon(Icons.close, color: Ex.textMuted),
                   ),
                 ],
               ),
@@ -320,15 +344,17 @@ class _CalculateBudgetScreenState
                         contentPadding: EdgeInsets.zero,
                         leading: _MiniIcon(
                             child: const Icon(Icons.hourglass_empty_rounded,
-                                size: 18, color: inkMuted)),
-                        title: Text(switch (p) {
-                          _Period.weekly => str.periodWeekly,
-                          _Period.monthly => str.periodMonthly,
-                          _Period.yearly => str.periodYearly,
-                        }),
+                                size: 18, color: Ex.textMuted)),
+                        title: Text(
+                            switch (p) {
+                              _Period.weekly => str.periodWeekly,
+                              _Period.monthly => str.periodMonthly,
+                              _Period.yearly => str.periodYearly,
+                            },
+                            style: const TextStyle(color: Ex.text)),
                         trailing: Radio<_Period>(
                           value: p,
-                          activeColor: accent,
+                          activeColor: Ex.brand,
                         ),
                         onTap: () => setS(() => sel = p),
                       ),
@@ -340,7 +366,8 @@ class _CalculateBudgetScreenState
                 width: double.infinity,
                 child: FilledButton(
                   style: FilledButton.styleFrom(
-                    backgroundColor: accent,
+                    backgroundColor: Ex.brand,
+                    foregroundColor: Ex.onBrand,
                     minimumSize: const Size.fromHeight(52),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(28)),
@@ -371,14 +398,17 @@ class _LabeledCard extends StatelessWidget {
     final card = Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        // Beyaz kart krem kâğıttan neredeyse ayrışmıyor; ince kenarlık
+        // (ExCard'daki gibi) kartın sınırını belli ediyor.
+        color: Ex.surface,
+        border: Border.all(color: Ex.border),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label,
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade500)),
+              style: const TextStyle(fontSize: 13, color: Ex.textMuted)),
           const SizedBox(height: 8),
           child,
         ],
@@ -428,14 +458,16 @@ class _DateCard extends StatelessWidget {
         children: [
           _MiniIcon(
               child: const Icon(Icons.calendar_today_rounded,
-                  size: 16, color: inkMuted)),
+                  size: 16, color: Ex.textMuted)),
           const SizedBox(width: 10),
           Flexible(
             child: Text(text,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                    fontSize: 15, fontWeight: FontWeight.w600)),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: Ex.text)),
           ),
         ],
       ),
@@ -452,8 +484,9 @@ class _MiniIcon extends StatelessWidget {
       width: 38,
       height: 38,
       alignment: Alignment.center,
+      // İkon yuvası: beyaz kartın içinde ikincil dolgu.
       decoration: const BoxDecoration(
-          color: Color(0xFFF1F2F5), shape: BoxShape.circle),
+          color: Ex.surfaceHi, shape: BoxShape.circle),
       child: child,
     );
   }
@@ -472,10 +505,10 @@ class _Circle extends StatelessWidget {
         width: 47,
         height: 48,
         decoration: BoxDecoration(
-          color: const Color(0xFFEDEFF3),
+          color: Ex.surfaceHi,
           borderRadius: BorderRadius.circular(24),
         ),
-        child: Icon(icon, color: ink),
+        child: Icon(icon, color: Ex.text),
       ),
     );
   }

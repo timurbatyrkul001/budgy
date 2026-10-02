@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/ex_style.dart';
 import '../../core/formatters.dart';
 import '../../core/l10n.dart';
 import '../../core/tokens.dart';
@@ -95,7 +96,7 @@ class RemindersScreen extends ConsumerWidget {
         child: FilledButton(
           style: FilledButton.styleFrom(
             backgroundColor: c.accent,
-            foregroundColor: Colors.white,
+            foregroundColor: Ex.onBrand,
             minimumSize: const Size.fromHeight(52),
             textStyle:
                 const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
@@ -177,11 +178,15 @@ class _SummaryCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
+          // Manşet tutar: afiş tipografisi (Inter Display Black, sıkı).
           Text(
             formatMoney(total),
             style: TextStyle(
+              fontFamily: 'InterDisplay',
               fontSize: 32,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.04 * 32,
+              height: 1.0,
               color: c.text,
               fontFeatures: const [FontFeature.tabularFigures()],
             ),
@@ -399,7 +404,7 @@ class _AddReminderSheetState extends ConsumerState<_AddReminderSheet> {
           FilledButton(
             style: FilledButton.styleFrom(
               backgroundColor: c.accent,
-              foregroundColor: Colors.white,
+              foregroundColor: Ex.onBrand,
               minimumSize: const Size.fromHeight(52),
               textStyle: const TextStyle(
                   fontSize: 16, fontWeight: FontWeight.w700),

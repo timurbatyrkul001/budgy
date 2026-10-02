@@ -189,10 +189,13 @@ class _EnvelopeEditorScreenState extends ConsumerState<EnvelopeEditorScreen> {
                   decoration: BoxDecoration(
                     color: c,
                     shape: BoxShape.circle,
-                    border: c == _color ? Border.all(color: Colors.white, width: 3) : null,
+                    // Seçili halka: beyaz sayfada beyaz halka kayboluyordu,
+                    // mürekkep halkası seçimi belli eder. Tik, doygun
+                    // renk üstünde kâğıt beyazı kalır.
+                    border: c == _color ? Border.all(color: Ex.text, width: 3) : null,
                   ),
                   child: c == _color
-                      ? const Icon(Icons.check_rounded, color: Colors.white, size: 22)
+                      ? const Icon(Icons.check_rounded, color: Ex.surface, size: 22)
                       : null,
                 ),
               ),

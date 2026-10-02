@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/ex_style.dart';
 import '../../core/l10n.dart';
 import '../../core/tokens.dart';
 
@@ -67,7 +68,7 @@ Future<void> showCheckEmailDialog(
                   child: FilledButton(
                     style: FilledButton.styleFrom(
                       backgroundColor: c.accent,
-                      foregroundColor: Colors.white,
+                      foregroundColor: Ex.onBrand,
                       minimumSize: const Size.fromHeight(48),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(15),
@@ -236,9 +237,9 @@ class _NewPasswordScreenState extends ConsumerState<NewPasswordScreen> {
               child: FilledButton(
                 style: FilledButton.styleFrom(
                   backgroundColor: c.accent,
-                  foregroundColor: Colors.white,
+                  foregroundColor: Ex.onBrand,
                   disabledBackgroundColor: c.accent.withValues(alpha: 0.4),
-                  disabledForegroundColor: Colors.white70,
+                  disabledForegroundColor: Ex.onBrand.withValues(alpha: 0.7),
                   minimumSize: const Size.fromHeight(56),
                   textStyle: const TextStyle(
                       fontSize: 16, fontWeight: FontWeight.w800),
@@ -356,7 +357,7 @@ class _Rule extends StatelessWidget {
                   border: Border.all(color: c.textFaint, width: 2),
                 ),
           child: met
-              ? const Icon(Icons.check_rounded, size: 12, color: Colors.white)
+              ? const Icon(Icons.check_rounded, size: 12, color: Ex.onBrand)
               : null,
         ),
         const SizedBox(width: 9),

@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/app_date_picker.dart';
 import '../../core/category_avatar.dart';
+import '../../core/ex_style.dart';
 import '../../core/formatters.dart';
 import '../../core/l10n.dart';
 import '../../core/redesign_l10n.dart';
@@ -148,7 +149,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                           child: Icon(Icons.tune_rounded,
                               color: (_filterCats.isNotEmpty ||
                                       _filterDate != null)
-                                  ? Colors.white
+                                  ? Ex.onBrand
                                   : c.text),
                         ),
                       ),
@@ -279,7 +280,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                             style: TextStyle(
                                 fontSize: 14,
                                 color: tempCats.contains(cat)
-                                    ? Colors.white
+                                    ? Ex.onBrand
                                     : c.text)),
                       ),
                     ),
@@ -357,7 +358,7 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                 child: FilledButton(
                   style: FilledButton.styleFrom(
                     backgroundColor: c.accent,
-                    foregroundColor: Colors.white,
+                    foregroundColor: Ex.onBrand,
                     minimumSize: const Size.fromHeight(56),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(30)),
@@ -423,7 +424,7 @@ class _HistoryTabs extends StatelessWidget {
                       fontSize: 14,
                       fontWeight:
                           m == mode ? FontWeight.w700 : FontWeight.w500,
-                      color: m == mode ? Colors.white : c.textMuted,
+                      color: m == mode ? Ex.onBrand : c.textMuted,
                     )),
               ),
             ),
@@ -495,7 +496,7 @@ class TxTile extends ConsumerWidget {
             child: Text(str.cancel),
           ),
           TextButton(
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: TextButton.styleFrom(foregroundColor: Ex.red),
             onPressed: () => Navigator.of(context).pop(true),
             child: Text(str.deleteWord),
           ),
@@ -595,11 +596,14 @@ class TxTile extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(width: 12),
+                  // Tutar: afiş tipografisi; gelir yeşil, gider mürekkep.
                   Text('$sign${formatMoneyIn(tx.amount, tx.currency)}',
                       style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                          color: c.text)),
+                          fontFamily: 'InterDisplay',
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.5,
+                          color: isIncome ? Ex.income : Ex.text)),
                 ],
               ),
               const SizedBox(height: 20),
@@ -609,7 +613,7 @@ class TxTile extends ConsumerWidget {
                   child: FilledButton.icon(
                     style: FilledButton.styleFrom(
                       backgroundColor: c.accent,
-                      foregroundColor: Colors.white,
+                      foregroundColor: Ex.onBrand,
                       minimumSize: const Size.fromHeight(54),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(28)),
@@ -629,8 +633,10 @@ class TxTile extends ConsumerWidget {
                 width: double.infinity,
                 child: FilledButton.icon(
                   style: FilledButton.styleFrom(
-                    backgroundColor: Colors.red.withValues(alpha: 0.12),
-                    foregroundColor: Colors.red,
+                    // Material kırmızısı krem kâğıtta çiğ duruyordu; paletin
+                    // kırmızısı hem tint hem metin için.
+                    backgroundColor: Ex.red.withValues(alpha: 0.12),
+                    foregroundColor: Ex.red,
                     minimumSize: const Size.fromHeight(54),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(28)),
@@ -751,7 +757,9 @@ class TxTile extends ConsumerWidget {
             style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w700,
-              color: isIncome ? c.accent : c.text,
+              // Gelir: semantik gelir yeşili (açık zemin için koyultulmuş);
+              // gider nötr mürekkep — listede kırmızı gürültü istemiyoruz.
+              color: isIncome ? Ex.income : Ex.text,
             ),
           ),
         ],

@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 import '../../core/app_date_picker.dart';
 import '../../core/formatters.dart';
 import '../../core/l10n.dart';
-import '../../core/palette.dart';
+import '../../core/ex_style.dart';
 import '../envelopes/budget_repository.dart';
 import '../envelopes/envelope.dart';
 import '../envelopes/envelope_l10n.dart';
@@ -17,7 +17,7 @@ Future<void> showAddFundsSheet(BuildContext context, Envelope envelope) {
   return showModalBottomSheet(
     context: context,
     isScrollControlled: true,
-    backgroundColor: Colors.white,
+    backgroundColor: Ex.sheet,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
     ),
@@ -92,7 +92,9 @@ class _AddFundsSheetState extends ConsumerState<_AddFundsSheet> {
           Center(
             child: Text('${widget.envelope.emoji}  ${str.addFundsTitle}',
                 style: const TextStyle(
-                    fontSize: 18, fontWeight: FontWeight.w700)),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: Ex.text)),
           ),
           const SizedBox(height: 20),
           // Tutar (zarf birimi)
@@ -101,16 +103,24 @@ class _AddFundsSheetState extends ConsumerState<_AddFundsSheet> {
             autofocus: true,
             keyboardType:
                 const TextInputType.numberWithOptions(decimal: true),
-            style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800),
+            // Tutar: afiş tipografisi, mürekkep rengi.
+            style: const TextStyle(
+                fontFamily: 'InterDisplay',
+                fontSize: 26,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.04 * 26,
+                color: Ex.text),
             decoration: InputDecoration(
               prefixText: '$symbol  ',
-              prefixStyle: TextStyle(
+              prefixStyle: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w700,
-                  color: Colors.grey.shade500),
+                  color: Ex.textMuted),
               hintText: '0',
+              hintStyle: const TextStyle(color: Ex.textFaint),
               filled: true,
-              fillColor: const Color(0xFFF7F6FB),
+              // Giriş alanı dolgusu: eski lila-gri yerine ikincil dolgu.
+              fillColor: Ex.surfaceHi,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
                 borderSide: BorderSide.none,
@@ -138,13 +148,13 @@ class _AddFundsSheetState extends ConsumerState<_AddFundsSheet> {
               padding:
                   const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               decoration: BoxDecoration(
-                color: const Color(0xFFF1F2F5),
+                color: Ex.surfaceHi,
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Row(
                 children: [
                   const Icon(Icons.calendar_today_rounded,
-                      size: 18, color: inkMuted),
+                      size: 18, color: Ex.textMuted),
                   const SizedBox(width: 12),
                   Text(
                     _date == today
@@ -152,7 +162,9 @@ class _AddFundsSheetState extends ConsumerState<_AddFundsSheet> {
                         : DateFormat('d MMMM yyyy', str.localeCode)
                             .format(_date),
                     style: const TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.w600),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: Ex.text),
                   ),
                 ],
               ),
@@ -162,10 +174,12 @@ class _AddFundsSheetState extends ConsumerState<_AddFundsSheet> {
           // Not
           TextField(
             controller: _note,
+            style: const TextStyle(color: Ex.text),
             decoration: InputDecoration(
               hintText: str.noteHint,
+              hintStyle: const TextStyle(color: Ex.textFaint),
               filled: true,
-              fillColor: const Color(0xFFF7F6FB),
+              fillColor: Ex.surfaceHi,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
                 borderSide: BorderSide.none,
@@ -177,8 +191,10 @@ class _AddFundsSheetState extends ConsumerState<_AddFundsSheet> {
             width: double.infinity,
             child: FilledButton(
               style: FilledButton.styleFrom(
-                backgroundColor: accent,
-                disabledBackgroundColor: accent.withValues(alpha: 0.4),
+                backgroundColor: Ex.brand,
+                foregroundColor: Ex.onBrand,
+                disabledBackgroundColor: Ex.brand.withValues(alpha: 0.35),
+                disabledForegroundColor: Ex.onBrand.withValues(alpha: 0.6),
                 minimumSize: const Size.fromHeight(56),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(30)),

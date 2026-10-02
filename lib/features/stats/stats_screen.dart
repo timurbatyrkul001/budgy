@@ -11,15 +11,17 @@ import '../../core/redesign_l10n.dart';
 import '../envelopes/budget_repository.dart';
 import '../envelopes/envelope.dart';
 import '../envelopes/envelope_l10n.dart';
+import '../home/fx_providers.dart';
 import '../insights/analytics_month.dart';
 import '../pro/pro_gate.dart';
 import '../pro/pro_state.dart';
 import '../transactions/journal_screen.dart';
 import '../transactions/tx.dart';
 
-/// Analiz ("dark emerald"): kategori filtresi, ay seçici (geleceğe yok),
-/// Harcama kartı (toplam + hafta kovaları), kategoriye göre liste, içgörü
-/// kartları. Yalnız gerçek ₺ giderler (çevirme/hedef fonu/döviz hariç).
+/// Analiz (afiş dili: krem kâğıt + mürekkep): kategori filtresi, ay seçici
+/// (geleceğe yok), Harcama kartı (toplam + hafta kovaları), kategoriye göre
+/// liste, içgörü kartları. Yalnız gerçek ₺ giderler (çevirme/hedef fonu/döviz
+/// hariç).
 class StatsScreen extends ConsumerStatefulWidget {
   const StatsScreen({super.key, this.initialMonthOffset = 0});
 
@@ -156,6 +158,11 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
     final a = analyzeMonth(
       txs,
       _month,
+      // Çok para birimli hesaplar: tutarlar işlem anında dondurulmuş kurla
+      // ana birime çevrilip toplanıyor. Bu parametre verilmezse varsayılan
+      // 'TRY' ile çalışır ve ana birimini başka yapmış kullanıcıda yeni
+      // kayıtlar sıfırlanır.
+      mainCurrency: ref.watch(currencyCodeProvider),
       categoryId: _categoryId,
       envelopes: envelopes,
       nameOf: (e) => e.displayName(str),
@@ -328,12 +335,16 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
                     FittedBox(
                       fit: BoxFit.scaleDown,
                       alignment: Alignment.centerLeft,
+                      // Ayın toplamı kartın kahramanı: afişteki rakamlar gibi
+                      // InterDisplay Black + sıkı aralık (onboarding'deki
+                      // -1.5 × boyut/36 formülü). Küçük metinler Inter kalır.
                       child: Text(
                         formatMoney(a.total),
                         style: const TextStyle(
+                          fontFamily: 'InterDisplay',
                           fontSize: 30,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.8,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -1.25,
                           color: Ex.text,
                         ),
                       ),
@@ -568,8 +579,9 @@ class _NavBtn extends StatelessWidget {
   }
 }
 
-/// Hafta kovaları çubuk grafiği: nane çubuklar, geçerli kova yeşil, boş
-/// kovalar düz ama görünür.
+/// Hafta kovaları çubuk grafiği: geçerli kova marka yeşili (tam dolgu),
+/// diğer kovalar koyu yeşilin soluk hâli, boş kovalar basılı kâğıt
+/// ([Ex.surfaceHi]) — krem zeminde düz ama görünür.
 class _WeekBars extends StatelessWidget {
   const _WeekBars({
     required this.buckets,
@@ -602,11 +614,15 @@ class _WeekBars extends StatelessWidget {
                       curve: Curves.easeOutCubic,
                       height: maxV <= 0 ? 4 : (4 + (chartH - 4) * v / maxV),
                       decoration: BoxDecoration(
+                        // Geçmiş kovalar: koyu zeminde %55 alfa yetiyordu,
+                        // krem kâğıt üstünde aynı değer sütlü yeşile dönüp
+                        // boş kovadan zor ayrılıyordu. %75 ile hem okunur hem
+                        // de tam dolgulu "bu hafta" çubuğundan hâlâ ayrışır.
                         color: v <= 0
                             ? Ex.surfaceHi
                             : (i == current
                                   ? Ex.brand
-                                  : Ex.mint.withValues(alpha: 0.55)),
+                                  : Ex.mint.withValues(alpha: 0.75)),
                         borderRadius: BorderRadius.circular(6),
                       ),
                     ),

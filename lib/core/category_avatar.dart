@@ -8,9 +8,15 @@ import 'ex_style.dart';
 /// ayarlar, önizleme kartları) bu widget kullanılır; daire çizimi başka
 /// yerde tekrarlanmaz.
 ///
-/// * Katalog/preset anahtarı → renkli daire + beyaz simge.
-/// * Kullanıcının kendi kategorisi → aynı daire, içinde emojisi, zemin
-///   zarf id'sinden türeyen sabit ton (bkz. [envelopeTint]).
+/// Afiş dili: daire açık kâğıt-pastel, içindeki simge/harf o rengin mürekkep
+/// tonu. Eskiden dolgu doygun, glif beyazdı; krem zeminde doygun daireler
+/// "rozet" gibi bağırıyor ve beyaz glif kontrastı düşüyordu. Pastel zemin +
+/// mürekkep glif hem zarf kartlarıyla (tokens env* kâğıtları) aynı ağırlıkta
+/// hem de beyaz kart üstünde sakin.
+///
+/// * Katalog/preset anahtarı → pastel daire + mürekkep simge.
+/// * Kullanıcının kendi kategorisi → aynı daire, içinde emojisi, ton zarf
+///   id'sinden türeyen sabit renk (bkz. [envelopeTint]).
 /// * Kategorisiz → soluk daire + soru işareti.
 class CategoryAvatar extends StatelessWidget {
   const CategoryAvatar({
@@ -63,20 +69,32 @@ class CategoryAvatar extends StatelessWidget {
     final stored = envelope == null ? null : envelopeColor(envelope!);
 
     final Color bg;
+    // İnce kenar: pastel daire beyaz kartın üstünde (surface #FFF) neredeyse
+    // kayboluyor; mürekkebin %14'lük hâli daireyi tanımlar ama çizmez.
+    final Color hairline;
     final Widget glyph;
     if (visual != null) {
-      bg = stored ?? visual.color;
-      glyph = Icon(visual.icon, size: size * 0.5, color: Colors.white);
+      final ink = stored ?? visual.color;
+      bg = CategoryPalette.paperOf(ink);
+      hairline = ink.withValues(alpha: 0.14);
+      glyph = Icon(visual.icon, size: size * 0.5, color: ink);
     } else if (isNone) {
       bg = Ex.surfaceHi;
+      hairline = Ex.border;
       glyph = Icon(Icons.question_mark_rounded, size: size * 0.45, color: Ex.textMuted);
     } else if (emojiText == null || emojiText.isEmpty) {
-      bg = stored ?? envelopeTint(tintSeed ?? letter!);
+      final ink = stored ?? envelopeTint(tintSeed ?? letter!);
+      bg = CategoryPalette.paperOf(ink);
+      hairline = ink.withValues(alpha: 0.14);
       glyph = Text(letter!,
           style: TextStyle(
-              fontSize: size * 0.44, fontWeight: FontWeight.w800, color: Colors.white, height: 1));
+              fontSize: size * 0.44, fontWeight: FontWeight.w800, color: ink, height: 1));
     } else {
-      bg = (stored ?? envelopeTint(tintSeed ?? emojiText)).withValues(alpha: 0.32);
+      // Emoji kendi renklerini taşır; zemin yine kâğıt pasteli (eskiden
+      // doygun tonun %32 alfası — krem üstünde kirli görünüyordu).
+      final ink = stored ?? envelopeTint(tintSeed ?? emojiText);
+      bg = CategoryPalette.paperOf(ink);
+      hairline = ink.withValues(alpha: 0.14);
       glyph = Text(emojiText, style: TextStyle(fontSize: size * 0.46, height: 1));
     }
 
@@ -89,7 +107,9 @@ class CategoryAvatar extends StatelessWidget {
         decoration: BoxDecoration(
           color: bg,
           shape: BoxShape.circle,
-          border: selected ? Border.all(color: Ex.brand, width: 2.5) : null,
+          border: selected
+              ? Border.all(color: Ex.brand, width: 2.5)
+              : Border.all(color: hairline, width: 1),
         ),
         child: glyph,
       ),

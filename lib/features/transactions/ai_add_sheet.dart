@@ -4,6 +4,7 @@ import 'package:speech_to_text/speech_to_text.dart';
 
 import '../../core/ai/expense_parser.dart';
 import '../../core/category_avatar.dart';
+import '../../core/ex_style.dart';
 import '../../core/feedback.dart';
 import '../../core/formatters.dart';
 import '../../core/l10n.dart';
@@ -252,7 +253,7 @@ class _AiAddSheetState extends ConsumerState<_AiAddSheet> {
                     height: 48,
                     child: Icon(
                       _listening ? Icons.stop_rounded : Icons.mic_rounded,
-                      color: _listening ? Colors.white : c.text,
+                      color: _listening ? Ex.onBrand : c.text,
                     ),
                   ),
                 ),

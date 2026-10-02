@@ -337,6 +337,10 @@ class RS {
     required this.saveMarkLabel,
     required this.saveErrDifferent,
     required this.saveErrOffline,
+    required this.heroGreetingTpl,
+    required this.heroGreetingPlain,
+    required this.heroSpentTpl,
+    required this.heroOpenJournal,
     required this.notifTitle,
     required this.notifBody,
     required this.notifAllow,
@@ -348,6 +352,53 @@ class RS {
     required this.firstDayConfirm,
     required this.firstDayDone,
     required this.firstDaySkip,
+    required this.accountsTitle,
+    required this.accountCountTpl,
+    required this.accountAdd,
+    required this.accountEmptyTitle,
+    required this.accountEmptyBody,
+    required this.accountReorderHint,
+    required this.accountBalance,
+    required this.accountRename,
+    required this.accountArchive,
+    required this.accountArchiveNote,
+    required this.accountArchivedTpl,
+    required this.accountNewTitle,
+    required this.accountEditTitle,
+    required this.accountCountry,
+    required this.accountCountryTR,
+    required this.accountCountryAZ,
+    required this.accountCountryKZ,
+    required this.accountCountryRU,
+    required this.accountBank,
+    required this.accountOtherBank,
+    required this.accountNameHint,
+    required this.accountStartingBalance,
+    required this.accountCurrencyLocked,
+    required this.accountCurrencyAuto,
+    required this.accountDelete,
+    required this.accountDeleteNote,
+    required this.accountDeleteConfirmTitle,
+    required this.accountDeleteConfirmBodyTpl,
+    required this.accountDeleteIrreversible,
+    required this.accountDeleteButton,
+    required this.accountDeleteCancel,
+    required this.accountHasTxTpl,
+    required this.accountDeletedTpl,
+    required this.hubMyAccount,
+    required this.hubNotifications,
+    required this.hubAppearance,
+    required this.hubHelp,
+    required this.hubAbout,
+    required this.hubAccountBody,
+    required this.hubAppearanceBody,
+    required this.hubAboutBody,
+    required this.hubProTitle,
+    required this.hubProBody,
+    required this.hubProCta,
+    required this.hubProRestoreTpl,
+    required this.hubProRestore,
+    required this.hubVersion,
   });
 
   final String onbTitle;
@@ -699,6 +750,15 @@ class RS {
 
   /// Ağ yok.
   final String saveErrOffline;
+
+  /// Ana ekrandaki siyah karşılama kartı. `{name}` kullanıcının adı;
+  /// adı bilmiyorsak [heroGreetingPlain] kullanılır. [heroSpentTpl] içinde
+  /// `{amount}` beyaz, gerisi soluk çizilir — tutar cümlenin içinde öne
+  /// çıksın diye.
+  final String heroGreetingTpl;
+  final String heroGreetingPlain;
+  final String heroSpentTpl;
+  final String heroOpenJournal;
   final String notifTitle;
   final String notifBody;
   final String notifAllow;
@@ -710,6 +770,65 @@ class RS {
   final String firstDayConfirm;
   final String firstDayDone;
   final String firstDaySkip;
+
+  // ── Hesaplar (kart yönetimi) ─────────────────────────────────────────
+  // `account*` öneki: hesap listesi ekranı + kart ekleme/düzenleme sayfası.
+  // [accountCountTpl] `{n}`, [accountArchivedTpl] `{name}` alır.
+  final String accountsTitle;
+  final String accountCountTpl;
+  final String accountAdd;
+  final String accountEmptyTitle;
+  final String accountEmptyBody;
+  final String accountReorderHint;
+  final String accountBalance;
+  final String accountRename;
+  final String accountArchive;
+  final String accountArchiveNote;
+  final String accountArchivedTpl;
+  final String accountNewTitle;
+  final String accountEditTitle;
+  final String accountCountry;
+  final String accountCountryTR;
+  final String accountCountryAZ;
+  final String accountCountryKZ;
+  final String accountCountryRU;
+  final String accountBank;
+  final String accountOtherBank;
+  final String accountNameHint;
+  final String accountStartingBalance;
+  final String accountCurrencyLocked;
+  final String accountCurrencyAuto;
+  // Tamamen silme (yalnız işlemi olmayan kart). [accountDeleteConfirmBodyTpl]
+  // ve [accountDeletedTpl] `{name}`, [accountHasTxTpl] `{n}` alır.
+  final String accountDelete;
+  final String accountDeleteNote;
+  final String accountDeleteConfirmTitle;
+  final String accountDeleteConfirmBodyTpl;
+  final String accountDeleteIrreversible;
+  final String accountDeleteButton;
+  final String accountDeleteCancel;
+  final String accountHasTxTpl;
+  final String accountDeletedTpl;
+
+  // ── Ayarlar merkezi (2026-10 yeniden yapı) ────────────────────────────
+  // `hub*` öneki: bölüm başlıksız kart düzeni, alt ekran açıklamaları ve
+  // Pro tanıtım kartı. [hubProRestoreTpl] `{restore}` alır — tıklanabilir
+  // parça [hubProRestore] ile doldurulur, böylece cümle dil kurallarına göre
+  // kurulabilir (TR'de bağlantı sonda, EN'de de sonda ama ayrı cümle).
+  final String hubMyAccount;
+  final String hubNotifications;
+  final String hubAppearance;
+  final String hubHelp;
+  final String hubAbout;
+  final String hubAccountBody;
+  final String hubAppearanceBody;
+  final String hubAboutBody;
+  final String hubProTitle;
+  final String hubProBody;
+  final String hubProCta;
+  final String hubProRestoreTpl;
+  final String hubProRestore;
+  final String hubVersion;
 
   static RS of(String code) => switch (code) {
     'tr' => tr,
@@ -1074,6 +1193,10 @@ class RS {
     saveMarkLabel: "Your book, safely stored",
     saveErrDifferent: "This email is already registered with another sign-in method. Use that one instead.",
     saveErrOffline: "No connection. Try again once you are back online.",
+    heroGreetingTpl: "Hey {name}!",
+    heroGreetingPlain: "Hey there!",
+    heroSpentTpl: "You spent {amount} this month",
+    heroOpenJournal: "Open all transactions",
     notifTitle: "Don't forget to mark the day",
     notifBody:
         'One tap in the evening: "What did you earn today?" Miss a day and the month won\'t add up — let us remind you.',
@@ -1087,6 +1210,55 @@ class RS {
     firstDayConfirm: 'Save',
     firstDayDone: 'First day is in the book. Keep going.',
     firstDaySkip: 'Skip for now',
+    accountsTitle: 'My accounts',
+    accountCountTpl: '{n} accounts',
+    accountAdd: '+ Add card',
+    accountEmptyTitle: 'Add your first card',
+    accountEmptyBody: 'The card your salary lands on, the card you spend with — each keeps its own currency.',
+    accountReorderHint: 'Hold a card to reorder',
+    accountBalance: 'Balance',
+    accountRename: 'Rename',
+    accountArchive: 'Archive',
+    accountArchiveNote: 'The card leaves the list; past transactions stay.',
+    accountArchivedTpl: '{name} archived',
+    accountNewTitle: 'Add card',
+    accountEditTitle: 'Edit card',
+    accountCountry: 'Country',
+    accountCountryTR: 'Türkiye',
+    accountCountryAZ: 'Azerbaijan',
+    accountCountryKZ: 'Kazakhstan',
+    accountCountryRU: 'Russia',
+    accountBank: 'Bank',
+    accountOtherBank: 'Other bank',
+    accountNameHint: 'e.g. Enpara salary',
+    accountStartingBalance: 'Starting balance (optional)',
+    accountCurrencyLocked: 'Currency can\'t be changed — transactions are recorded in it.',
+    accountCurrencyAuto: 'Set from the country — you can change it',
+    accountDelete: 'Delete permanently',
+    accountDeleteNote: 'Only for a card with no transactions.',
+    accountDeleteConfirmTitle: 'Delete this card?',
+    accountDeleteConfirmBodyTpl: '{name} will be removed for good.',
+    accountDeleteIrreversible: 'This cannot be undone.',
+    accountDeleteButton: 'Delete',
+    accountDeleteCancel: 'Cancel',
+    accountHasTxTpl: 'This card has {n} transactions — archive it instead.',
+    accountDeletedTpl: '{name} deleted',
+    hubMyAccount: 'My account',
+    hubNotifications: 'Notifications',
+    hubAppearance: 'Appearance',
+    hubHelp: 'Help',
+    hubAbout: 'About',
+    hubAccountBody:
+        'Your sign-in, personal details and security — and the way out, if you ever need it.',
+    hubAppearanceBody:
+        'How Budgy looks and talks to you: keypad, language, currency and voice input.',
+    hubAboutBody: 'The legal bits, your data and which version you\'re on.',
+    hubProTitle: 'Get more out of Budgy',
+    hubProBody: 'Analytics, automation and AI entry — all in one Pro.',
+    hubProCta: 'Go Pro',
+    hubProRestoreTpl: 'Already Pro? {restore}',
+    hubProRestore: 'Restore purchase',
+    hubVersion: 'Version',
   );
 
   static const tr = RS(
@@ -1442,6 +1614,10 @@ class RS {
     saveMarkLabel: "Defterin güvende saklanıyor",
     saveErrDifferent: "Bu e-posta başka bir giriş yöntemiyle kayıtlı. Onunla girmen gerekiyor.",
     saveErrOffline: "Bağlantı yok. İnternete bağlanınca tekrar dene.",
+    heroGreetingTpl: "Merhaba {name}!",
+    heroGreetingPlain: "Merhaba!",
+    heroSpentTpl: "Bu ay {amount} harcadın",
+    heroOpenJournal: "Tüm işlemleri aç",
     notifTitle: 'Günü işaretlemeyi unutma',
     notifBody:
         'Akşam tek bir dokunuş: "Bugün ne kazandın?" Bir kez unutursan ay sonu hesabı tutmaz — hatırlatalım.',
@@ -1455,6 +1631,55 @@ class RS {
     firstDayConfirm: 'Kaydet',
     firstDayDone: 'İlk günün defterde. Böyle devam.',
     firstDaySkip: 'Şimdilik atla',
+    accountsTitle: 'Hesaplarım',
+    accountCountTpl: '{n} hesap',
+    accountAdd: '+ Kart ekle',
+    accountEmptyTitle: 'İlk kartını ekle',
+    accountEmptyBody: 'Maaşının geldiği kart, harcadığın kart — her biri kendi para biriminde durur.',
+    accountReorderHint: 'Sıralamak için karta basılı tut',
+    accountBalance: 'Bakiye',
+    accountRename: 'Yeniden adlandır',
+    accountArchive: 'Arşivle',
+    accountArchiveNote: 'Kart listeden kalkar; geçmiş işlemler silinmez.',
+    accountArchivedTpl: '{name} arşivlendi',
+    accountNewTitle: 'Kart ekle',
+    accountEditTitle: 'Kartı düzenle',
+    accountCountry: 'Ülke',
+    accountCountryTR: 'Türkiye',
+    accountCountryAZ: 'Azerbaycan',
+    accountCountryKZ: 'Kazakistan',
+    accountCountryRU: 'Rusya',
+    accountBank: 'Banka',
+    accountOtherBank: 'Diğer banka',
+    accountNameHint: 'Örn. Enpara maaş',
+    accountStartingBalance: 'Başlangıç bakiyesi (isteğe bağlı)',
+    accountCurrencyLocked: 'Para birimi değiştirilemez — işlemler bu birimde kayıtlı.',
+    accountCurrencyAuto: 'Ülkeden geldi, değiştirebilirsin',
+    accountDelete: 'Tamamen sil',
+    accountDeleteNote: 'Yalnız hiç işlemi olmayan kart için.',
+    accountDeleteConfirmTitle: 'Kart tamamen silinsin mi?',
+    accountDeleteConfirmBodyTpl: '{name} kalıcı olarak kaldırılacak.',
+    accountDeleteIrreversible: 'Bu geri alınamaz.',
+    accountDeleteButton: 'Sil',
+    accountDeleteCancel: 'İptal',
+    accountHasTxTpl: 'Bu kartta {n} işlem var — silmek yerine kaldır.',
+    accountDeletedTpl: '{name} silindi',
+    hubMyAccount: 'Hesabım',
+    hubNotifications: 'Bildirimler',
+    hubAppearance: 'Görünüm',
+    hubHelp: 'Yardım',
+    hubAbout: 'Hakkında',
+    hubAccountBody:
+        'Giriş bilgilerin, kişisel verilerin ve güvenlik ayarların — gerekirse çıkış kapısı da burada.',
+    hubAppearanceBody:
+        'Budgy\'nin sana nasıl göründüğü ve seninle nasıl konuştuğu: tuş takımı, dil, para birimi, sesli giriş.',
+    hubAboutBody: 'Yasal metinler, verin ve hangi sürümde olduğun.',
+    hubProTitle: 'Budgy\'den daha fazlasını al',
+    hubProBody: 'Analiz, otomasyon ve AI ile giriş — hepsi tek Pro\'da.',
+    hubProCta: 'Pro\'ya geç',
+    hubProRestoreTpl: 'Zaten Pro üyesi misin? {restore}',
+    hubProRestore: 'Satın alımı geri yükle',
+    hubVersion: 'Sürüm',
   );
 
   static const ru = RS(
@@ -1811,6 +2036,10 @@ class RS {
     saveMarkLabel: "Твой блокнот надёжно сохранён",
     saveErrDifferent: "Эта почта уже зарегистрирована другим способом входа. Войди через него.",
     saveErrOffline: "Нет соединения. Попробуй ещё раз, когда появится интернет.",
+    heroGreetingTpl: "Привет, {name}!",
+    heroGreetingPlain: "Привет!",
+    heroSpentTpl: "В этом месяце ты потратил {amount}",
+    heroOpenJournal: "Открыть все операции",
     notifTitle: 'Не забывай отмечать день',
     notifBody:
         'Одно касание вечером: «Сколько заработал сегодня?» Пропустишь день — месяц не сойдётся. Мы напомним.',
@@ -1824,5 +2053,54 @@ class RS {
     firstDayConfirm: 'Сохранить',
     firstDayDone: 'Первый день в блокноте. Так держать.',
     firstDaySkip: 'Пока пропустить',
+    accountsTitle: 'Мои счета',
+    accountCountTpl: 'Счетов: {n}',
+    accountAdd: '+ Добавить карту',
+    accountEmptyTitle: 'Добавь первую карту',
+    accountEmptyBody: 'Карта, куда приходит зарплата, карта, с которой тратишь — каждая в своей валюте.',
+    accountReorderHint: 'Удерживай карту, чтобы изменить порядок',
+    accountBalance: 'Баланс',
+    accountRename: 'Переименовать',
+    accountArchive: 'В архив',
+    accountArchiveNote: 'Карта исчезнет из списка; прошлые операции останутся.',
+    accountArchivedTpl: '{name} — в архиве',
+    accountNewTitle: 'Новая карта',
+    accountEditTitle: 'Изменить карту',
+    accountCountry: 'Страна',
+    accountCountryTR: 'Турция',
+    accountCountryAZ: 'Азербайджан',
+    accountCountryKZ: 'Казахстан',
+    accountCountryRU: 'Россия',
+    accountBank: 'Банк',
+    accountOtherBank: 'Другой банк',
+    accountNameHint: 'Напр. Enpara зарплата',
+    accountStartingBalance: 'Начальный баланс (необязательно)',
+    accountCurrencyLocked: 'Валюту нельзя изменить — операции записаны в ней.',
+    accountCurrencyAuto: 'Подставлена по стране — можно изменить',
+    accountDelete: 'Удалить навсегда',
+    accountDeleteNote: 'Только для карты без операций.',
+    accountDeleteConfirmTitle: 'Удалить карту навсегда?',
+    accountDeleteConfirmBodyTpl: '{name} будет удалена без возможности восстановления.',
+    accountDeleteIrreversible: 'Это нельзя отменить.',
+    accountDeleteButton: 'Удалить',
+    accountDeleteCancel: 'Отмена',
+    accountHasTxTpl: 'На этой карте {n} операций — лучше убрать её в архив.',
+    accountDeletedTpl: '{name} удалена',
+    hubMyAccount: 'Мой аккаунт',
+    hubNotifications: 'Уведомления',
+    hubAppearance: 'Внешний вид',
+    hubHelp: 'Помощь',
+    hubAbout: 'О приложении',
+    hubAccountBody:
+        'Вход, личные данные и безопасность — а если понадобится, и выход.',
+    hubAppearanceBody:
+        'Как Budgy выглядит и говорит с тобой: клавиатура, язык, валюта и голосовой ввод.',
+    hubAboutBody: 'Юридические документы, твои данные и версия приложения.',
+    hubProTitle: 'Возьми от Budgy больше',
+    hubProBody: 'Аналитика, автоматизация и ввод с AI — всё в одном Pro.',
+    hubProCta: 'Перейти на Pro',
+    hubProRestoreTpl: 'Уже Pro? {restore}',
+    hubProRestore: 'Восстановить покупку',
+    hubVersion: 'Версия',
   );
 }

@@ -76,11 +76,15 @@ class DonutChart extends StatelessWidget {
           Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Ortadaki toplam halkanın kahramanı: afiş tipografisi
+              // (InterDisplay Black, sıkı aralık); alt başlık Inter kalır.
               Text(
                 centerTitle,
                 style: TextStyle(
+                    fontFamily: 'InterDisplay',
                     fontSize: 22,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.9,
                     color: c.text),
               ),
               Text(

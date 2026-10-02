@@ -237,7 +237,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                       Navigator.of(context).pop(_DayAction.remove),
                   child: Text(str.removeWord,
                       style: const TextStyle(
-                          fontWeight: FontWeight.w700, color: Colors.red)),
+                          fontWeight: FontWeight.w700, color: Ex.red)),
                 ),
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
@@ -322,10 +322,13 @@ class _SummaryCard extends StatelessWidget {
                   value,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
+                  // Kahraman sayı: afiş tipografisi (InterDisplay, kalın,
+                  // sıkı aralık) — küçük metinler Inter'de kalır.
                   style: TextStyle(
+                    fontFamily: 'InterDisplay',
                     fontSize: 24,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.02 * 24,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.04 * 24,
                     fontFeatures: const [FontFeature.tabularFigures()],
                     color: valueColor,
                   ),
@@ -444,9 +447,11 @@ class _MonthGrid extends StatelessWidget {
               amountColor = c.amber;
             } else if (isWorked) {
               fill = heats[level];
-              numColor = level >= 3 ? Colors.white : c.accentInk;
+              // Koyu dolgulu (level ≥ 3, markaya yakın) hücrede marka
+              // üstü beyaz; açık ısılarda mürekkep yeşili.
+              numColor = level >= 3 ? Ex.onBrand : c.accentInk;
               amountColor = level >= 3
-                  ? Colors.white.withValues(alpha: 0.85)
+                  ? Ex.onBrand.withValues(alpha: 0.85)
                   : (level >= 2 ? c.accentInk : c.textMuted);
             } else {
               fill = c.heat0;
@@ -454,11 +459,15 @@ class _MonthGrid extends StatelessWidget {
               amountColor = c.textFaint;
             }
 
-            // Bugün: accent halka (export: 0 0 0 2px bg, 0 0 0 3.5px accent).
+            // Bugün: ince marka halkası (2px kâğıt boşluğu + 1.5px çizgi).
+            // Dışa taşan halka, hücre içinde yer kaplayan Border'a tercih
+            // edildi: 320dp'de hücre zaten dar, üstelik marka dolgulu
+            // (level 4) hücrede iç yeşil çizgi kaybolur — kâğıt boşluğu
+            // sayesinde halka her dolguda okunur.
             final ring = isToday
                 ? [
                     BoxShadow(color: c.bg, spreadRadius: 2),
-                    BoxShadow(color: c.accent, spreadRadius: 3.5),
+                    const BoxShadow(color: Ex.brand, spreadRadius: 3.5),
                   ]
                 : null;
 
@@ -498,6 +507,19 @@ class _MonthGrid extends StatelessWidget {
                           fontWeight: FontWeight.w600,
                           fontFeatures: const [FontFeature.tabularFigures()],
                           color: amountColor,
+                        ),
+                      ),
+                      // Kazanç noktası: en açık ısı (heat1) krem kâğıttan
+                      // zor ayrılıyor; nokta "bu gün dolu" demenin renkten
+                      // bağımsız yolu. Marka dolguda beyaz, diğerlerinde
+                      // gelir yeşili.
+                      const SizedBox(height: 2),
+                      Container(
+                        width: 4,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: level >= 3 ? Ex.onBrand : Ex.income,
+                          shape: BoxShape.circle,
                         ),
                       ),
                     ],
@@ -549,9 +571,11 @@ class _TodayBar extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(18),
+              // Yeşil ışıma yerine mürekkep gölgesi — kâğıt üstünde
+              // renkli glow dijital duruyordu.
               boxShadow: [
                 BoxShadow(
-                  color: c.accent.withValues(alpha: 0.32),
+                  color: c.shadowColor,
                   blurRadius: 18,
                   offset: const Offset(0, 8),
                 ),
@@ -570,7 +594,7 @@ class _TodayBar extends ConsumerWidget {
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 0.02 * 12,
-                          color: Colors.white.withValues(alpha: 0.8),
+                          color: Ex.onBrand.withValues(alpha: 0.8),
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -580,11 +604,16 @@ class _TodayBar extends ConsumerWidget {
                             : curText(str.dayEarningsHint),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
+                        // Tutar varsa kahraman gösterim: afiş tipografisi.
+                        // İpucu metni ise sakin kalsın (w900 bağırıyor).
+                        style: TextStyle(
+                          fontFamily: hasAmount ? 'InterDisplay' : null,
                           fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.01 * 16,
-                          color: Colors.white,
+                          fontWeight:
+                              hasAmount ? FontWeight.w900 : FontWeight.w800,
+                          letterSpacing:
+                              hasAmount ? -0.03 * 16 : -0.01 * 16,
+                          color: Ex.onBrand,
                         ),
                       ),
                     ],
@@ -595,13 +624,13 @@ class _TodayBar extends ConsumerWidget {
                   padding: const EdgeInsets.symmetric(
                       horizontal: 14, vertical: 9),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
+                    color: Ex.onBrand.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
                     isMarked ? Icons.edit_rounded : Icons.add_rounded,
                     size: 18,
-                    color: Colors.white,
+                    color: Ex.onBrand,
                   ),
                 ),
               ],

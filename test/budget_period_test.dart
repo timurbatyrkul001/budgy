@@ -1,6 +1,8 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kopilka_app/features/budget/auto_split.dart';
 import 'package:kopilka_app/features/budget/budget_period.dart';
+import 'package:kopilka_app/features/envelopes/budget_repository.dart';
 import 'package:kopilka_app/features/transactions/tx.dart';
 
 /// Bütçe dönemi penceresi, eski ayarın taşınması, öneri dağılımı.
@@ -122,12 +124,24 @@ void main() {
   });
 
   group('son N gün toplamları', () {
-    Tx tx(int daysAgo, double amount, {String? env}) => Tx(
-          id: '$daysAgo-$amount',
+    Tx tx(int daysAgo, double amount,
+            {String? env,
+            String currency = 'TRY',
+            double? baseAmount,
+            String? accountId,
+            bool convert = false,
+            bool goalFund = false}) =>
+        Tx(
+          id: '$daysAgo-$amount-$currency-${accountId ?? ''}',
           type: TxType.expense,
           amount: amount,
           date: DateTime(2026, 9, 17).subtract(Duration(days: daysAgo)),
           envelopeId: env,
+          currency: currency,
+          baseAmount: baseAmount,
+          accountId: accountId,
+          isConvert: convert,
+          isGoalFund: goalFund,
         );
     final now = DateTime(2026, 9, 17, 10);
 
@@ -140,6 +154,80 @@ void main() {
     test('spentInLastDays zarf bazında, kategorisiz hariç', () {
       final txs = [tx(1, 10, env: 'a'), tx(2, 5, env: 'a'), tx(3, 7), tx(70, 9, env: 'b')];
       expect(spentInLastDays(txs, 60, now: now), {'a': 15});
+    });
+
+    test('döviz çevirme ve hedef fonu harcama sayılmaz', () {
+      final txs = [tx(0, 10), tx(1, 999, convert: true), tx(2, 999, goalFund: true)];
+      expect(totalInLastDays(txs, 7, now: now), 10);
+    });
+
+    test('iki para birimi: ₺ + dondurulmuş ₼ tek rakamda, kursuz ₼ sayılmaz',
+        () {
+      final txs = [
+        tx(0, 100, env: 'a'), // ₺, eski kayıt (baseAmount yok) → amount
+        tx(1, 50, env: 'a', currency: 'AZN', baseAmount: 98.5), // → 98,5 ₺
+        tx(2, 999, env: 'a', currency: 'AZN'), // çevrilmemiş eski kayıt → 0
+      ];
+      // Varsayılan ana birim 'TRY' (ana cüzdanın iç kodu).
+      expect(totalInLastDays(txs, 7, now: now), 198.5);
+      expect(spentInLastDays(txs, 7, now: now), {'a': 198.5});
+      // Ana birim açıkça verilince de aynı: baseAmount zaten o birimde.
+      expect(totalInLastDays(txs, 7, now: now, mainCurrency: 'TRY'), 198.5);
+    });
+
+    test('ana birimi ₼ olan kullanıcıda eski kayıtlar yine de sayılır', () {
+      // Hesaplar gelmeden önce yazılan kayıtlarda `currency` alanı, kullanıcı
+      // hangi birimi seçmiş olursa olsun sabit 'TRY' idi — "ana birim"
+      // anlamında bir iç kod. `accountId` yokluğu bu kayıtların işareti.
+      // Bunları yabancı para sanıp sıfırlasaydık, ana birimini ₼ yapmış bir
+      // kullanıcının BÜTÜN geçmişi silinmiş görünürdü.
+      final legacy = tx(0, 100, env: 'a');
+      // Gerçekten yabancı: hesabı var, birimi ana birimden farklı, kuru yok.
+      final foreign = tx(1, 50, env: 'a', accountId: 'tr-card');
+      expect(
+        totalInLastDays([legacy, foreign], 7, now: now, mainCurrency: 'AZN'),
+        100,
+      );
+      // Ana birim 'TRY' olduğunda ikisi de sayılır.
+      expect(
+        totalInLastDays([legacy, foreign], 7, now: now, mainCurrency: 'TRY'),
+        150,
+      );
+    });
+  });
+
+  group('periodSpentProvider', () {
+    /// Ayar yok → takvim ayı; ana birim ayarlardan (`currencyProvider`).
+    Future<ProviderContainer> container(List<Tx> txs) async {
+      final c = ProviderContainer(overrides: [
+        profileProvider.overrideWith((ref) => Stream.value(const {})),
+        recentTxsProvider.overrideWith((ref) => Stream.value(txs)),
+        currencyProvider.overrideWith((ref) => Stream.value('TRY')),
+      ]);
+      addTearDown(c.dispose);
+      c.listen(recentTxsProvider, (_, _) {}, fireImmediately: true);
+      c.listen(currencyProvider, (_, _) {}, fireImmediately: true);
+      await c.read(recentTxsProvider.future);
+      await c.read(currencyProvider.future);
+      return c;
+    }
+
+    Tx tx(double amount, {String currency = 'TRY', double? baseAmount}) => Tx(
+          id: '$amount-$currency',
+          type: TxType.expense,
+          amount: amount,
+          date: DateTime.now(),
+          currency: currency,
+          baseAmount: baseAmount,
+        );
+
+    test('dönem toplamı iki para birimini ana birimde birleştirir', () async {
+      final c = await container([
+        tx(1000), // ₺
+        tx(40, currency: 'AZN', baseAmount: 78.8), // dondurulmuş
+        tx(5, currency: 'AZN'), // kursuz eski kayıt → 0
+      ]);
+      expect(c.read(periodSpentProvider), 1078.8);
     });
   });
 }

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -39,6 +40,25 @@ import 'envelope_l10n.dart';
 /// Bu ay cüzdandan çıkan gerçek ₺ harcama: döviz çevirme, hedefe para
 /// ayırma ve döviz işlemleri hariç (ana para birimi içeride 'TRY' kodudur,
 /// simge ayarlardan gelir).
+/// Karşılamada kullanılacak ilk ad; yoksa null (adsız selam).
+///
+/// Giriş yapılmış hesabın görünen adından gelir. Cüzdan adını ("Cüzdanım")
+/// kullanmıyoruz — o bir mekân adı, kişi adı değil.
+///
+/// Sağlayıcıya alınmasının sebebi: `FirebaseAuth.instance`'ı doğrudan
+/// widget içinde çağırmak, Firebase başlatılmayan widget testlerinde
+/// "[core/no-app]" fırlatıyordu. Burada hem override edilebiliyor hem de
+/// yakalanıyor — karşılama kartı bir selam yüzünden çökmemeli.
+final greetingNameProvider = Provider<String?>((ref) {
+  try {
+    final name = FirebaseAuth.instance.currentUser?.displayName?.trim();
+    if (name == null || name.isEmpty) return null;
+    return name.split(RegExp(r'\s+')).first;
+  } catch (_) {
+    return null;
+  }
+});
+
 final monthSpentProvider = Provider<double>((ref) {
   return ref.watch(currentMonthTxsProvider).fold<double>(0, (sum, t) {
     if (t.type != TxType.expense || t.isConvert || t.isGoalFund) return sum;
@@ -62,7 +82,7 @@ final uncategorizedTxsProvider = Provider<List<Tx>>((ref) {
       .toList();
 });
 
-/// Ana ekran ("dark emerald"): üstte cüzdan çipi + kur + ikon butonlar,
+/// Ana ekran (kâğıt zemin): üstte cüzdan çipi + kur + ikon butonlar,
 /// sola yaslı "bu ay harcanan", bütçe kartı, yatay hesap kartları, son
 /// hareketler, hatırlatma kartı; altta yüzen tara / + / mikrofon kapsülü.
 class HomeScreen extends ConsumerStatefulWidget {
@@ -200,7 +220,9 @@ class _UndoChip extends StatelessWidget {
       color: Ex.surface,
       borderRadius: BorderRadius.circular(14),
       elevation: 12,
-      shadowColor: Colors.black,
+      // Tam siyah gölge açık zeminde çipi ağırlaştırıyor; mürekkebin düşük
+      // alfalı hâli kâğıttan yumuşakça kaldırır.
+      shadowColor: Ex.text.withValues(alpha: 0.35),
       child: Container(
         padding: const EdgeInsets.fromLTRB(12, 8, 6, 8),
         decoration: BoxDecoration(
@@ -308,8 +330,10 @@ class _SparkPainter extends CustomPainter {
         ..shader = LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
+          // Vurgu yeşili koyulaşınca eski %28 dolgu beyaz kartta boyalı
+          // bir blok gibi duruyordu; çizginin altında hafif bir soluk kalsın.
           colors: [
-            Ex.mint.withValues(alpha: 0.28),
+            Ex.mint.withValues(alpha: 0.14),
             Ex.mint.withValues(alpha: 0),
           ],
         ).createShader(Offset.zero & size),
@@ -614,42 +638,110 @@ class _Hero extends ConsumerWidget {
       'month': code == 'ru' ? month.toLowerCase() : _cap(month),
     });
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: Ex.onGlowMuted,
-          ),
-        ),
-        const SizedBox(height: 6),
-        TweenAnimationBuilder<double>(
-          tween: Tween(begin: 0, end: spent),
-          duration: const Duration(milliseconds: 650),
-          curve: Curves.easeOutCubic,
-          builder: (_, v, _) => Align(
-            alignment: Alignment.centerLeft,
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                formatMoney(v),
-                style: const TextStyle(
-                  fontSize: 46,
-                  height: 1.05,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -1.6,
-                  color: Ex.text,
+    final first = ref.watch(greetingNameProvider);
+    final greeting = first == null
+        ? rs.heroGreetingPlain
+        : tpl(rs.heroGreetingTpl, {'name': first});
+
+    return Semantics(
+      container: true,
+      button: true,
+      label: '$greeting $label ${formatMoney(spent)}',
+      child: Material(
+        // Afişin mürekkebi: kâğıt zeminde en güçlü kontrast ve ekranın
+        // sahibi olan tek blok. Referanstaki siyah karşılama kartının işi.
+        color: Ex.text,
+        borderRadius: BorderRadius.circular(Ex.cardRadius + 6),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => _push(context, const JournalScreen()),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(22, 20, 18, 20),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: ExcludeSemantics(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          greeting,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontFamily: 'InterDisplay',
+                            fontSize: 24,
+                            height: 1.0,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -1.1,
+                            color: Ex.bg,
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Text(
+                          label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            // Kâğıt rengi, kısılmış: başlıkla yarışmasın.
+                            color: Ex.bg.withValues(alpha: 0.62),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        TweenAnimationBuilder<double>(
+                          tween: Tween(begin: 0, end: spent),
+                          duration: const Duration(milliseconds: 650),
+                          curve: Curves.easeOutCubic,
+                          builder: (_, v, _) => Align(
+                            alignment: Alignment.centerLeft,
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: Text(
+                                formatMoney(v),
+                                // Afişteki başlıklarla aynı ses: Display
+                                // kesimi, en kalın ağırlık, sıkı aralık.
+                                style: const TextStyle(
+                                  fontFamily: 'InterDisplay',
+                                  fontSize: 44,
+                                  height: 0.96,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: -2.1,
+                                  color: Ex.bg,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
+                const SizedBox(width: 12),
+                // Yuvarlak ok: kartın tamamı tıklanabilir ama dokunulabilir
+                // bir şey olduğunu görsel olarak da söylüyor.
+                ExcludeSemantics(
+                  child: Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Ex.bg.withValues(alpha: 0.3)),
+                    ),
+                    child: const Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 19,
+                      color: Ex.bg,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
-      ],
+      ),
     );
   }
 
@@ -1151,12 +1243,13 @@ class _Dock extends ConsumerWidget {
     final bottom = MediaQuery.paddingOf(context).bottom;
     return Container(
       padding: EdgeInsets.fromLTRB(0, 34, 0, bottom + 12),
-      // Altta kayan içeriği kapsülün arkasında karart.
-      decoration: const BoxDecoration(
+      // Altta kayan içerik kapsülün arkasında kâğıda karışarak silinsin;
+      // karartma koyu zeminin kalıntısıydı, krem kâğıtta leke gibi duruyordu.
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Color(0x00070A09), Color(0xF2070A09)],
+          colors: [Ex.bg.withValues(alpha: 0), Ex.bg.withValues(alpha: 0.95)],
         ),
       ),
       child: Center(
@@ -1166,11 +1259,13 @@ class _Dock extends ConsumerWidget {
             color: Ex.surface,
             borderRadius: BorderRadius.circular(36),
             border: Border.all(color: Ex.borderHi),
-            boxShadow: const [
+            // Kâğıt üstünde gölge mürekkebin soluk hâli olmalı; koyu
+            // zemindeki ağır siyah burada kapsülü "yüzdürmek" yerine eziyordu.
+            boxShadow: [
               BoxShadow(
-                color: Color(0x99000000),
-                blurRadius: 24,
-                offset: Offset(0, 10),
+                color: Ex.text.withValues(alpha: 0.08),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
               ),
             ],
           ),

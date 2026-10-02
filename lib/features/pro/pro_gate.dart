@@ -37,7 +37,12 @@ class ProGate extends ConsumerWidget {
             ),
           ),
         ),
-        // Bulanık içeriğin üstünde okunabilirlik için hafif karartma.
+        // Bulanık içeriğin üstünde kâğıt renginde bir perde ([Ex.bg]).
+        // Koyu zeminde bu katman "karartma"ydı; krem zeminde tersine, içeriği
+        // kâğıda gömer: üstte hafif ki başlık/grafik soluk soluk seçilsin,
+        // altta neredeyse opak ki kilit kartı temiz bir zemine otursun.
+        // Açık renkli bulanık içerik koyu olana göre daha çok sızdığı için
+        // alfalar eski 0.25/0.82'den yukarı çekildi.
         Positioned.fill(
           child: IgnorePointer(
             child: DecoratedBox(
@@ -46,8 +51,8 @@ class ProGate extends ConsumerWidget {
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Ex.bg.withValues(alpha: 0.25),
-                    Ex.bg.withValues(alpha: 0.82),
+                    Ex.bg.withValues(alpha: 0.55),
+                    Ex.bg.withValues(alpha: 0.92),
                   ],
                 ),
               ),
@@ -89,9 +94,12 @@ class _UnlockCard extends StatelessWidget {
         color: Ex.surface,
         borderRadius: BorderRadius.circular(Ex.cardRadius),
         border: Border.all(color: Ex.borderHi),
+        // Kart kâğıt perdenin üstünde yüzer: koyu zemindeki ağır siyah gölge
+        // (%50) krem üstünde çamur gibi dururdu. Mürekkebin düşük alfalı hâli
+        // kartı zeminden ayırmaya yeter.
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.5),
+            color: Ex.text.withValues(alpha: 0.10),
             blurRadius: 30,
             offset: const Offset(0, 12),
           ),
@@ -202,7 +210,8 @@ class ProBadge extends ConsumerWidget {
       decoration: BoxDecoration(
         color: Ex.brand,
         borderRadius: BorderRadius.circular(999),
-        // Koyu düğmenin üstünde rozet kenarı zemine karışmasın.
+        // Kâğıt renginde ince kenar: rozet hangi düğmenin köşesine otursa
+        // (beyaz kart, yeşil buton) zeminden kesilerek ayrılsın.
         border: Border.all(color: Ex.bg, width: 1.5),
       ),
       child: Text(

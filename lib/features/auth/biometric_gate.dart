@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:local_auth/local_auth.dart';
 
+import '../../core/ex_style.dart';
 import '../../core/l10n.dart';
 import '../../core/tokens.dart';
 import '../envelopes/budget_repository.dart';
@@ -93,16 +94,19 @@ class _BiometricGateState extends ConsumerState<BiometricGate>
                         decoration: BoxDecoration(
                           color: c.accent,
                           borderRadius: BorderRadius.circular(40),
+                          // Koyu zeminde yeşil ışıma plakayı "yüzdürüyordu";
+                          // krem kâğıtta aynı glow boyalı görünüyor. Afiş
+                          // dilinde gölge mürekkebin düşük alfalı hâli.
                           boxShadow: [
                             BoxShadow(
-                              color: c.accent.withValues(alpha: 0.4),
+                              color: c.shadowColor,
                               blurRadius: 44,
                               offset: const Offset(0, 20),
                             ),
                           ],
                         ),
                         child: const Icon(Icons.face_rounded,
-                            size: 70, color: Colors.white),
+                            size: 70, color: Ex.onBrand),
                       ),
                       const SizedBox(height: 26),
                       Text(
@@ -126,7 +130,7 @@ class _BiometricGateState extends ConsumerState<BiometricGate>
                   borderRadius: BorderRadius.circular(15),
                   boxShadow: [
                     BoxShadow(
-                      color: c.accent.withValues(alpha: 0.32),
+                      color: c.shadowColor,
                       blurRadius: 18,
                       offset: const Offset(0, 8),
                     ),
@@ -135,7 +139,7 @@ class _BiometricGateState extends ConsumerState<BiometricGate>
                 child: FilledButton.icon(
                   style: FilledButton.styleFrom(
                     backgroundColor: c.accent,
-                    foregroundColor: Colors.white,
+                    foregroundColor: Ex.onBrand,
                     minimumSize: const Size.fromHeight(54),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(15)),

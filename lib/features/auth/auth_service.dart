@@ -61,18 +61,42 @@ class AuthService {
   static Future<UserCredential> _runCredential(AuthCredential cred) async {
     final auth = FirebaseAuth.instance;
     final user = auth.currentUser;
+    UserCredential result;
     if (user != null && user.isAnonymous) {
       try {
-        return await user.linkWithCredential(cred);
+        result = await user.linkWithCredential(cred);
       } on FirebaseAuthException catch (e) {
         if (e.code == 'credential-already-in-use' ||
             e.code == 'email-already-in-use') {
-          return auth.signInWithCredential(cred);
+          result = await auth.signInWithCredential(cred);
+        } else {
+          rethrow;
         }
-        rethrow;
       }
+    } else {
+      result = await auth.signInWithCredential(cred);
     }
-    return auth.signInWithCredential(cred);
+    await _adoptProviderName(result.user);
+    return result;
+  }
+
+  /// Anonim hesaba kimlik BAĞLANDIĞINDA Firebase kullanıcının `displayName`
+  /// alanını doldurmuyor — anonim profilin boş adı olduğu gibi kalıyor.
+  /// Sağlayıcıdan gelen adı bir kez kopyalıyoruz; ana ekrandaki "Merhaba
+  /// {ad}!" karşılaması buna bakıyor ve aksi hâlde hep adsız selam veriyor.
+  static Future<void> _adoptProviderName(User? user) async {
+    if (user == null) return;
+    if ((user.displayName ?? '').trim().isNotEmpty) return;
+    final fromProvider = user.providerData
+        .map((p) => p.displayName?.trim())
+        .firstWhere((n) => n != null && n.isNotEmpty, orElse: () => null);
+    if (fromProvider == null) return;
+    try {
+      await user.updateDisplayName(fromProvider);
+      await user.reload();
+    } catch (_) {
+      // Ad kozmetik: yazılamazsa giriş yine başarılı sayılır.
+    }
   }
 }
 

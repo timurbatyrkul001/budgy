@@ -342,13 +342,17 @@ class _ConverterRow extends StatelessWidget {
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerRight,
+                  // Satırdaki tutar çeviricinin kahramanı: afiş tipografisi
+                  // (InterDisplay Black, sıkı aralık). Kur yokken soluk
+                  // mürekkep, giriş satırında koyu yeşil.
                   child: Text(
                     text,
                     maxLines: 1,
                     style: TextStyle(
+                      fontFamily: 'InterDisplay',
                       fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.4,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.9,
                       color: input ? Ex.mint : (noRates ? Ex.textFaint : Ex.text),
                     ),
                   ),

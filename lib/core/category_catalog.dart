@@ -118,6 +118,11 @@ const kCategoryCatalog = <CatalogSection>[
         'Доход от аренды'),
     CatalogItem('pension', '🧓', 'Pension', 'Emekli maaşı', 'Пенсия'),
     CatalogItem('scholarship', '🎓', 'Scholarship', 'Burs', 'Стипендия'),
+    // Öğrencilerin en yaygın gelir kaynağı burs değil, aile desteği.
+    // Bursun yanında ayrı durması lazım: biri kuruma, diğeri aileye
+    // bağlı ve kullanıcı ikisini ayrı takip ediyor.
+    CatalogItem('familySupport', '👨‍👩‍👦', 'From family', 'Aileden',
+        'От родителей'),
     CatalogItem('sideJob', '🛠️', 'Side job', 'Ek iş', 'Подработка'),
     CatalogItem('cashback', '💳', 'Cashback', 'Cashback', 'Кэшбэк'),
     CatalogItem('otherIncome', '💰', 'Other income', 'Diğer gelir',

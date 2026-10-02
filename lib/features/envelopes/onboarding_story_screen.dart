@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/brand.dart';
+import '../../core/ex_style.dart';
 import '../../core/feedback.dart';
 import '../../core/formatters.dart';
 import '../../core/l10n.dart';
@@ -226,7 +227,7 @@ class _PrimaryButton extends StatelessWidget {
       child: FilledButton(
         style: FilledButton.styleFrom(
           backgroundColor: c.accent,
-          foregroundColor: Colors.white,
+          foregroundColor: Ex.onBrand,
           minimumSize: const Size.fromHeight(54),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(15),

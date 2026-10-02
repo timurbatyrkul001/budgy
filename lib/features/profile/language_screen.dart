@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/ex_style.dart';
 import '../../core/l10n.dart';
 import '../../core/tokens.dart';
 import '../envelopes/budget_repository.dart';
@@ -157,7 +158,7 @@ class _SelectionMark extends StatelessWidget {
         border: selected ? null : Border.all(color: c.borderStrong, width: 2),
       ),
       child: selected
-          ? const Icon(Icons.check_rounded, size: 17, color: Colors.white)
+          ? const Icon(Icons.check_rounded, size: 17, color: Ex.onBrand)
           : null,
     );
   }

@@ -25,8 +25,8 @@ class KopilkaApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: buildTheme(),
       darkTheme: buildDarkTheme(),
-      // Yeni tasarım yalnız koyu — sistem ayarı ne olursa olsun.
-      themeMode: ThemeMode.dark,
+      // Tek tema: afişin kâğıdı. Sistem ayarı ne olursa olsun aynı.
+      themeMode: ThemeMode.light,
       // Material'in kendi metinleri (takvim, metin seçme menüsü, "Tamam"...)
       // uygulamanın diliyle aynı olsun.
       locale: Locale(lang.code),

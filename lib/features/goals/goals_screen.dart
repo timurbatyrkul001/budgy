@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/animated_bar.dart';
 import '../../core/formatters.dart';
 import '../../core/l10n.dart';
-import '../../core/palette.dart';
+import '../../core/ex_style.dart';
 import '../../core/tokens.dart';
 import '../envelopes/budget_repository.dart';
 import '../envelopes/envelope.dart';
@@ -67,7 +67,7 @@ class GoalsScreen extends ConsumerWidget {
         child: FilledButton.icon(
           style: FilledButton.styleFrom(
             backgroundColor: c.accent,
-            foregroundColor: Colors.white,
+            foregroundColor: Ex.onBrand,
             minimumSize: const Size.fromHeight(54),
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(28)),
@@ -152,18 +152,24 @@ class _GoalCard extends ConsumerWidget {
                     ],
                   ),
                 ),
+                // Yüzde: pastel kart üstünde mürekkep, afiş tipografisi.
                 Text('$percent%',
                     style: TextStyle(
+                        fontFamily: 'InterDisplay',
                         fontSize: 20,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.04 * 20,
                         color: c.text)),
               ],
             ),
             const SizedBox(height: 14),
+            // Çubuk: eski canlı palet (vivids) pastel kâğıtta cırtlak
+            // duruyordu; dolu = marka yeşili, boş = beyaz (kart zaten
+            // pastel olduğu için surfaceHi kaybolurdu).
             AnimatedBar(
               value: goal.progress,
-              color: vividAt(colorIndex),
-              background: c.track,
+              color: Ex.brand,
+              background: Ex.surface,
             ),
             const SizedBox(height: 8),
             Text(
@@ -198,7 +204,7 @@ class _GoalCard extends ConsumerWidget {
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
             child: Text(str.removeWord,
-                style: const TextStyle(color: Colors.red)),
+                style: const TextStyle(color: Ex.red)),
           ),
         ],
       ),
@@ -290,8 +296,13 @@ class _AddMoneySheetState extends ConsumerState<_AddMoneySheet> {
             autofocus: true,
             keyboardType:
                 const TextInputType.numberWithOptions(decimal: true),
+            // Tutar girişi: afiş tipografisi (Inter Display Black).
             style: TextStyle(
-                fontSize: 26, fontWeight: FontWeight.w800, color: c.text),
+                fontFamily: 'InterDisplay',
+                fontSize: 26,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.04 * 26,
+                color: c.text),
             decoration: InputDecoration(
               prefixText: '₺  ',
               prefixStyle: TextStyle(
@@ -313,7 +324,7 @@ class _AddMoneySheetState extends ConsumerState<_AddMoneySheet> {
             child: FilledButton(
               style: FilledButton.styleFrom(
                 backgroundColor: c.accent,
-                foregroundColor: Colors.white,
+                foregroundColor: Ex.onBrand,
                 disabledBackgroundColor: c.accent.withValues(alpha: 0.4),
                 minimumSize: const Size.fromHeight(56),
                 shape: RoundedRectangleBorder(
@@ -456,7 +467,7 @@ class _NewGoalSheetState extends ConsumerState<_NewGoalSheet> {
             child: FilledButton(
               style: FilledButton.styleFrom(
                 backgroundColor: c.accent,
-                foregroundColor: Colors.white,
+                foregroundColor: Ex.onBrand,
                 disabledBackgroundColor: c.accent.withValues(alpha: 0.4),
                 minimumSize: const Size.fromHeight(56),
                 shape: RoundedRectangleBorder(

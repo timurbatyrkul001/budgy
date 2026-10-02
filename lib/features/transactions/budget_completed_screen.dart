@@ -3,8 +3,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/ex_style.dart';
 import '../../core/l10n.dart';
-import '../../core/palette.dart';
 
 /// «Budget Completed» — kutlama ekranı: konfeti + 👍👍 + Continue / Add more.
 class BudgetCompletedScreen extends ConsumerWidget {
@@ -21,8 +21,11 @@ class BudgetCompletedScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final str = ref.watch(strProvider);
 
+    // Afiş dili: saf beyaz değil krem kâğıt — diğer ekranlarla aynı zemin,
+    // yoksa kutlama ekranı akışın içinde "yabancı" beyaz bir sayfa gibi
+    // parlıyordu.
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: Ex.bg,
       body: Stack(
         children: [
           const Positioned.fill(child: _Confetti()),
@@ -36,10 +39,15 @@ class BudgetCompletedScreen extends ConsumerWidget {
                   const SizedBox(height: 32),
                   Text(
                     str.budgetDoneTitle,
+                    // Afiş başlığı: InterDisplay Black, sıkı aralık —
+                    // onboarding'deki kahraman başlıklarla aynı ses.
                     style: const TextStyle(
+                      fontFamily: 'InterDisplay',
                       fontSize: 26,
-                      fontWeight: FontWeight.w800,
-                      color: ink,
+                      height: 1.05,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.9,
+                      color: Ex.text,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -47,14 +55,15 @@ class BudgetCompletedScreen extends ConsumerWidget {
                     str.budgetDoneSubtitle,
                     textAlign: TextAlign.center,
                     style: const TextStyle(
-                        fontSize: 15, height: 1.5, color: inkMuted),
+                        fontSize: 15, height: 1.5, color: Ex.textSoft),
                   ),
                   const Spacer(),
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton(
                       style: FilledButton.styleFrom(
-                        backgroundColor: accent,
+                        backgroundColor: Ex.brand,
+                        foregroundColor: Ex.onBrand,
                         minimumSize: const Size.fromHeight(56),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(30),
@@ -70,9 +79,11 @@ class BudgetCompletedScreen extends ConsumerWidget {
                       width: double.infinity,
                       child: OutlinedButton(
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: accent,
-                          side: BorderSide(
-                              color: accent.withValues(alpha: 0.4)),
+                          // Krem zeminde yeşil çerçevenin alfası düşük
+                          // kalınca kayboluyordu; kenarlık tam marka
+                          // yeşili, metin ise okunur koyu yeşil.
+                          foregroundColor: Ex.mint,
+                          side: const BorderSide(color: Ex.brand),
                           minimumSize: const Size.fromHeight(56),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(30),
@@ -106,13 +117,17 @@ class _ConfettiState extends State<_Confetti>
   late final AnimationController _c;
   late final List<_Particle> _particles;
 
+  // Konfeti kasıtlı olarak çok renkli: tek yeşil paletten kutlama çıkmaz.
+  // Marka tonları token'dan geliyor; mavi/mor/pembe palette olmadığı için
+  // burada sabit — hepsi krem kâğıt üstünde doygun kalacak koyulukta seçildi
+  // (açık pastel konfeti zeminde kayboluyordu).
   static const _colors = [
-    Color(0xFF3B5BFF),
-    Color(0xFF2FA56B),
-    Color(0xFFFF9500),
-    Color(0xFF8B7CF6),
-    Color(0xFFE5489A),
-    Color(0xFF0D0D80),
+    Ex.brand,
+    Ex.amber,
+    Ex.red,
+    Color(0xFF2F55D4), // mavi
+    Color(0xFF6E5BD6), // mor
+    Color(0xFFD1458F), // pembe
   ];
 
   @override

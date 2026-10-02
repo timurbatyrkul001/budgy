@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/ex_style.dart';
 import '../../core/l10n.dart';
 import '../../core/tokens.dart';
 import 'complete_profile_screen.dart';
@@ -218,7 +219,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     child: FilledButton(
                       style: FilledButton.styleFrom(
                         backgroundColor: c.accent,
-                        foregroundColor: Colors.white,
+                        foregroundColor: Ex.onBrand,
                         disabledBackgroundColor:
                             c.accent.withValues(alpha: 0.4),
                         minimumSize: const Size.fromHeight(56),
@@ -308,7 +309,7 @@ class _Rule extends StatelessWidget {
             borderRadius: BorderRadius.circular(7),
           ),
           child: Icon(Icons.check,
-              size: 14, color: met ? Colors.white : c.textFaint),
+              size: 14, color: met ? Ex.onBrand : c.textFaint),
         ),
         const SizedBox(width: 11),
         Expanded(

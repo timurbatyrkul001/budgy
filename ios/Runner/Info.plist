@@ -80,22 +80,22 @@
 			<string>UIInterfaceOrientationLandscapeLeft</string>
 			<string>UIInterfaceOrientationLandscapeRight</string>
 		</array>
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>app-1-838553523218-ios-b7040e7a957ee049f0f4cb</string>
-			</array>
-		</dict>
-		<dict>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>com.googleusercontent.apps.838553523218-gt5mg417k7rp06kafnkuqnbumvknsmve</string>
-			</array>
-		</dict>
-	</array>
-	<key>GIDClientID</key>
-	<string>838553523218-gt5mg417k7rp06kafnkuqnbumvknsmve.apps.googleusercontent.com</string>
+		<key>CFBundleURLTypes</key>
+		<array>
+			<dict>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>app-1-838553523218-ios-b7040e7a957ee049f0f4cb</string>
+				</array>
+			</dict>
+			<dict>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>com.googleusercontent.apps.838553523218-gt5mg417k7rp06kafnkuqnbumvknsmve</string>
+				</array>
+			</dict>
+		</array>
+		<key>GIDClientID</key>
+		<string>838553523218-gt5mg417k7rp06kafnkuqnbumvknsmve.apps.googleusercontent.com</string>
 	</dict>
 </plist>

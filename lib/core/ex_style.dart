@@ -1,36 +1,50 @@
 import 'package:flutter/material.dart';
 
-/// Budgy "dark emerald" tasarımı (2026-09): koyu zemin, üstte derin zümrüt
-/// gradyan + sol üstten yeşil ışık, grafit kartlar (r20), yeşil dolgulu ana
-/// buton (r16), köşeleri yumuşak kare ikon butonları (r14), squircle
-/// avatarlar. Yeniden yazılan ekranlar (onboarding, ana ekran) bu sabitleri
-/// ve widget'ları kullanır; eski ekranlar [BudgyColors] token'larıyla aynı
-/// palete geçti.
+/// Budgy'nin görsel dili (2026-10): onboarding afişinin kâğıt zemini ve
+/// mürekkebi uygulamanın içine de taşındı. Krem zemin, siyah mürekkep, beyaz
+/// kartlar; yeşil yalnız para ve eylem için. Önceki "dark emerald" paleti
+/// bırakıldı — afişten koyu yeşile geçiş kopuk duruyordu.
+///
+/// Ad alanı bilinçli olarak aynı kaldı: ~560 kullanım var, isimleri
+/// değiştirmek yerine değerleri çevirdik. Bu yüzden bazı adlar artık
+/// anlamını mecazen taşıyor (`mint` = koyu yeşil vurgu gibi).
 abstract class Ex {
-  static const bg = Color(0xFF070A09);
-  static const surface = Color(0xFF151918);
-  static const surfaceHi = Color(0xFF1F2422);
-  static const sheet = Color(0xFF111413);
-  static const border = Color(0xFF252B29);
-  static const borderHi = Color(0xFF343B38);
+  /// Zemin: afişin kâğıdı ([Poster.paper] ile aynı).
+  static const bg = Color(0xFFFBFAF7);
 
-  static const text = Color(0xFFFFFFFF);
-  static const textSoft = Color(0xFFA7ADAA);
-  static const textMuted = Color(0xFF8A918E);
-  static const textFaint = Color(0xFF5B625F);
+  /// Kartlar: kâğıdın üstünde daha beyaz bir kâğıt.
+  static const surface = Color(0xFFFFFFFF);
 
-  /// Yeşil gradyan üstündeki ikincil metin.
-  static const onGlowMuted = Color(0xFF9CC7B5);
+  /// Basılı/ikincil dolgu.
+  static const surfaceHi = Color(0xFFF1F0EA);
+  static const sheet = Color(0xFFFFFFFF);
+  static const border = Color(0xFFE7E5DE);
+  static const borderHi = Color(0xFFD4D1C8);
 
-  static const brand = Color(0xFF25BE86);
-  static const onBrand = Color(0xFF04140D);
-  static const mint = Color(0xFF7FE3B8);
-  static const amber = Color(0xFFE3A94F);
-  static const red = Color(0xFFFF6B6B);
-  static const income = Color(0xFF4CD98A);
+  static const text = Color(0xFF111111);
+  static const textSoft = Color(0xFF5C5C58);
+  static const textMuted = Color(0xFF76766F);
+  static const textFaint = Color(0xFF9A9A94);
 
-  static const glassFill = Color(0xCC0B2A20);
-  static const glassBorder = Color(0x8025BE86);
+  /// Eskiden yeşil gradyanın üstündeki ikincil metindi; gradyan kalkınca
+  /// kâğıt üstünde okunur bir gri oldu.
+  static const onGlowMuted = Color(0xFF76766F);
+
+  /// Marka yeşili: kutlamadaki banknotun koyu tonu. Açık zeminde okunur ve
+  /// üstüne beyaz yazı rahat oturur.
+  static const brand = Color(0xFF17855D);
+  static const onBrand = Color(0xFFFFFFFF);
+
+  /// Vurgu yeşili — eskiden açık "nane"ydi, krem zeminde kaybolduğu için
+  /// koyulaştı.
+  static const mint = Color(0xFF0E6B49);
+  static const amber = Color(0xFFA9700C);
+  static const red = Color(0xFFD14343);
+  static const income = Color(0xFF17855D);
+
+  /// Yüzen alt çubuk: kâğıdın üstünde neredeyse opak beyaz.
+  static const glassFill = Color(0xF7FFFFFF);
+  static const glassBorder = Color(0x1F111111);
 
   static const cardRadius = 20.0;
   static const buttonRadius = 16.0;
@@ -53,60 +67,23 @@ abstract class Ex {
   ];
 }
 
-/// Koyu zemin + üstte derin zümrüt gradyan ve SOL üstten yumuşak yeşil ışık.
+/// Sayfa zemini: düz kâğıt.
+///
+/// Eskiden koyu zemin + zümrüt gradyan + sol üstten yeşil ışık vardı. Afiş
+/// diline geçerken kaldırıldı: kâğıt üstünde gradyan "dijital" duruyor ve
+/// mürekkep tipografinin kontrastını düşürüyordu. [glow] parametresi çağrı
+/// yerlerini bozmamak için duruyor, artık bir etkisi yok.
 class ExBackground extends StatelessWidget {
   const ExBackground({super.key, required this.child, this.glow = 0.5});
 
   final Widget child;
 
-  /// Gradyanın ekran yüksekliğinin ne kadarını kapladığı.
+  /// Kullanılmıyor — eski gradyanın yüksekliğiydi.
   final double glow;
 
   @override
-  Widget build(BuildContext context) {
-    final size = MediaQuery.sizeOf(context);
-    return Stack(
-      children: [
-        const Positioned.fill(child: ColoredBox(color: Ex.bg)),
-        Positioned(
-          top: 0,
-          left: 0,
-          right: 0,
-          height: size.height * glow,
-          child: const DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color(0xFF0F6E4D),
-                  Color(0xFF0B4A35),
-                  Color(0xFF07241A),
-                  Ex.bg,
-                ],
-                stops: [0, 0.28, 0.62, 1],
-              ),
-            ),
-          ),
-        ),
-        // Sol üstten vuran yeşil ışık — düz gradyanı canlandırır.
-        Positioned(
-          top: -size.height * 0.2,
-          left: -size.width * 0.4,
-          width: size.width * 1.3,
-          height: size.height * 0.5,
-          child: const DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                colors: [Color(0x4025BE86), Color(0x0025BE86)],
-              ),
-            ),
-          ),
-        ),
-        Positioned.fill(child: child),
-      ],
-    );
-  }
+  Widget build(BuildContext context) =>
+      ColoredBox(color: Ex.bg, child: child);
 }
 
 /// Onboarding ilerlemesi: ince, 3 parçalı çubuk (dolu = nane).

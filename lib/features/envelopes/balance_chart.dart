@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../core/palette.dart';
+import '../../core/ex_style.dart';
 
 /// Плавная линия динамики баланса за месяц (как на главной Lume):
 /// градиентная заливка снизу и точка на конце.
@@ -65,8 +65,8 @@ class _LinePainter extends CustomPainter {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            accent.withValues(alpha: 0.18),
-            accent.withValues(alpha: 0.0),
+            Ex.brand.withValues(alpha: 0.18),
+            Ex.brand.withValues(alpha: 0.0),
           ],
         ).createShader(Offset.zero & size),
     );
@@ -74,15 +74,17 @@ class _LinePainter extends CustomPainter {
     canvas.drawPath(
       path,
       Paint()
-        ..color = accent
+        ..color = Ex.brand
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2.5
         ..strokeCap = StrokeCap.round,
     );
 
     // Точка на конце линии.
-    canvas.drawCircle(last, 5, Paint()..color = accent);
-    canvas.drawCircle(last, 2.5, Paint()..color = Colors.white);
+    // Uç nokta: marka yeşili halka, içi kart beyazı (zemin kâğıdıyla
+    // uyumlu "delik" görünümü).
+    canvas.drawCircle(last, 5, Paint()..color = Ex.brand);
+    canvas.drawCircle(last, 2.5, Paint()..color = Ex.surface);
   }
 
   @override

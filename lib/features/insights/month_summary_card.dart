@@ -100,23 +100,22 @@ class MonthSummaryCard extends StatelessWidget {
       width: 360,
       height: 450,
       padding: const EdgeInsets.fromLTRB(28, 30, 28, 24),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF0C2B20), Ex.bg],
-        ),
-      ),
+      // Afiş dili: düz kâğıt zemin, siyah mürekkep. Eskiden koyu yeşil
+      // gradyandı; uygulama kâğıda geçince paylaşılan görsel de geçti.
+      // Akışta krem + kalın siyah tipografi, bir sürü koyu kartın arasında
+      // daha çok ayırt ediliyor.
+      decoration: const BoxDecoration(color: Ex.bg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             summary.monthLabel,
             style: const TextStyle(
-              color: Ex.mint,
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 2.4,
+              fontFamily: 'Inter',
+              color: Ex.textMuted,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 2.6,
             ),
           ),
           const SizedBox(height: 26),
@@ -147,9 +146,9 @@ class MonthSummaryCard extends StatelessWidget {
             Text(
               rs.summaryDaysTpl.replaceAll('{n}', '${summary.daysWorked}'),
               style: const TextStyle(
+                fontFamily: 'Inter',
                 color: Ex.textMuted,
                 fontSize: 14,
-                fontWeight: FontWeight.w500,
               ),
             ),
           const SizedBox(height: 22),
@@ -172,9 +171,11 @@ class MonthSummaryCard extends StatelessWidget {
               const SizedBox(width: 9),
               const Text('Budgy',
                   style: TextStyle(
-                      color: Ex.textSoft,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600)),
+                      fontFamily: 'InterDisplay',
+                      color: Ex.text,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.3)),
             ],
           ),
         ],
@@ -203,15 +204,20 @@ class _Figure extends StatelessWidget {
       children: [
         Text(label,
             style: const TextStyle(
-                color: Ex.textMuted, fontSize: 13, fontWeight: FontWeight.w500)),
+                fontFamily: 'Inter',
+                color: Ex.textMuted,
+                fontSize: 13,
+                fontWeight: FontWeight.w400)),
         const SizedBox(height: 3),
         Text(
           value,
           style: TextStyle(
+            fontFamily: 'InterDisplay',
             color: color,
-            fontSize: big ? 34 : 19,
-            fontWeight: FontWeight.w800,
-            height: 1.1,
+            fontSize: big ? 38 : 20,
+            fontWeight: big ? FontWeight.w900 : FontWeight.w600,
+            letterSpacing: big ? -1.6 : -0.3,
+            height: 1.0,
           ),
         ),
       ],

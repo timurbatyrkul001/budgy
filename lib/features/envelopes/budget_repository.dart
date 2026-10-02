@@ -171,18 +171,27 @@ final envelopeTxsProvider =
       .watchTransactions(envelopeId: envelopeId);
 });
 
-/// Bu ayki zarf-bazlı ₺ harcama: envelopeId -> toplam.
-/// Döviz çevrimi, hedefe para ayırma ve TRY-dışı işlemler hariç — zarf kartı
-/// "bu ay harcanan"ı ve bütçe/tempo hesapları bunun üstünde çalışır.
+/// Bu ayki zarf-bazlı harcama, ANA para biriminde: envelopeId -> toplam.
+/// Zarf kartı "bu ay harcanan"ı ve bütçe/tempo hesapları bunun üstünde çalışır.
+///
+/// Döviz çevrimi ve hedefe para ayırma hariç — onlar gerçek harcama değil.
+/// Yabancı para birimi artık HARİÇ DEĞİL: eskiden `currency != 'TRY'`
+/// atlanıyordu ve Azeri karttan yapılan ₼ harcaması ay toplamında hiç
+/// görünmüyordu. Şimdi işlem kaydedilirken o günün kuruyla dondurulmuş
+/// [Tx.baseAmount] toplanır ([Tx.baseOr]); ana birimdeki işlem `amount`
+/// ile girer. Çevrilmemiş eski döviz kaydı (baseAmount null) 0 sayılır —
+/// yanlış rakam göstermektense hiç göstermemek doğru.
 final monthlySpentByEnvelopeProvider = Provider<Map<String, double>>((ref) {
   final txs = ref.watch(currentMonthTxsProvider);
+  // `currencyCodeProvider` (home/fx_providers.dart) bu dosyayı import ediyor;
+  // import döngüsü açmamak için aynı ifade burada kuruluyor.
+  final main = ref.watch(currencyProvider).value ?? 'TRY';
   final map = <String, double>{};
   for (final t in txs) {
     if (t.type != TxType.expense || t.isConvert || t.isGoalFund) continue;
-    if (t.currency != 'TRY') continue;
     final id = t.envelopeId;
     if (id == null) continue;
-    map[id] = (map[id] ?? 0) + t.amount;
+    map[id] = (map[id] ?? 0) + t.baseOr(main);
   }
   return map;
 });
@@ -206,6 +215,11 @@ class BudgetRepository {
 
   CollectionReference<Map<String, dynamic>> get _envelopes =>
       _db.collection('users').doc(_uid).collection('envelopes');
+
+  /// Kart/nakit hesapları. Nakit (`accounts/cash`) bu koleksiyonun bir
+  /// belgesi; yeni kartlar yanına eklenir.
+  CollectionReference<Map<String, dynamic>> get _accounts =>
+      _db.collection('users').doc(_uid).collection('accounts');
 
   /// Cüzdan: kullanıcının nakit kasası. Tek hesap — ileride banka/kart gibi
   /// hesaplar eklenirse bu koleksiyon genişler.
@@ -833,6 +847,12 @@ class BudgetRepository {
   /// Расход. ₺ — из кошелька, конверт лишь помечает категорию (бюджеты и
   /// статистика читают эту метку из транзакций). Döviz-конверт — кумбара:
   /// трата в валюте уменьшает её баланс, кошелёк не трогается.
+  /// [accountId] verilirse para O HESAPTAN düşer ve işlem o hesaba bağlanır.
+  ///
+  /// [baseAmount]/[baseCurrency]/[fxRate] çağıran tarafta `freezeToBase` ile
+  /// hesaplanıp verilir — depo kur çekmez. Kur işlem anında DONDURULUR:
+  /// sonradan güncel kurla çevirseydik manat oynadıkça geçen ayın toplamı da
+  /// değişirdi, geçmişi oynayan bir bütçe kaydı işe yaramaz.
   Future<String> addExpense({
     String? envelopeId,
     String? envelopeName,
@@ -840,6 +860,10 @@ class BudgetRepository {
     String currency = 'TRY',
     String? note,
     DateTime? date,
+    String? accountId,
+    double? baseAmount,
+    String? baseCurrency,
+    double? fxRate,
   }) async {
     final batch = _db.batch();
     final doc = _txs.doc();
@@ -849,7 +873,11 @@ class BudgetRepository {
         amount: amount,
         currency: currency,
         note: note,
-        date: date ?? DateTime.now());
+        date: date ?? DateTime.now(),
+        accountId: accountId,
+        baseAmount: baseAmount,
+        baseCurrency: baseCurrency,
+        fxRate: fxRate);
     await batch.commit();
     return doc.id;
   }
@@ -863,6 +891,10 @@ class BudgetRepository {
     String? envelopeId,
     String? envelopeName,
     String? note,
+    String? accountId,
+    double? baseAmount,
+    String? baseCurrency,
+    double? fxRate,
   }) {
     batch.set(doc, {
       'type': TxType.expense.name,
@@ -873,8 +905,20 @@ class BudgetRepository {
       'envelopeName': ?envelopeName,
       'envelopeIds': [?envelopeId],
       'currency': currency,
+      'accountId': ?accountId,
+      'baseAmount': ?baseAmount,
+      'baseCurrency': ?baseCurrency,
+      'fxRate': ?fxRate,
     });
-    if (currency == 'TRY') {
+    if (accountId != null) {
+      // Para seçilen karttan çıkar; bakiye hesabın KENDİ biriminde tutulur,
+      // o yüzden çevrilmiş değil ham tutar düşülür.
+      batch.update(_accounts.doc(accountId), {
+        'balance': FieldValue.increment(-amount),
+      });
+    } else if (currency == 'TRY') {
+      // Hesap seçilmeden gelen eski yol: tek kasa modeli. Dokunulmadı ki
+      // kartını hiç eklememiş kullanıcıda akış birebir aynı kalsın.
       _cashDelta(batch, -amount);
     } else if (envelopeId != null) {
       batch.update(_envelopes.doc(envelopeId), {

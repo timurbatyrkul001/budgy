@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../budget/budget_period.dart';
 import '../envelopes/budget_repository.dart';
 import '../envelopes/envelope.dart';
+import '../home/fx_providers.dart';
 import '../transactions/tx.dart';
 import '../workdays/work_days_repository.dart';
 
@@ -138,10 +139,15 @@ class CategoryDelta {
 }
 
 /// Zarf bazında bu ay vs geçen ay gider karşılaştırması (mutlak farka göre
-/// büyükten küçüğe). Döviz çevrimi, hedef-fonu ve TRY-dışı hariç.
+/// büyükten küçüğe), ana para biriminde. Döviz çevrimi ve hedef-fonu hariç.
+///
+/// Döviz işlemleri artık hariç DEĞİL: ₼ harcaması kaydedilirken dondurulan
+/// `baseAmount` ile toplanır ([spendOf]) — iki kartın tek ₺ rakamında
+/// karşılaştırılması için. Çevrilmemiş eski döviz kaydı 0 sayılır.
 final monthComparisonProvider = Provider<List<CategoryDelta>>((ref) {
   final txs = ref.watch(recentTxsProvider).value ?? const [];
   final envelopes = ref.watch(envelopesProvider).value ?? const [];
+  final main = ref.watch(currencyCodeProvider);
   final byId = {for (final e in envelopes) e.id: e};
 
   final now = DateTime.now();
@@ -152,14 +158,13 @@ final monthComparisonProvider = Provider<List<CategoryDelta>>((ref) {
   final lastMap = <String, double>{};
   for (final t in txs) {
     if (t.type != TxType.expense || t.isConvert || t.isGoalFund) continue;
-    if (t.currency != 'TRY') continue;
     final id = t.envelopeId;
     if (id == null) continue;
     final m = DateTime(t.date.year, t.date.month);
     if (m == thisM) {
-      thisMap[id] = (thisMap[id] ?? 0) + t.amount;
+      thisMap[id] = (thisMap[id] ?? 0) + spendOf(t, main);
     } else if (m == lastM) {
-      lastMap[id] = (lastMap[id] ?? 0) + t.amount;
+      lastMap[id] = (lastMap[id] ?? 0) + spendOf(t, main);
     }
   }
 

@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/ex_style.dart';
 import '../../core/l10n.dart';
 import '../../core/redesign_l10n.dart';
 import '../../core/tokens.dart';
@@ -98,16 +99,18 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                 decoration: BoxDecoration(
                   color: c.accent,
                   borderRadius: BorderRadius.circular(18),
+                  // Krem kâğıt üstünde yeşil "ışıma" dijital duruyordu;
+                  // afiş dilinde gölge mürekkebin düşük alfalı hâli.
                   boxShadow: [
                     BoxShadow(
-                      color: c.accent.withValues(alpha: 0.36),
+                      color: c.shadowColor,
                       blurRadius: 22,
                       offset: const Offset(0, 10),
                     ),
                   ],
                 ),
                 child: const Icon(Icons.mail_outline_rounded,
-                    color: Colors.white, size: 30),
+                    color: Ex.onBrand, size: 30),
               ),
             ),
             const SizedBox(height: 20),
@@ -157,7 +160,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
               Text(
                 str.signInError,
                 style: const TextStyle(
-                    fontSize: 14, height: 1.4, color: Colors.red),
+                    fontSize: 14, height: 1.4, color: Ex.red),
               ),
             ],
             const SizedBox(height: 14),
@@ -191,7 +194,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
               child: FilledButton(
                 style: FilledButton.styleFrom(
                   backgroundColor: c.accent,
-                  foregroundColor: Colors.white,
+                  foregroundColor: Ex.onBrand,
                   disabledBackgroundColor: c.accent.withValues(alpha: 0.4),
                   minimumSize: const Size.fromHeight(56),
                   textStyle: const TextStyle(
@@ -206,7 +209,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                         width: 20,
                         height: 20,
                         child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
+                            strokeWidth: 2, color: Ex.onBrand),
                       )
                     : Text(str.signInButton),
               ),
@@ -227,12 +230,16 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
               ],
             ),
             const SizedBox(height: 20),
+            // Google marka kuralı: beyaz dolgu + ince kenarlık + renkli logo.
+            // fill/foreground boş → c.surface (beyaz) + c.text; palete uyar.
             _SocialButton(
               label: str.continueGoogle,
               leading: Image.asset('assets/brand/google.png', height: 22),
               onTap: () => _social(AuthService.signInWithGoogle),
             ),
             const SizedBox(height: 11),
+            // Apple marka kuralı: siyah dolgu + beyaz logo/metin. Bunlar
+            // MARKA renkleri, palete uydurulmaz — bilerek Ex.* değil.
             _SocialButton(
               label: str.continueApple,
               leading: Image.asset('assets/brand/apple.png',
@@ -335,13 +342,13 @@ class AuthField extends StatelessWidget {
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
               borderSide: BorderSide(
-                color: error ? Colors.red : c.borderStrong,
+                color: error ? Ex.red : c.borderStrong,
               ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
               borderSide: BorderSide(
-                  color: error ? Colors.red : c.accent, width: 1.5),
+                  color: error ? Ex.red : c.accent, width: 1.5),
             ),
           ),
         ),
@@ -378,7 +385,9 @@ class _SocialButton extends StatelessWidget {
         style: OutlinedButton.styleFrom(
           foregroundColor: foreground ?? c.text,
           backgroundColor: fill ?? c.surface,
-          side: BorderSide(color: c.borderStrong),
+          // Dolgulu (Apple, siyah) düğmede açık kenarlık siyahın
+          // etrafında gri bir hale bırakıyordu; kenarlık dolguyu izlesin.
+          side: BorderSide(color: fill ?? c.borderStrong),
           minimumSize: const Size.fromHeight(54),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),

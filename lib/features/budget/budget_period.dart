@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../envelopes/budget_repository.dart';
+import '../home/fx_providers.dart';
 import '../transactions/tx.dart';
 
 /// Bütçe dönemi. settings/main → budgetPeriod: 'weekly' | 'monthly'.
@@ -120,22 +121,36 @@ final budgetWindowProvider = Provider<PeriodWindow>((ref) {
   );
 });
 
+/// Gerçek harcama mı? Döviz çevirme ve hedefe para ayırma HARİÇ — onlarda
+/// para harcanmıyor, yer değiştiriyor.
+///
+/// Para birimi burada sorulmaz. Eskiden `currency == 'TRY'` şartı vardı ve
+/// ₼ harcaması toplamda hiç görünmüyordu; artık tutar [spendOf] üzerinden
+/// ana birime çevrilmiş hâliyle alınıyor — kullanıcı iki kartı tek ₺
+/// rakamında görmek istiyor.
 bool _countsAsSpend(Tx t) =>
-    t.type == TxType.expense &&
-    !t.isConvert &&
-    !t.isGoalFund &&
-    t.currency == 'TRY';
+    t.type == TxType.expense && !t.isConvert && !t.isGoalFund;
 
-/// Geçerli bütçe döneminde harcanan ₺ (bütçe kartı / tempo).
+/// Bir harcamanın toplama girecek tutarı, [mainCurrency] cinsinden.
+///
+/// * Ana birimdeki işlem → `amount` (baseAmount olmasa da).
+/// * Döviz işlemi, kaydedilirken o günün kuruyla dondurulmuş → `baseAmount`.
+/// * Çevrilmemiş eski döviz kaydı (`baseAmount` null) → 0. Bilinçli:
+///   bugünkü kurla çevirmek geçmişi oynatır, ham ₼ tutarı ₺ gibi toplamak
+///   ise düpedüz yanlış. Yanlış rakam göstermektense hiç göstermemek doğru.
+double spendOf(Tx t, String mainCurrency) => t.baseOr(mainCurrency);
+
+/// Geçerli bütçe döneminde harcanan, ana para biriminde (bütçe kartı / tempo).
 final periodSpentProvider = Provider<double>((ref) {
   final w = ref.watch(budgetWindowProvider);
   final txs = ref.watch(recentTxsProvider).value ?? const [];
+  final main = ref.watch(currencyCodeProvider);
   return txs
       .where((t) => _countsAsSpend(t) && w.contains(t.date))
-      .fold<double>(0, (s, t) => s + t.amount);
+      .fold<double>(0, (s, t) => s + spendOf(t, main));
 });
 
-/// Geçerli dönemde zarf bazında harcama. Aylıkta mevcut
+/// Geçerli dönemde zarf bazında harcama (ana birimde). Aylıkta mevcut
 /// [monthlySpentByEnvelopeProvider] ile aynı (testler onu override eder).
 final periodSpentByEnvelopeProvider = Provider<Map<String, double>>((ref) {
   final s = ref.watch(budgetSettingsProvider);
@@ -144,18 +159,29 @@ final periodSpentByEnvelopeProvider = Provider<Map<String, double>>((ref) {
   }
   final w = ref.watch(budgetWindowProvider);
   final txs = ref.watch(recentTxsProvider).value ?? const [];
+  final main = ref.watch(currencyCodeProvider);
   final map = <String, double>{};
   for (final t in txs) {
     if (!_countsAsSpend(t) || !w.contains(t.date)) continue;
     final id = t.envelopeId;
     if (id == null) continue;
-    map[id] = (map[id] ?? 0) + t.amount;
+    map[id] = (map[id] ?? 0) + spendOf(t, main);
   }
   return map;
 });
 
 /// Son [days] gündeki zarf bazlı harcama (öneri ve satır altyazıları).
-Map<String, double> spentInLastDays(List<Tx> txs, int days, {DateTime? now}) {
+///
+/// [mainCurrency] varsayılanı 'TRY': ana cüzdanın işlemleri içeride her zaman
+/// 'TRY' koduyla yazılıyor (simge ayarlardan gelir), bu yüzden eski çağıran
+/// yerler parametre vermeden de bugünkü sonucu alır — artı, dondurulmuş
+/// `baseAmount` taşıyan döviz işlemleri de toplama girer.
+Map<String, double> spentInLastDays(
+  List<Tx> txs,
+  int days, {
+  DateTime? now,
+  String mainCurrency = 'TRY',
+}) {
   final n = now ?? DateTime.now();
   final today = DateTime(n.year, n.month, n.day);
   final from = today.subtract(Duration(days: days - 1));
@@ -164,17 +190,23 @@ Map<String, double> spentInLastDays(List<Tx> txs, int days, {DateTime? now}) {
     if (!_countsAsSpend(t) || t.date.isBefore(from)) continue;
     final id = t.envelopeId;
     if (id == null) continue;
-    map[id] = (map[id] ?? 0) + t.amount;
+    map[id] = (map[id] ?? 0) + spendOf(t, mainCurrency);
   }
   return map;
 }
 
-/// Son [days] gündeki toplam ₺ harcama (tutar adımındaki ipucu).
-double totalInLastDays(List<Tx> txs, int days, {DateTime? now}) {
+/// Son [days] gündeki toplam harcama, ana birimde (tutar adımındaki ipucu).
+/// [mainCurrency] için bkz. [spentInLastDays].
+double totalInLastDays(
+  List<Tx> txs,
+  int days, {
+  DateTime? now,
+  String mainCurrency = 'TRY',
+}) {
   final n = now ?? DateTime.now();
   final today = DateTime(n.year, n.month, n.day);
   final from = today.subtract(Duration(days: days - 1));
   return txs
       .where((t) => _countsAsSpend(t) && !t.date.isBefore(from))
-      .fold<double>(0, (s, t) => s + t.amount);
+      .fold<double>(0, (s, t) => s + spendOf(t, mainCurrency));
 }

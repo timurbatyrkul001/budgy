@@ -115,10 +115,16 @@ class _CurrencyCard extends StatelessWidget {
           Text(str.savingsTotalLabel,
               style: TextStyle(fontSize: 13, color: c.textMuted)),
           const SizedBox(height: 2),
+          // Toplam birikim: afiş tipografisi (Inter Display Black, sıkı).
           Text(
             formatMoneyIn(total, currency),
             style: TextStyle(
-                fontSize: 28, fontWeight: FontWeight.w800, color: c.text),
+                fontFamily: 'InterDisplay',
+                fontSize: 28,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.04 * 28,
+                height: 1.0,
+                color: c.text),
           ),
           const SizedBox(height: 18),
           Text(str.savingsMonthlyTitle,

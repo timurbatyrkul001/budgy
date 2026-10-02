@@ -122,9 +122,13 @@ class SpaceAvatar extends StatelessWidget {
     );
   }
 
-  /// Açık renk zeminde koyu, koyu zeminde beyaz simge.
+  /// Açık renk zeminde mürekkep, koyu zeminde beyaz simge.
+  ///
+  /// Eskiden `Ex.onBrand` koyu bir tondu; palet değişince beyaza döndü ve
+  /// iki dal da beyaz vermeye başladı — açık cüzdan renklerinde (amber,
+  /// gri) simge kayboluyordu. Bu yüzden açık dal artık doğrudan [Ex.text].
   static Color _onColor(Color bg) =>
-      bg.computeLuminance() > 0.45 ? Ex.onBrand : Colors.white;
+      bg.computeLuminance() > 0.45 ? Ex.text : Ex.onBrand;
 }
 
 /// Cüzdan düzenleyici: ad, simge, renk, para birimi. Kaydetme çağıranın
@@ -216,8 +220,10 @@ class _SpaceEditorState extends ConsumerState<_SpaceEditor> {
                     decoration: BoxDecoration(
                       color: c,
                       borderRadius: Ex.squircle(38),
+                      // Seçili renk halkası: beyaz sayfada beyaz halka
+                      // görünmüyordu, mürekkep rengi seçimi gösterir.
                       border: _space.color == c.toARGB32()
-                          ? Border.all(color: Colors.white, width: 3)
+                          ? Border.all(color: Ex.text, width: 3)
                           : null,
                     ),
                   ),

@@ -176,11 +176,16 @@ class _Overview extends ConsumerWidget {
                               {'amount': formatMoney(left.abs())}),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
+                          // Kalan/aşım tutarı bütçe kartının kahramanı:
+                          // afiş tipografisi (InterDisplay Black, sıkı
+                          // aralık) ki onboarding'deki rakamlarla aynı
+                          // sesle konuşsun.
                           style: TextStyle(
+                              fontFamily: 'InterDisplay',
                               fontSize: 22,
                               height: 1.15,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.6,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -0.9,
                               color: over ? Ex.red : Ex.text),
                         ),
                         const SizedBox(height: 6),
@@ -449,11 +454,16 @@ class _BudgetAmountStepState extends ConsumerState<BudgetAmountStep> {
                       child: Text.rich(
                         TextSpan(
                           text: shown,
+                          // Girilen tutar ekranın tek büyük unsuru: afişteki
+                          // dev rakamlar gibi InterDisplay Black + -1.5 ×
+                          // boyut/36 aralık. Para birimi eki aynı kesimde
+                          // ama soluk kalır.
                           style: const TextStyle(
+                              fontFamily: 'InterDisplay',
                               fontSize: 54,
                               height: 1.05,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -2,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -2.25,
                               color: Ex.text),
                           children: [
                             TextSpan(

@@ -20,7 +20,12 @@ class CategoryStat {
 }
 
 /// Analiz ekranının bir aylık verisi — saf hesap, Firestore yok.
-/// Yalnız gerçek ₺ giderler (döviz çevirme, hedefe para ayırma, döviz hariç).
+/// Yalnız gerçek giderler (döviz çevirme ve hedefe para ayırma hariç).
+///
+/// Tüm tutarlar ana para biriminde: ₼ kartından yapılan harcama, kaydedilirken
+/// dondurulan [Tx.baseAmount] ile ₺ toplamına girer — kullanıcı iki kartı tek
+/// rakamda görmek istiyor. Eskiden `currency != 'TRY'` atlanıyordu ve döviz
+/// harcaması grafiklerde hiç görünmüyordu.
 class MonthAnalytics {
   const MonthAnalytics({
     required this.month,
@@ -36,8 +41,9 @@ class MonthAnalytics {
     this.incomeTotal = 0,
   });
 
-  /// ₺ gelirler kaynağa göre (tutara göre azalan); toplamı [incomeTotal].
-  /// Gider dökümüne KARIŞMAZ.
+  /// Gelirler kaynağa göre (tutara göre azalan), ana birimde; toplamı
+  /// [incomeTotal]. ₼ gelir de aynı kuralla ([Tx.baseOr]) ₺'ye çevrilmiş
+  /// hâliyle girer. Gider dökümüne KARIŞMAZ.
   final List<CategoryStat> incomeBySource;
   final double incomeTotal;
 
@@ -85,6 +91,12 @@ class MonthAnalytics {
 
 /// [txs]'ten [month] için analiz. [categoryId] verilirse yalnız o kategori
 /// ('' = kategorisiz). [nameOf] zarf adını dilden çözer.
+///
+/// [mainCurrency]: tutarların toplanacağı ana para birimi; ekranlar
+/// `currencyCodeProvider`'ı geçmeli. Varsayılan [Tx.legacyMainCode] —
+/// parametre vermeyen eski çağıranlar bugünkü ₺ sonucunu almaya devam eder
+/// (ana cüzdan kayıtları zaten o kodla yazılı), üstüne dondurulmuş
+/// `baseAmount` taşıyan döviz işlemleri de toplama girer.
 MonthAnalytics analyzeMonth(
   List<Tx> txs,
   DateTime month, {
@@ -93,6 +105,7 @@ MonthAnalytics analyzeMonth(
   required String Function(Envelope) nameOf,
   required String uncategorizedLabel,
   DateTime? now,
+  String mainCurrency = Tx.legacyMainCode,
 }) {
   final n = now ?? DateTime.now();
   final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
@@ -108,24 +121,35 @@ MonthAnalytics analyzeMonth(
   var incomeTotal = 0.0;
 
   for (final t in txs) {
-    if (t.currency != 'TRY' || t.isConvert || t.isGoalFund) continue;
+    // Döviz çevirme ve hedefe para ayırma gerçek harcama değil — para yer
+    // değiştiriyor. Para birimi burada SORULMAZ: döviz işlemi aşağıda
+    // [Tx.baseOr] ile ana birime çevrilmiş tutarıyla girer.
+    if (t.isConvert || t.isGoalFund) continue;
     if (t.date.year != month.year || t.date.month != month.month) continue;
+    // Ana birimdeki tutar: dondurulmuş baseAmount, yoksa kural tx.dart'ta.
+    // Çevrilmemiş eski döviz kaydı 0 döner — bugünkü kurla çevirmek
+    // geçmişi oynatır; yanlış rakamdansa eksik rakam.
+    final amount = t.baseOr(mainCurrency);
+    // 0 dönen kayıt adet/kategori listesine de girmesin: "Market · 1 işlem ·
+    // ₺0" satırı ve şişmiş "en çok işlem" rozeti yanıltır. Tutarsız kaydı
+    // hiç saymamak, yarım saymaktan dürüst.
+    if (amount == 0) continue;
     if (t.type == TxType.income) {
       // Gelir ayrı kovada: kaynak etiketi (yoksa "kaynaksız").
       if (categoryId != null) continue;
-      incomeTotal += t.amount;
-      incomeBy[t.envelopeId] = (incomeBy[t.envelopeId] ?? 0) + t.amount;
+      incomeTotal += amount;
+      incomeBy[t.envelopeId] = (incomeBy[t.envelopeId] ?? 0) + amount;
       incomeCount[t.envelopeId] = (incomeCount[t.envelopeId] ?? 0) + 1;
       continue;
     }
     if (t.type != TxType.expense) continue;
     final id = t.envelopeId;
     if (categoryId != null && (id ?? '') != categoryId) continue;
-    total += t.amount;
+    total += amount;
     count++;
-    buckets[((t.date.day - 1) ~/ 7).clamp(0, 4)] += t.amount;
-    byWeekday[t.date.weekday] += t.amount;
-    amountBy[id] = (amountBy[id] ?? 0) + t.amount;
+    buckets[((t.date.day - 1) ~/ 7).clamp(0, 4)] += amount;
+    byWeekday[t.date.weekday] += amount;
+    amountBy[id] = (amountBy[id] ?? 0) + amount;
     countBy[id] = (countBy[id] ?? 0) + 1;
   }
 

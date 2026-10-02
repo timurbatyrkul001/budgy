@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/ex_style.dart';
 import '../../core/l10n.dart';
 import '../../core/tokens.dart';
 
@@ -146,7 +147,7 @@ class _EmailVerifyScreenState extends ConsumerState<EmailVerifyScreen> {
               child: FilledButton(
                 style: FilledButton.styleFrom(
                   backgroundColor: c.accent,
-                  foregroundColor: Colors.white,
+                  foregroundColor: Ex.onBrand,
                   minimumSize: const Size.fromHeight(56),
                   textStyle: const TextStyle(
                       fontSize: 16, fontWeight: FontWeight.w800),

@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 
+import 'ex_style.dart';
 import 'tokens.dart';
 
 /// Budgy marka ikonu — yeşil yuvarlak kare üzerinde monoline (çizgisel) zarf.
 /// App ikonuyla (konsept 04) birebir aynı sembol. Ölçeklenebilir.
+///
+/// Dolgu [Ex.brand]: afişteki banknotun koyu yeşili. Eski #0F9E6C krem kâğıt
+/// üstünde parlak ve "dijital" duruyordu; app ikonu ile aynı aileden kalsın
+/// diye yeşil bırakıldı ama mürekkep ağırlığına çekildi.
 class BudgyIcon extends StatelessWidget {
   const BudgyIcon({super.key, this.size = 44, this.radiusFactor = 0.2237});
 
@@ -18,7 +23,7 @@ class BudgyIcon extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: const Color(0xFF0F9E6C),
+        color: Ex.brand,
         borderRadius: BorderRadius.circular(size * radiusFactor),
       ),
       child: CustomPaint(painter: _EnvelopePainter()),
@@ -31,9 +36,11 @@ class _EnvelopePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     // 1024'lük tasarım ölçeğinden ölçekle.
     final s = size.width / 1024.0;
+    // Zarf çizgisi beyaz kalır: koyu yeşil dolgu üstünde en net okunan bu;
+    // krem (Ex.bg) kullansak kâğıtla aynı tonda olur ve ikon "delik" görünür.
     final stroke = Paint()
       ..style = PaintingStyle.stroke
-      ..color = Colors.white
+      ..color = Ex.onBrand
       ..strokeWidth = 52 * s
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
@@ -57,8 +64,13 @@ class _EnvelopePainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-/// Yatay logo (wordmark): monoline ikon + "Budg" yeşil + "y" amber.
-/// Intro, splash ve giriş ekranı başlığı için.
+/// Yatay logo (wordmark): monoline ikon + "Budg" mürekkep + "y" yeşil.
+/// Intro, splash, giriş ekranı başlığı ve ayarlar altbilgisi için.
+///
+/// Eskiden "Budg" yeşil, "y" amberdi. Afiş dilinde tipografi mürekkeptir ve
+/// yeşil yalnız para/eylem için ayrılır; iki renkli bir kelime krem kâğıtta
+/// logo yerine reklam gibi okunuyordu. Tek vurgu ("y") yeşil kaldı ki ikonla
+/// bağ kopmasın.
 class BudgyWordmark extends StatelessWidget {
   const BudgyWordmark({
     super.key,
@@ -88,8 +100,8 @@ class BudgyWordmark extends StatelessWidget {
               height: 1,
             ),
             children: [
-              TextSpan(text: 'Budg', style: TextStyle(color: c.accent)),
-              TextSpan(text: 'y', style: TextStyle(color: c.amber)),
+              TextSpan(text: 'Budg', style: TextStyle(color: c.text)),
+              TextSpan(text: 'y', style: TextStyle(color: c.accent)),
             ],
           ),
         ),
