@@ -102,17 +102,36 @@ class IntentReply {
 /// * **Veri gelmeden karar yok.** Soğuk başlatmada zarf/hesap akışları
 ///   henüz boş olabilir; ilk değerleri bekleriz ki "kategori bulunamadı"
 ///   demek yerine gerçekten bakmış olalım.
+/// * **Dayanak yoksa yazma yok.** Hesap listesi, ana birim ya da (kategori
+///   istenmişse) kategori listesi gelmediyse — akış DÜŞTÜ ya da
+///   [dataTimeout] içinde ilk değerini vermedi — `ok: false` ile ret.
+///   Eskiden `?? []` / `?? 'TRY'` boşluğu dolduruyor ve kayıt yine
+///   yazılıyordu: iki kartlı kullanıcının harcaması nakitten, tenge
+///   kullanıcısınınki ₺'ye dondurulmuş. Ekranda bunu gören bir şerit var;
+///   burada ekran yok — Siri "kaydettim" derdi ve kimse fark etmezdi.
+///   "Yükleniyor" ile "düştü" AYRI: ilki beklenir (soğuk başlatma olağan),
+///   ikincisinde beklemek anlamsız, reddedilir. Hızlı girişle aynı kural
+///   (`_sourcesReady`), ana birim için aynı kaynak
+///   ([knownCurrencyCodeProvider]). Yeni kullanıcının BOŞ hesap listesi ve
+///   varsayılan ₺'si birer değerdir, hata değil — eski tek-kasa yolu onlar
+///   için aynen çalışır.
 class AddExpenseIntentHandler {
-  AddExpenseIntentHandler(this.ref);
+  AddExpenseIntentHandler(this.ref, {this.dataTimeout = _defaultDataTimeout});
 
   /// `WidgetRef`: [categoryResolverSync] ve [resolveCategoryFromText] bunu
   /// istiyor; host zaten bir widget (bkz. intent_channel.dart).
   final WidgetRef ref;
 
-  /// Akışların ilk değerini bu kadar bekleriz; gelmezse eldeki (muhtemelen
-  /// boş) değerle devam. Firestore önbellekten anında yayar, bu sınır yalnız
-  /// "önbellek yok + çevrimdışı" gibi uçlar için.
-  static const _dataTimeout = Duration(seconds: 10);
+  /// Akışların ilk değerini bu kadar bekleriz. Dayanak akışları (hesap, ana
+  /// birim, kategori) bu sürede gelmezse kayıt REDDEDİLİR; yardımcı akışlar
+  /// (dil, geçmiş) eldeki değerle devam eder. Firestore önbellekten anında
+  /// yayar, bu sınır yalnız "önbellek yok + çevrimdışı" gibi uçlar için.
+  /// Akışlar aynı anda beklenir, dolayısıyla toplam bekleme de bu kadar —
+  /// natif köprü 20 sn'de vazgeçiyor (`IntentBridge.addExpense`), cevabımız
+  /// ondan önce varmalı ki kullanıcı bizim metnimizi duysun.
+  /// Testler kısaltabilir ([dataTimeout]).
+  static const _defaultDataTimeout = Duration(seconds: 10);
+  final Duration dataTimeout;
 
   /// `guardWrite` ile aynı eşik (core/feedback.dart): Firestore çevrimdışı
   /// yazmayı sunucu onayına kadar bekletir; kayıt yerel kuyrukta güvende,
@@ -120,41 +139,74 @@ class AddExpenseIntentHandler {
   static const _writeAckTimeout = Duration(seconds: 4);
 
   Future<Map<String, Object?>> handle(Object? rawArgs) async {
-    // Dil ayarı da bir akıştır: soğuk başlatmada henüz gelmemişse cevap
-    // İngilizce çıkardı. Önce dili bekle, sonra metin seç.
-    await _first(languageProvider, languageProvider.future, AppLanguage.en);
-    final rs = ref.read(rsProvider);
     final req = AddExpenseIntentRequest.tryParse(rawArgs);
+    final valid = req != null && req.amount.isFinite && req.amount > 0;
+    // Dil ayarı da bir akıştır: soğuk başlatmada henüz gelmemişse cevap
+    // İngilizce çıkardı. Dil ile dayanak akışları AYNI ANDA beklenir —
+    // ardışık bekleseydik zaman aşımları toplanır, natif köprü bizden önce
+    // vazgeçer ve kullanıcı bizim metnimizi değil onun genel metnini duyardı.
+    // Dil düşerse İngilizce: bu bir mesaj dili, kaydın dayanağı değil.
+    final language = _first(languageProvider, AppLanguage.en);
+    final sources = valid ? _loadSources(req) : null;
+    await language;
+    final rs = ref.read(rsProvider);
     if (req == null) return IntentReply.fail(rs.intentBadRequest).toMap();
-    if (!req.amount.isFinite || req.amount <= 0) {
-      return IntentReply.fail(rs.intentInvalidAmount).toMap();
-    }
-    final reply = await _record(req, rs);
+    if (!valid) return IntentReply.fail(rs.intentInvalidAmount).toMap();
+    final reply = await _record(req, await sources!, rs);
     return reply.toMap();
   }
 
-  Future<IntentReply> _record(AddExpenseIntentRequest req, RS rs) async {
+  /// Kaydın dayanaklarını ve yardımcı akışları birlikte bekler. Dayanaklar
+  /// null gelebilir — "düştü ya da gelmedi" demektir, çağıran o zaman
+  /// YAZMAZ. Kategori listesi yalnız kategori kullanılacaksa dayanaktır
+  /// (ad verilmiş ya da nottan otomasyon çalışacak); yoksa hiç beklenmez —
+  /// sade "250 lira harcadım" kategoriler yüzünden reddedilmesin.
+  Future<_Sources> _loadSources(AddExpenseIntentRequest req) async {
+    final wantsCategory = req.categoryName != null ||
+        (req.note != null && ref.read(proUnlockedProvider));
+    final (accounts, _, envelopes, recent) = await (
+      _known(accountsProvider),
+      _settle(currencyProvider),
+      wantsCategory
+          ? _known(envelopesProvider)
+          : Future<List<Envelope>?>.value(const <Envelope>[]),
+      // Geçmiş yalnız hesap ÖNERİSİNİN sinyali; gelmezse öneri "listedeki
+      // ilk hesap"a düşer — hızlı giriş de böyle (`.value ?? []`). Dayanak
+      // değil: seçilen hesap yine gerçek listeden çıkar.
+      _first(recentTxsProvider, const <Tx>[]),
+    ).wait;
+    return _Sources(
+      accounts: accounts,
+      // Ana birim yazan tarafların ortak kaynağından: yüklenmediyse ya da
+      // düştüyse (önbellekten eski değer taşısa bile) null.
+      main: ref.read(knownCurrencyCodeProvider),
+      envelopes: envelopes,
+      recent: recent,
+    );
+  }
+
+  Future<IntentReply> _record(
+    AddExpenseIntentRequest req,
+    _Sources sources,
+    RS rs,
+  ) async {
     final str = ref.read(strProvider);
     final repo = ref.read(budgetRepositoryProvider);
 
-    // Soğuk başlatma: akışlar ilk değerini vermeden listeler boş görünür.
-    final envelopes = await _first(
-      envelopesProvider,
-      envelopesProvider.future,
-      const <Envelope>[],
-    );
-    final accountsRaw = await _first(
-      accountsProvider,
-      accountsProvider.future,
-      const <Account>[],
-    );
-    final recent = await _first(
-      recentTxsProvider,
-      recentTxsProvider.future,
-      const <Tx>[],
-    );
-    await _first(currencyProvider, currencyProvider.future, 'TRY');
-    final main = ref.read(currencyCodeProvider);
+    // ── dayanaklar: biri yoksa YAZMA ─────────────────────────────────────
+    // Sıra: önce hesap, sonra birim, sonra kategori — kullanıcı tek bir
+    // neden duyar, en temel olanı.
+    final accountsRaw = sources.accounts;
+    if (accountsRaw == null) {
+      return IntentReply.fail(rs.intentAccountsUnavailable);
+    }
+    final main = sources.main;
+    if (main == null) return IntentReply.fail(rs.intentCurrencyUnavailable);
+    final envelopes = sources.envelopes;
+    if (envelopes == null) {
+      return IntentReply.fail(rs.intentCategoriesUnavailable);
+    }
+    final recent = sources.recent;
     // Nakit TANIM GEREĞİ ana birimde (hızlı girişle aynı garanti).
     final accounts = [for (final a in accountsRaw) a.withMainCurrency(main)];
 
@@ -197,8 +249,10 @@ class AddExpenseIntentHandler {
     }
 
     // İşlemin birimi seçili hesabın birimi; hesap yolu kapalıysa eski kural:
-    // ana cüzdan kodu (bkz. Tx.legacyMainCode).
-    final currency = account?.currency ?? 'TRY';
+    // ana cüzdan kodu. Bu bir birim VARSAYIMI değil, "tutar ana birimde"
+    // anlamına gelen sabit işaret (bkz. Tx.legacyMainCode / Tx.baseOr) —
+    // yeni kullanıcı için de aynı yol, aynı değer.
+    final currency = account?.currency ?? Tx.legacyMainCode;
     // Gösterimde ise gerçek birim: eski yolda tutar ana birimdedir.
     final shownCurrency = account?.currency ?? main;
 
@@ -260,26 +314,69 @@ class AddExpenseIntentHandler {
     return IntentReply.ok(parts.join(' '));
   }
 
-  /// Akışın ilk değeri; zaten gelmişse anında, hiç gelmezse [fallback].
+  /// Akışın "yüklendi ya da düştü" dediği İLK durumu; [dataTimeout] içinde
+  /// ikisi de olmazsa o anki (hâlâ yükleniyor) durum. Karar vermez,
+  /// çağıran durumun `hasValue` / `hasError`'ına bakar.
+  ///
+  /// Neden `.future` değil: Riverpod 3 düşen akışı kendisi yeniden dener
+  /// (200 ms'den 6,4 sn'ye katlanan aralıklarla, 10 kez — toplam ~40 sn) ve
+  /// bu süre boyunca durum `AsyncError` değil, hatası dolu bir
+  /// `AsyncLoading`dır (`hasError` doğru, `retrying`); `.future` o süre
+  /// boyunca DOLMAZ. Onu bekleseydik "düştü" ancak zaman aşımında anlaşılır,
+  /// kullanıcı reddi 10 sn sonra duyardı. Durumu dinleyince düşme anında
+  /// görülür: Firestore'un akış hataları (yetki, oturum) yeniden denemeyle
+  /// geçmez, beklemenin anlamı yok. "Yükleniyor" ise beklenir — soğuk
+  /// başlatmada olağan.
   ///
   /// Riverpod 3'te DİNLEYİCİSİ OLMAYAN sağlayıcı veri üretmez: `ref.read`
-  /// onu kurar ama `AsyncLoading`'de bırakır, `.future` da hiç dolmaz. UI
-  /// zaten izliyorsa sorun yok; soğuk başlatmada henüz kimse izlemiyor
-  /// olabilir (ör. hesap listesi ana ekran kurulana kadar). Bekleme boyunca
-  /// geçici bir dinleyici tutup sonra kapatıyoruz.
-  Future<T> _first<T>(
+  /// onu kurar ama `AsyncLoading`'de bırakır. UI zaten izliyorsa sorun yok;
+  /// soğuk başlatmada henüz kimse izlemiyor olabilir (ör. hesap listesi ana
+  /// ekran kurulana kadar). Bekleme boyunca geçici bir dinleyici tutup
+  /// sonra kapatıyoruz.
+  Future<AsyncValue<T>> _settle<T>(
     ProviderListenable<AsyncValue<T>> provider,
-    ProviderListenable<Future<T>> future,
-    T fallback,
   ) async {
-    final sub = ref.listenManual(provider, (_, _) {});
+    final done = Completer<AsyncValue<T>>();
+    final sub = ref.listenManual<AsyncValue<T>>(
+      provider,
+      (_, next) {
+        if (!done.isCompleted && (next.hasValue || next.hasError)) {
+          done.complete(next);
+        }
+      },
+      fireImmediately: true,
+    );
+    final deadline = Timer(dataTimeout, () {
+      if (!done.isCompleted) done.complete(ref.read(provider));
+    });
     try {
-      return await ref.read(future).timeout(_dataTimeout);
-    } catch (_) {
-      return ref.read(provider).value ?? fallback;
+      return await done.future;
     } finally {
+      deadline.cancel();
       sub.close();
     }
+  }
+
+  /// DAYANAK akışları için — [_settle] + hızlı girişin `_ready` kuralı:
+  /// değer yalnız GERÇEKTEN geldiyse; düştüyse (önbellekten eski değer
+  /// taşısa bile) ya da süresinde gelmediyse null → çağıran YAZMAZ. Boş
+  /// liste bir değerdir — yeni kullanıcı buradan geçer.
+  Future<T?> _known<T>(ProviderListenable<AsyncValue<T>> provider) async {
+    final state = await _settle(provider);
+    if (state.hasError || !state.hasValue) return null;
+    return state.requireValue;
+  }
+
+  /// YARDIMCI akışlar için (dil, geçmiş, kur tablosu): ilk değer; düşmüşse
+  /// ya da süresinde gelmezse eldeki değer, o da yoksa [fallback]. Kaydın
+  /// dayanakları için DEĞİL — onlar [_known] ile beklenir ve boşluk
+  /// doldurmaz.
+  Future<T> _first<T>(
+    ProviderListenable<AsyncValue<T>> provider,
+    T fallback,
+  ) async {
+    final state = await _settle(provider);
+    return state.value ?? fallback;
   }
 
   /// Ada göre kategori: önce zarf adıyla (gösterilen ad ya da ham ad, büyük/
@@ -330,11 +427,7 @@ class AddExpenseIntentHandler {
     try {
       final fx = from == to
           ? FxSnapshot(base: to, rates: const {}, fetchedAt: DateTime.now())
-          : await _first(
-              fxSnapshotProvider(to),
-              fxSnapshotProvider(to).future,
-              null,
-            );
+          : await _first(fxSnapshotProvider(to), null);
       if (fx == null) return null;
       return freezeToBase(amount: amount, from: from, to: to, fx: fx);
     } on FxUnavailable {
@@ -360,4 +453,21 @@ class AddExpenseIntentHandler {
       debugPrint('intentAddExpense: $error');
     }
   }
+}
+
+/// [AddExpenseIntentHandler._loadSources] sonucu. null alan = o dayanak
+/// yok (akış düştü ya da süresinde gelmedi) → kayıt yazılmaz. [recent]
+/// dayanak değil, boş gelebilir.
+class _Sources {
+  const _Sources({
+    required this.accounts,
+    required this.main,
+    required this.envelopes,
+    required this.recent,
+  });
+
+  final List<Account>? accounts;
+  final String? main;
+  final List<Envelope>? envelopes;
+  final List<Tx> recent;
 }

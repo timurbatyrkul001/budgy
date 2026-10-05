@@ -472,6 +472,9 @@ class RS {
     required this.intentSavedNoCategoryTpl,
     required this.intentCategoryMissTpl,
     required this.intentAccountMissTpl,
+    required this.intentAccountsUnavailable,
+    required this.intentCurrencyUnavailable,
+    required this.intentCategoriesUnavailable,
   });
 
   final String onbTitle;
@@ -1068,6 +1071,18 @@ class RS {
   final String intentCategoryMissTpl;
   final String intentAccountMissTpl;
 
+  // Dayanak yoksa yazma — intent yolu (2026-10). Hesap listesi, ana birim
+  // ya da (kategori istenmişse) kategori listesi düşmüş / süresinde
+  // gelmemişse kayıt YAPILMAZ; ekran olmadığı için bu ret Siri'nin sesli
+  // okuduğu tek şeydir. Kalıp kur metniyle aynı: ne yüklenemedi +
+  // "kaydedilmedi" açıkça + kullanıcının gerçekten yapabileceği şey
+  // (bağlantıyı kontrol et, tekrar dene, ya da uygulamadan elle ekle).
+  // [intentCategoriesUnavailable] ayrıca "silinmediler" der — kullanıcı
+  // kategorilerini yeniden kurup kopya biriktirmesin.
+  final String intentAccountsUnavailable;
+  final String intentCurrencyUnavailable;
+  final String intentCategoriesUnavailable;
+
   static RS of(String code) => switch (code) {
     'tr' => tr,
     'ru' => ru,
@@ -1599,6 +1614,12 @@ class RS {
     intentSavedNoCategoryTpl: 'Recorded {amount} without a category.',
     intentCategoryMissTpl: 'Category “{name}” wasn\'t found.',
     intentAccountMissTpl: 'Account “{name}” wasn\'t found — used {account}.',
+    intentAccountsUnavailable:
+        'Couldn\'t load your accounts — the expense was not saved. Check your connection and try again, or add it in Budgy.',
+    intentCurrencyUnavailable:
+        'Couldn\'t load your main currency — the expense was not saved. Check your connection and try again, or add it in Budgy.',
+    intentCategoriesUnavailable:
+        'Couldn\'t load your categories — the expense was not saved. They are not deleted; try again in a moment, or add it in Budgy.',
   );
 
   static const tr = RS(
@@ -2122,6 +2143,12 @@ class RS {
     intentSavedNoCategoryTpl: '{amount} kategorisiz kaydedildi.',
     intentCategoryMissTpl: '“{name}” kategorisi bulunamadı.',
     intentAccountMissTpl: '“{name}” hesabı bulunamadı — {account} kullanıldı.',
+    intentAccountsUnavailable:
+        'Hesaplar yüklenemedi — harcama kaydedilmedi. Bağlantını kontrol edip tekrar dene ya da Budgy\'den elle ekle.',
+    intentCurrencyUnavailable:
+        'Ana para birimi yüklenemedi — harcama kaydedilmedi. Bağlantını kontrol edip tekrar dene ya da Budgy\'den elle ekle.',
+    intentCategoriesUnavailable:
+        'Kategoriler yüklenemedi — harcama kaydedilmedi. Silinmediler; birazdan tekrar dene ya da Budgy\'den elle ekle.',
   );
 
   static const ru = RS(
@@ -2646,5 +2673,11 @@ class RS {
     intentSavedNoCategoryTpl: 'Записал {amount} без категории.',
     intentCategoryMissTpl: 'Категория «{name}» не найдена.',
     intentAccountMissTpl: 'Счёт «{name}» не найден — записал на {account}.',
+    intentAccountsUnavailable:
+        'Не удалось загрузить счета — трата не записана. Проверь связь и попробуй ещё раз или добавь её в Budgy вручную.',
+    intentCurrencyUnavailable:
+        'Не удалось загрузить основную валюту — трата не записана. Проверь связь и попробуй ещё раз или добавь её в Budgy вручную.',
+    intentCategoriesUnavailable:
+        'Не удалось загрузить категории — трата не записана. Они не удалены; попробуй чуть позже или добавь её в Budgy вручную.',
   );
 }

@@ -101,6 +101,13 @@ Future<void> pumpBudgyScreen(
   /// aynı sağlayıcı aynı kapsamda iki kez ezilemez (Riverpod assert).
   bool overrideAccounts = true,
 
+  /// Ana birim ve zarf akışlarının KAYNAĞI; verilmezse [currency] /
+  /// [envelopes] sabit değerleri. Düşen (`Stream.error`), askıda ya da
+  /// gecikmeli akışı sınayan test verir — aynı sağlayıcı aynı kapsamda iki
+  /// kez ezilemediği için bunlar [extraOverrides] yerine ayrı parametre.
+  Stream<String> Function(Ref ref)? currencyStream,
+  Stream<List<Envelope>> Function(Ref ref)? envelopesStream,
+
   /// Ekranın kendi sağlayıcıları için ek override'lar (ör. sahte fotoğraf
   /// seçici, sahte sesli giriş). Buradaki varsayılanlarla ÇAKIŞMAMALI.
   /// Tür `dynamic`: Riverpod 3 `Override` sınıfını dışa açmıyor; liste
@@ -136,8 +143,12 @@ Future<void> pumpBudgyScreen(
         workDayErrorReporterProvider
             .overrideWithValue(onWorkDayError ?? (_, _, _) {}),
         languageProvider.overrideWith((ref) => Stream.value(language)),
-        currencyProvider.overrideWith((ref) => Stream.value(currency)),
-        envelopesProvider.overrideWith((ref) => Stream.value(envelopes)),
+        currencyProvider.overrideWith(
+          (ref) => currencyStream?.call(ref) ?? Stream.value(currency),
+        ),
+        envelopesProvider.overrideWith(
+          (ref) => envelopesStream?.call(ref) ?? Stream.value(envelopes),
+        ),
         journalProvider.overrideWith((ref) => Stream.value(transactions)),
         journalFullProvider.overrideWith((ref) => Stream.value(transactions)),
         recentTxsProvider.overrideWith((ref) => Stream.value(transactions)),
