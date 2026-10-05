@@ -5,6 +5,7 @@ import '../../core/ex_style.dart';
 import '../../core/feedback.dart';
 import '../../core/l10n.dart';
 import '../../core/redesign_l10n.dart';
+import '../goals/goals_screen.dart';
 import 'account.dart';
 import 'account_card.dart';
 import 'account_editor_sheet.dart';
@@ -26,6 +27,11 @@ import 'accounts_repository.dart';
 /// basmak, geçmiş işlemlerin donmuş kurlarıyla çelişen ve her gün kendiliğinden
 /// oynayan bir rakam üretirdi. Bu yüzden üstte yalnız başlık + hesap sayısı
 /// var; her hesap kendi biriminde okunur.
+///
+/// Listenin altında Birikim'e yön levhası ([_SavingsSignpost]): döviz
+/// cüzdanı HESAP DEĞİL, bu ekranda açılmaz; ama kullanıcı "dolar eklemek"
+/// için doğal olarak buraya bakar (ana ekrandaki "Hesaplar › Tümü" her zaman
+/// görünür, Birikim bölümü boşken gizli). Levha onu doğru yere gönderir.
 class ManageAccountsScreen extends ConsumerWidget {
   const ManageAccountsScreen({super.key});
 
@@ -131,19 +137,30 @@ class _AccountList extends ConsumerWidget {
         child: child,
       ),
       itemCount: accounts.length,
-      // Boş durum + sıralama ipucu listenin altında; sürüklenemez (footer).
-      footer: cards.isEmpty
-          ? _EmptyState(onAdd: () => showAccountEditor(context))
-          : (accounts.length > 1
-              ? Padding(
-                  padding: const EdgeInsets.only(top: 4, bottom: 8),
-                  child: Text(
-                    rs.accountReorderHint,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 12, color: Ex.textFaint),
-                  ),
-                )
-              : null),
+      // Boş durum + sıralama ipucu + Birikim yön levhası listenin altında;
+      // sürüklenemez (footer).
+      footer: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (cards.isEmpty)
+            _EmptyState(onAdd: () => showAccountEditor(context))
+          else if (accounts.length > 1)
+            Padding(
+              padding: const EdgeInsets.only(top: 4, bottom: 8),
+              child: Text(
+                rs.accountReorderHint,
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 12, color: Ex.textFaint),
+              ),
+            ),
+          const SizedBox(height: 12),
+          _SavingsSignpost(
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const GoalsScreen()),
+            ),
+          ),
+        ],
+      ),
       onReorder: (oldIndex, newIndex) {
         // Flutter sözleşmesi: öğe aşağı taşınırken newIndex bir fazla gelir.
         if (newIndex > oldIndex) newIndex -= 1;
@@ -521,6 +538,67 @@ class _MenuRow extends StatelessWidget {
             const Icon(Icons.chevron_right_rounded, color: Ex.textFaint),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Birikim'e yön levhası: "Döviz biriktiriyor musun? Cüzdan hesap değil,
+/// Birikim'de". Dokunma Hedefler/Birikim ekranını açar; cüzdan oradan
+/// eklenir. Kart ekleme düğmesiyle yarışmasın diye sade: ince kenarlı yüzey,
+/// küçük metin, sağda ok. Anahtar testler için.
+const kAccountsSavingsSignpostKey = ValueKey('accounts-savings-signpost');
+
+class _SavingsSignpost extends ConsumerWidget {
+  const _SavingsSignpost({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final rs = ref.watch(rsProvider);
+    return ExCard(
+      key: kAccountsSavingsSignpostKey,
+      onTap: onTap,
+      color: Colors.transparent,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: Ex.amber.withValues(alpha: 0.14),
+              borderRadius: Ex.squircle(36),
+            ),
+            child: const Icon(Icons.savings_rounded, size: 20, color: Ex.amber),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  rs.savingsSignpostTitle,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: Ex.text,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  rs.savingsSignpostBody,
+                  style: const TextStyle(
+                      fontSize: 12, height: 1.35, color: Ex.textMuted),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 4),
+          const Icon(Icons.chevron_right_rounded, color: Ex.textFaint),
+        ],
       ),
     );
   }

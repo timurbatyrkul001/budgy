@@ -12,5 +12,11 @@ import UIKit
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+    // App Intent köprüsü: Kısayollar/Siri'den gelen "harcama ekle" isteği bu
+    // kanaldan Flutter'a akar. Dart tarafı `ready` deyince kuyruk boşalır
+    // (soğuk başlatma); bkz. IntentBridge.swift.
+    IntentBridge.shared.attach(
+      messenger: engineBridge.applicationRegistrar.messenger()
+    )
   }
 }

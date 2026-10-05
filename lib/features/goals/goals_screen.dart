@@ -5,9 +5,13 @@ import '../../core/animated_bar.dart';
 import '../../core/formatters.dart';
 import '../../core/l10n.dart';
 import '../../core/ex_style.dart';
+import '../../core/redesign_l10n.dart';
 import '../../core/tokens.dart';
 import '../envelopes/budget_repository.dart';
 import '../envelopes/envelope.dart';
+import '../envelopes/envelope_detail_screen.dart';
+import '../envelopes/envelope_l10n.dart';
+import '../space/currency_wallets.dart';
 import '../../core/feedback.dart';
 
 const _goalEmojis = [
@@ -15,7 +19,17 @@ const _goalEmojis = [
   '🚴', '🛋️', '👶', '🐶', '🎸', '📷', '🏝️', '💰',
 ];
 
-/// Birikim hedefleri (Trip, araba, MacBook...). Para ekledikçe dolar.
+/// Alt düğme: "+ Döviz cüzdanı ekle" (testler bununla bulur).
+const kGoalsAddWalletKey = ValueKey('goals-add-wallet');
+
+/// Birikim ekranı: döviz cüzdanları + birikim hedefleri (Trip, araba,
+/// MacBook...). Ana ekrandaki "Birikim" bölümünün "Tümü"sü buraya gelir;
+/// o bölüm ikisi de yokken HİÇ çizilmediği için döviz cüzdanı açmanın
+/// onboarding sonrası tek kalıcı kapısı bu ekrandır (ayarlar › Hedefler ve
+/// hesap yönetimindeki yön levhası buraya getirir). Cüzdanlar da burada
+/// listelenir; yoksa kullanıcı cüzdan ekler ve ekranda hiçbir şey
+/// değişmezdi.
+///
 /// Hedef parası Money left'ten ayrıdır (ayrılmış kumbara).
 class GoalsScreen extends ConsumerWidget {
   const GoalsScreen({super.key});
@@ -24,8 +38,11 @@ class GoalsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.budgy;
     final str = ref.watch(strProvider);
+    final rs = ref.watch(rsProvider);
     final envelopes = ref.watch(envelopesProvider).value ?? [];
     final goals = envelopes.where((e) => e.isGoal && !e.archived).toList()
+      ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+    final wallets = [...ref.watch(accountEnvelopesProvider)]
       ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
 
     return Scaffold(
@@ -63,7 +80,7 @@ class GoalsScreen extends ConsumerWidget {
               ),
             ),
             Expanded(
-              child: goals.isEmpty
+              child: goals.isEmpty && wallets.isEmpty
                   ? Center(
                       child: Padding(
                         padding: const EdgeInsets.all(32),
@@ -85,6 +102,19 @@ class GoalsScreen extends ConsumerWidget {
                   : ListView(
                       padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
                       children: [
+                        // Cüzdan varken iki grup alt başlıkla ayrılır; yalnız
+                        // hedef varken ekran başlığı yeter (eski görünüm).
+                        if (wallets.isNotEmpty) ...[
+                          _GroupLabel(rs.walletsSection),
+                          for (final w in wallets) ...[
+                            _WalletTile(wallet: w),
+                            const SizedBox(height: 10),
+                          ],
+                          if (goals.isNotEmpty) ...[
+                            const SizedBox(height: 10),
+                            _GroupLabel(str.goalsTitle),
+                          ],
+                        ],
                         for (final (i, goal) in goals.indexed) ...[
                           _GoalCard(goal: goal, colorIndex: i),
                           const SizedBox(height: 12),
@@ -97,17 +127,118 @@ class GoalsScreen extends ConsumerWidget {
       ),
       bottomNavigationBar: SafeArea(
         minimum: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-        child: FilledButton.icon(
-          style: FilledButton.styleFrom(
-            backgroundColor: c.accent,
-            foregroundColor: Ex.onBrand,
-            minimumSize: const Size.fromHeight(54),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(28)),
-          ),
-          onPressed: () => _showNewGoal(context, ref, goals.length),
-          icon: const Icon(Icons.add_rounded),
-          label: Text(str.newGoal.replaceFirst('+ ', '')),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: c.accent,
+                foregroundColor: Ex.onBrand,
+                minimumSize: const Size.fromHeight(54),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(28)),
+              ),
+              onPressed: () => _showNewGoal(context, ref, goals.length),
+              icon: const Icon(Icons.add_rounded),
+              label: Text(str.newGoal.replaceFirst('+ ', '')),
+            ),
+            const SizedBox(height: 4),
+            // İkincil eylem: döviz cüzdanı. Kaydetme `addCurrencyWallet`'ta
+            // (ana ekrandaki "+" ile aynı yol).
+            GhostButton(
+              key: kGoalsAddWalletKey,
+              label: rs.addCurrencyWallet,
+              onTap: () => addCurrencyWallet(context, ref),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Grup alt başlığı (Döviz cüzdanları / Hedefler).
+class _GroupLabel extends StatelessWidget {
+  const _GroupLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 4, bottom: 10),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.2,
+          color: context.budgy.textMuted,
+        ),
+      ),
+    );
+  }
+}
+
+/// Döviz cüzdanı satırı: simge + ad + bakiye kendi biriminde. Dokunma zarf
+/// detayına gider (ana ekrandaki kutucukla aynı). Hedef kartından kasten
+/// sade: cüzdanın ilerlemesi yok, yalnız bakiyesi var.
+class _WalletTile extends ConsumerWidget {
+  const _WalletTile({required this.wallet});
+
+  final Envelope wallet;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.budgy;
+    final str = ref.watch(strProvider);
+
+    return InkWell(
+      key: ValueKey('goals-wallet-${wallet.id}'),
+      borderRadius: BorderRadius.circular(18),
+      onTap: () => Navigator.of(context).push(MaterialPageRoute(
+        builder: (_) => EnvelopeDetailScreen(envelopeId: wallet.id),
+      )),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: c.surface2,
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration:
+                  BoxDecoration(color: c.surface, shape: BoxShape.circle),
+              alignment: Alignment.center,
+              child: Text(wallet.emoji, style: const TextStyle(fontSize: 20)),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                wallet.displayName(str),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    fontSize: 16, fontWeight: FontWeight.w700, color: c.text),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              formatMoneyIn(wallet.balance, wallet.currency),
+              maxLines: 1,
+              style: TextStyle(
+                fontFamily: 'InterDisplay',
+                fontSize: 17,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.04 * 17,
+                color: c.text,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ],
         ),
       ),
     );

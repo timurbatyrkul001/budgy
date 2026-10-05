@@ -358,6 +358,9 @@ class RS {
     required this.accountEmptyTitle,
     required this.accountEmptyBody,
     required this.accountReorderHint,
+    required this.walletsSection,
+    required this.savingsSignpostTitle,
+    required this.savingsSignpostBody,
     required this.accountBalance,
     required this.accountRename,
     required this.accountArchive,
@@ -461,6 +464,12 @@ class RS {
     required this.conflictBody,
     required this.conflictSignIn,
     required this.conflictKeep,
+    required this.intentBadRequest,
+    required this.intentInvalidAmount,
+    required this.intentSavedTpl,
+    required this.intentSavedNoCategoryTpl,
+    required this.intentCategoryMissTpl,
+    required this.intentAccountMissTpl,
   });
 
   final String onbTitle;
@@ -850,6 +859,14 @@ class RS {
   final String accountEmptyTitle;
   final String accountEmptyBody;
   final String accountReorderHint;
+
+  /// Hedefler ekranındaki döviz cüzdanı grubunun alt başlığı.
+  final String walletsSection;
+
+  /// Hesap yönetimi ekranının altındaki yön levhası: "döviz cüzdanı hesap
+  /// değil, Birikim'de" — kullanıcı dövizi buraya eklemeye kalkmasın.
+  final String savingsSignpostTitle;
+  final String savingsSignpostBody;
   final String accountBalance;
   final String accountRename;
   final String accountArchive;
@@ -1023,6 +1040,21 @@ class RS {
 
   /// Güvenli seçenek (dolu düğme): hiçbir şey değişmez.
   final String conflictKeep;
+
+  // ── App Intent (Kısayollar / Siri "harcama ekle") cevapları (2026-10) ──
+  // Siri bu metinleri SESLİ okur, Kısayollar sonuç kutusunda gösterir: kısa,
+  // tam cümle, kullanıcıya ne olduğunu söyleyen. [intentSavedTpl] `{amount}`
+  // (biçimli tutar) ve `{category}`; [intentSavedNoCategoryTpl] yalnız
+  // `{amount}`. [intentCategoryMissTpl] `{name}`: istenen kategori yoktu —
+  // kayıt yapıldı ama sessizce tahmin etmedik, söylüyoruz.
+  // [intentAccountMissTpl] `{name}` (istenen) ve `{account}` (kullanılan).
+  // Kur yokken ret metni [fxFreezeUnavailable] ile aynı.
+  final String intentBadRequest;
+  final String intentInvalidAmount;
+  final String intentSavedTpl;
+  final String intentSavedNoCategoryTpl;
+  final String intentCategoryMissTpl;
+  final String intentAccountMissTpl;
 
   static RS of(String code) => switch (code) {
     'tr' => tr,
@@ -1421,6 +1453,10 @@ class RS {
     accountEmptyTitle: 'Add your first card',
     accountEmptyBody: 'The card your salary lands on, the card you spend with — each keeps its own currency.',
     accountReorderHint: 'Hold a card to reorder',
+    walletsSection: 'Currency wallets',
+    savingsSignpostTitle: 'Saving in another currency?',
+    savingsSignpostBody:
+        'A currency wallet is not an account — it is money set aside. You will find it under Savings.',
     accountBalance: 'Balance',
     accountRename: 'Rename',
     accountArchive: 'Archive',
@@ -1540,6 +1576,12 @@ class RS {
         "What you've written in this app so far isn't tied to an account yet. The account you picked already has records of its own, and the two can't be combined.\n\nIf you sign in to it, the records on this phone will no longer be reachable. You can stay as you are for now and connect a different account later in Settings.",
     conflictSignIn: 'Sign in anyway',
     conflictKeep: 'Keep my records',
+    intentBadRequest: 'Budgy couldn\'t read the request.',
+    intentInvalidAmount: 'The amount must be greater than zero.',
+    intentSavedTpl: 'Recorded {amount} in {category}.',
+    intentSavedNoCategoryTpl: 'Recorded {amount} without a category.',
+    intentCategoryMissTpl: 'Category “{name}” wasn\'t found.',
+    intentAccountMissTpl: 'Account “{name}” wasn\'t found — used {account}.',
   );
 
   static const tr = RS(
@@ -1929,6 +1971,10 @@ class RS {
     accountEmptyTitle: 'İlk kartını ekle',
     accountEmptyBody: 'Maaşının geldiği kart, harcadığın kart — her biri kendi para biriminde durur.',
     accountReorderHint: 'Sıralamak için karta basılı tut',
+    walletsSection: 'Döviz cüzdanları',
+    savingsSignpostTitle: 'Döviz biriktiriyor musun?',
+    savingsSignpostBody:
+        'Döviz cüzdanı hesap değil, kenara ayrılmış para — Birikim bölümünde.',
     accountBalance: 'Bakiye',
     accountRename: 'Yeniden adlandır',
     accountArchive: 'Arşivle',
@@ -2048,6 +2094,12 @@ class RS {
         'Bu uygulamada şimdiye kadar yazdıkların henüz bir hesaba bağlı değil. Seçtiğin hesabın ise kendi kayıtları var ve ikisi birleştirilemiyor.\n\nO hesaba girersen bu telefondaki kayıtlara bir daha ulaşamazsın. Şimdilik böyle kalabilir, sonra Ayarlar\'dan başka bir hesapla bağlanabilirsin.',
     conflictSignIn: 'Yine de gir',
     conflictKeep: 'Kayıtlarımı koru',
+    intentBadRequest: 'Budgy isteği okuyamadı.',
+    intentInvalidAmount: 'Tutar sıfırdan büyük olmalı.',
+    intentSavedTpl: '{amount} {category} kategorisine kaydedildi.',
+    intentSavedNoCategoryTpl: '{amount} kategorisiz kaydedildi.',
+    intentCategoryMissTpl: '“{name}” kategorisi bulunamadı.',
+    intentAccountMissTpl: '“{name}” hesabı bulunamadı — {account} kullanıldı.',
   );
 
   static const ru = RS(
@@ -2438,6 +2490,10 @@ class RS {
     accountEmptyTitle: 'Добавь первую карту',
     accountEmptyBody: 'Карта, куда приходит зарплата, карта, с которой тратишь — каждая в своей валюте.',
     accountReorderHint: 'Удерживай карту, чтобы изменить порядок',
+    walletsSection: 'Валютные кошельки',
+    savingsSignpostTitle: 'Копите в валюте?',
+    savingsSignpostBody:
+        'Валютный кошелёк — не счёт, а отложенные деньги. Он в разделе «Накопления».',
     accountBalance: 'Баланс',
     accountRename: 'Переименовать',
     accountArchive: 'В архив',
@@ -2557,5 +2613,11 @@ class RS {
         'Всё, что ты записал в приложении до сих пор, ещё не привязано к аккаунту. У выбранного аккаунта уже есть свои записи, и объединить их нельзя.\n\nЕсли войти в него, записи на этом телефоне станут недоступны. Можно оставить всё как есть и позже привязать другой аккаунт в настройках.',
     conflictSignIn: 'Всё равно войти',
     conflictKeep: 'Оставить мои записи',
+    intentBadRequest: 'Budgy не смог прочитать запрос.',
+    intentInvalidAmount: 'Сумма должна быть больше нуля.',
+    intentSavedTpl: 'Записал {amount} в «{category}».',
+    intentSavedNoCategoryTpl: 'Записал {amount} без категории.',
+    intentCategoryMissTpl: 'Категория «{name}» не найдена.',
+    intentAccountMissTpl: 'Счёт «{name}» не найден — записал на {account}.',
   );
 }

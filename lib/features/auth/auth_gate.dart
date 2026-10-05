@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/ex_style.dart';
 import '../../core/redesign_l10n.dart';
 import '../envelopes/budget_repository.dart';
+import '../intents/intent_channel.dart';
 import '../onboarding/onboarding_flow.dart';
 import '../root/root_screen.dart';
 
@@ -95,7 +96,9 @@ class _AuthGateState extends ConsumerState<AuthGate> {
           ? (_failed
                 ? _StartupError(onRetry: _ensureSignedIn)
                 : const _Splash())
-          : const _OnboardingGate(),
+          // Kısayollar/Siri kanalı oturumla birlikte açılır: depo uid ister,
+          // "hazırız" demek ancak kullanıcı varken doğru (bkz. intents/).
+          : const IntentChannelHost(child: _OnboardingGate()),
       loading: () => const _Splash(),
       error: (e, _) => _StartupError(onRetry: _ensureSignedIn),
     );

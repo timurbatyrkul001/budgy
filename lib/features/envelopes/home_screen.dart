@@ -938,8 +938,9 @@ class _AccountsSection extends ConsumerWidget {
 /// Üst boşluk bölümün kendi içinde: gizliyken arkasında boşluk kalmasın.
 ///
 /// Kumbaralar kategori ekranında görünmez (`currency == 'TRY'` süzer);
-/// ana ekrandaki bu bölüm ve dönüştürücü dışında onlara giden yol yok —
-/// bölümü kaldırırken bunu unutma.
+/// bu bölüm gizliyken onlara ve "+ döviz cüzdanı"na giden kalıcı yol
+/// [GoalsScreen] (ayarlar › Hedefler; hesap yönetimindeki yön levhası) —
+/// bölüm boşken orası tek kapı, bunu kırma.
 class _SavingsSection extends ConsumerWidget {
   const _SavingsSection();
 
