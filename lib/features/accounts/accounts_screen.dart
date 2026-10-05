@@ -12,10 +12,12 @@ import 'accounts_repository.dart';
 
 /// Hesap yönetimi: kartlar dikey liste hâlinde, her biri kendi bakiyesiyle.
 ///
-/// Adı `AccountsScreen` DEĞİL: `lib/features/home/accounts_screen.dart`
-/// aynı adla eski döviz-cüzdanı listesini taşıyor; ana ekran onu import
-/// ediyor. Bu ekran bağlandığında ikisi aynı dosyada buluşacak, ad çakışması
-/// çıkmasın.
+/// Adı `AccountsScreen` değil, tarihsel sebeple: eskiden
+/// `lib/features/home/accounts_screen.dart` aynı adla döviz-kumbarası
+/// listesini taşıyordu ve ana ekran onu import ediyordu. O ekran kaldırıldı
+/// (kumbaralar ana ekrandaki "Birikim" bölümüne, sağlayıcı
+/// `space/currency_wallets.dart`'a taşındı); çakışma kalmadı, ad yalnız
+/// çağıran yerleri (ayarlar, ana ekran, testler) kıpırdatmamak için duruyor.
 ///
 /// NEDEN ÜSTTE TOPLAM YOK: Hesaplar farklı para birimlerinde (₺ maaş, ₼
 /// harcama). "Toplam varlık" için hepsini tek birime çevirmek gerekir; ama

@@ -11,22 +11,30 @@ import '../../core/feedback.dart';
 import '../../core/formatters.dart';
 import '../../core/l10n.dart';
 import '../../core/redesign_l10n.dart';
+import '../accounts/account.dart';
+import '../accounts/account_editor_sheet.dart'
+    show accountMoney, showAccountEditor;
+import '../accounts/accounts_repository.dart';
+import '../accounts/accounts_screen.dart';
+import '../accounts/bank_catalog.dart';
 import '../budget/budget_period.dart';
 import '../budget/budget_screen.dart';
 import '../converter/converter_logic.dart';
 import '../converter/converter_screen.dart';
-import '../home/accounts_screen.dart';
+import '../goals/goals_screen.dart';
 import '../home/fx_providers.dart';
 import '../settings/app_settings.dart';
 import '../settings/settings_hub.dart';
 import '../reminders/reminders_repository.dart';
 import '../root/bottom_tab_bar.dart';
+import '../space/currency_wallets.dart';
 import '../space/space.dart';
 import '../stats/stats_screen.dart';
 import '../transactions/category_sheet.dart';
 import '../transactions/journal_screen.dart';
 import '../transactions/tx.dart';
 import 'budget_repository.dart';
+import 'envelope.dart';
 import 'envelope_detail_screen.dart';
 import 'envelope_l10n.dart';
 
@@ -90,7 +98,8 @@ final uncategorizedTxsProvider = Provider<List<Tx>>((ref) {
 });
 
 /// Ana ekran (kâğıt zemin): üstte cüzdan çipi + kur + ikon butonlar,
-/// sola yaslı "bu ay harcanan", bütçe kartı, yatay hesap kartları, son
+/// sola yaslı "bu ay harcanan", bütçe kartı, yatay hesap kartları (kartlar +
+/// nakit), varsa birikim şeridi (döviz kumbaraları + hedefler), son
 /// hareketler, hatırlatma kartı. Alt sekme çubuğu ve "+" kök ekranda
 /// (root_screen); bu ekran yalnız listesinin altına çubuk payı bırakır.
 class HomeScreen extends ConsumerWidget {
@@ -130,9 +139,11 @@ class HomeScreen extends ConsumerWidget {
               const _ReviewRow().enterUp(context, index: 3),
               const SizedBox(height: 26),
               const _AccountsSection().enterUp(context, index: 4),
+              // Kumbara/hedef yoksa kendini çizmez; üst boşluğu kendi taşır.
+              const _SavingsSection().enterUp(context, index: 5),
               const SizedBox(height: 26),
-              const _RecentSection().enterUp(context, index: 5),
-              const _NotificationsCard().enterUp(context, index: 6),
+              const _RecentSection().enterUp(context, index: 6),
+              const _NotificationsCard().enterUp(context, index: 7),
             ],
           ),
         ),
@@ -763,11 +774,19 @@ class _BudgetCard extends ConsumerWidget {
 // ── bölüm başlığı ─────────────────────────────────────────────────────────
 
 class _SectionTitle extends StatelessWidget {
-  const _SectionTitle({required this.title, this.action, this.onAction});
+  const _SectionTitle({
+    required this.title,
+    this.action,
+    this.onAction,
+    this.actionKey,
+  });
 
   final String title;
   final String? action;
   final VoidCallback? onAction;
+
+  /// Testler için: aynı ekranda birden çok "Tümü" olabilir.
+  final Key? actionKey;
 
   @override
   Widget build(BuildContext context) {
@@ -790,6 +809,7 @@ class _SectionTitle extends StatelessWidget {
           ),
           if (action != null)
             GestureDetector(
+              key: actionKey,
               onTap: onAction,
               child: Text(
                 action!,
@@ -808,33 +828,76 @@ class _SectionTitle extends StatelessWidget {
 
 // ── hesaplar (yatay) ──────────────────────────────────────────────────────
 
+/// Test kancaları: ana ekranda iki "Tümü" ve iki "+" var (hesaplar ve
+/// birikim); metinle değil anahtarla ayırt edilir.
+const kHomeAccountsSeeAllKey = ValueKey('home-accounts-see-all');
+const kHomeAccountsAddKey = ValueKey('home-accounts-add');
+const kHomeSavingsSeeAllKey = ValueKey('home-savings-see-all');
+const kHomeSavingsAddKey = ValueKey('home-savings-add');
+
+/// Hesaplar şeridi: kartlar + nakit (`Account`), her biri KENDİ biriminde.
+///
+/// Eskiden burada döviz kumbaraları (`accountEnvelopesProvider`) duruyordu;
+/// kullanıcı Enpara kartını ekleyip ana ekranda göremiyordu — kartlar yalnız
+/// ayarlarda ve harcama girerken görünüyordu. Kumbaralar artık aşağıdaki
+/// "Birikim" bölümünde ([_SavingsSection]); burası paranın ÇIKTIĞI yerler.
+///
+/// Nakdin birimi `accountsProvider` içinde ana birime çekilir
+/// (`Account.withMainCurrency`); burada ikinci bir kural yok. Liste boşsa
+/// (ilk açılış, `accounts/cash` belgesi henüz yazılmadı) sentetik nakit
+/// kartı: bakiye `cashBalanceProvider`'dan, birim ana birimden — kullanıcı
+/// hesap kurmadan da cebindekini görsün.
+///
+/// Dokunma hesap yönetimi ekranını açar (günlük hesaba göre süzülü değil):
+/// `JournalScreen` dışarıdan süzgeç almıyor ve o dosya bu işin sınırları
+/// dışında.
 class _AccountsSection extends ConsumerWidget {
   const _AccountsSection();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final rs = ref.watch(rsProvider);
-    final str = ref.watch(strProvider);
-    final cash = ref.watch(cashBalanceProvider).value ?? 0;
-    final accounts = ref.watch(accountEnvelopesProvider);
+    final accounts = ref.watch(accountsProvider).value ?? const <Account>[];
+    final main = ref.watch(currencyCodeProvider);
+    final cashFallback = ref.watch(cashBalanceProvider).value ?? 0;
+
+    final list = accounts.isNotEmpty
+        ? accounts
+        : [
+            Account(
+              id: Account.cashId,
+              name: '',
+              currency: main,
+              kind: AccountKind.cash,
+              balance: cashFallback,
+            ),
+          ];
+
+    void openManage() => _push(context, const ManageAccountsScreen());
 
     final cards = <Widget>[
-      _AccountCard(
-        icon: Icons.payments_rounded,
-        color: Ex.brand,
-        title: rs.cash,
-        amount: formatMoney(cash),
-        onTap: () => _push(context, const JournalScreen()),
-      ),
-      for (final e in accounts)
+      for (final a in list)
         _AccountCard(
-          emoji: e.emoji,
-          color: Ex.amber,
-          title: e.displayName(str),
-          amount: formatMoneyIn(e.balance, e.currency),
-          onTap: () => _push(context, EnvelopeDetailScreen(envelopeId: e.id)),
+          key: ValueKey('home-account-${a.id}'),
+          icon: switch (a.kind) {
+            AccountKind.cash => Icons.payments_rounded,
+            AccountKind.card => Icons.credit_card_rounded,
+            AccountKind.bank => Icons.account_balance_rounded,
+          },
+          emoji: a.emoji,
+          color: _accountTint(a),
+          title: a.isCash && a.name.trim().isEmpty ? rs.cash : a.name,
+          // `formatMoneyIn` değil: o yalnız kumbara birimlerini (USD/EUR...)
+          // tanır, manat/dolar kartı ₺ ile yazılırdı. Hesap ekranlarıyla
+          // aynı biçimleyici.
+          amount: accountMoney(a.balance, a.currency),
+          onTap: openManage,
         ),
-      _AddAccountCard(onTap: () => addCurrencyWallet(context, ref)),
+      _AddCard(
+        key: kHomeAccountsAddKey,
+        label: rs.addAccount,
+        onTap: () => showAccountEditor(context),
+      ),
     ];
 
     return Column(
@@ -843,31 +906,138 @@ class _AccountsSection extends ConsumerWidget {
         _SectionTitle(
           title: rs.accounts,
           action: rs.seeAll,
-          onAction: () => _push(context, const AccountsScreen()),
+          actionKey: kHomeAccountsSeeAllKey,
+          onAction: openManage,
         ),
-        SizedBox(
-          height: 96,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            clipBehavior: Clip.none,
-            itemCount: cards.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 10),
-            itemBuilder: (_, i) => cards[i],
-          ),
-        ),
+        _CardStrip(cards: cards),
       ],
+    );
+  }
+
+  /// Kutucuktaki simge rengi: nakit marka yeşili; kartta kullanıcının seçtiği
+  /// vurgu → renk indeksi → bankanın kimlik rengi → amber. Büyük kart
+  /// görseli burada çizilmez (o yönetim ekranında); yalnız kartı nakitten
+  /// ayıracak kadar renk.
+  static Color _accountTint(Account a) {
+    if (a.kind == AccountKind.cash) return Ex.brand;
+    if (a.accentColor case final argb?) return Color(argb);
+    if (a.colorIndex case final i?) {
+      return Ex.spaceColors[i % Ex.spaceColors.length];
+    }
+    return bankByName(a.name)?.color ?? Ex.amber;
+  }
+}
+
+// ── birikim (yatay) ───────────────────────────────────────────────────────
+
+/// Birikim: döviz kumbaraları (`accountEnvelopesProvider`) + hedefler.
+/// Kenara AYRILMIŞ para; harcama yapılan hesaplardan (yukarıdaki şerit)
+/// bilinçli olarak ayrı.
+///
+/// İkisi de yoksa bölüm HİÇ çizilmez — ana ekranda boş bölüm gürültü.
+/// Üst boşluk bölümün kendi içinde: gizliyken arkasında boşluk kalmasın.
+///
+/// Kumbaralar kategori ekranında görünmez (`currency == 'TRY'` süzer);
+/// ana ekrandaki bu bölüm ve dönüştürücü dışında onlara giden yol yok —
+/// bölümü kaldırırken bunu unutma.
+class _SavingsSection extends ConsumerWidget {
+  const _SavingsSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final rs = ref.watch(rsProvider);
+    final str = ref.watch(strProvider);
+    final wallets = ref.watch(accountEnvelopesProvider);
+    final goals =
+        (ref.watch(envelopesProvider).value ?? const <Envelope>[])
+            .where((e) => e.isGoal && !e.archived)
+            .toList()
+          ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+    if (wallets.isEmpty && goals.isEmpty) return const SizedBox.shrink();
+
+    final cards = <Widget>[
+      for (final w in wallets)
+        _AccountCard(
+          key: ValueKey('home-wallet-${w.id}'),
+          emoji: w.emoji,
+          icon: Icons.savings_rounded,
+          color: Ex.amber,
+          title: w.displayName(str),
+          amount: formatMoneyIn(w.balance, w.currency),
+          onTap: () => _push(context, EnvelopeDetailScreen(envelopeId: w.id)),
+        ),
+      for (final g in goals)
+        _AccountCard(
+          key: ValueKey('home-goal-${g.id}'),
+          emoji: g.emoji,
+          icon: Icons.flag_rounded,
+          color: Ex.mint,
+          title: g.displayName(str),
+          amount: formatMoneyIn(g.balance, g.currency),
+          // Hedefin kumbaradan farkı: ince ilerleme çizgisi.
+          progress: g.targetAmount == null ? null : g.progress,
+          onTap: () => _push(context, EnvelopeDetailScreen(envelopeId: g.id)),
+        ),
+      _AddCard(
+        key: kHomeSavingsAddKey,
+        label: rs.addSavingsWallet,
+        width: 110,
+        onTap: () => addCurrencyWallet(context, ref),
+      ),
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 26),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _SectionTitle(
+            title: str.savingsTitle,
+            action: rs.seeAll,
+            actionKey: kHomeSavingsSeeAllKey,
+            onAction: () => _push(context, const GoalsScreen()),
+          ),
+          _CardStrip(cards: cards),
+        ],
+      ),
     );
   }
 }
 
+/// Yatay kutucuk şeridi — hesaplar ve birikim aynı yüksekliği paylaşır.
+class _CardStrip extends StatelessWidget {
+  const _CardStrip({required this.cards});
+
+  final List<Widget> cards;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 96,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        clipBehavior: Clip.none,
+        itemCount: cards.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 10),
+        itemBuilder: (_, i) => cards[i],
+      ),
+    );
+  }
+}
+
+/// Kompakt kutucuk: simge/emoji + ad üstte, tutar altta. Hesap da kumbara da
+/// hedef de aynı kalıp; [emoji] boşsa [icon] çizilir, [progress] verilirse
+/// tutarın altına ince çizgi gelir.
 class _AccountCard extends StatelessWidget {
   const _AccountCard({
+    super.key,
     required this.title,
     required this.amount,
     required this.color,
     required this.onTap,
     this.icon,
     this.emoji,
+    this.progress,
   });
 
   final String title;
@@ -876,9 +1046,11 @@ class _AccountCard extends StatelessWidget {
   final VoidCallback onTap;
   final IconData? icon;
   final String? emoji;
+  final double? progress;
 
   @override
   Widget build(BuildContext context) {
+    final showEmoji = emoji != null && emoji!.trim().isNotEmpty;
     return SizedBox(
       width: 150,
       child: ExCard(
@@ -897,7 +1069,7 @@ class _AccountCard extends StatelessWidget {
                     color: color.withValues(alpha: 0.16),
                     borderRadius: Ex.squircle(28),
                   ),
-                  child: emoji != null
+                  child: showEmoji
                       ? Text(emoji!, style: const TextStyle(fontSize: 14))
                       : Icon(icon, size: 16, color: color),
                 ),
@@ -931,6 +1103,18 @@ class _AccountCard extends StatelessWidget {
                 ),
               ),
             ),
+            if (progress case final p?) ...[
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(2),
+                child: LinearProgressIndicator(
+                  value: p,
+                  minHeight: 3,
+                  backgroundColor: Ex.surfaceHi,
+                  color: color,
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -938,31 +1122,41 @@ class _AccountCard extends StatelessWidget {
   }
 }
 
-class _AddAccountCard extends ConsumerWidget {
-  const _AddAccountCard({required this.onTap});
+/// Şeridin sonundaki "+" kutucuğu. [label] iki satıra sığabilir
+/// ("Валютный кошелёк"); hesaplarda tek kelime ("Ekle").
+class _AddCard extends StatelessWidget {
+  const _AddCard({
+    super.key,
+    required this.label,
+    required this.onTap,
+    this.width = 96,
+  });
 
+  final String label;
   final VoidCallback onTap;
+  final double width;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final rs = ref.watch(rsProvider);
+  Widget build(BuildContext context) {
     return SizedBox(
-      width: 96,
+      width: width,
       child: ExCard(
         color: Colors.transparent,
         onTap: onTap,
-        padding: EdgeInsets.zero,
+        padding: const EdgeInsets.symmetric(horizontal: 6),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Icon(Icons.add_rounded, size: 24, color: Ex.mint),
             const SizedBox(height: 4),
             Text(
-              rs.addAccount,
-              maxLines: 1,
+              label,
+              maxLines: 2,
+              textAlign: TextAlign.center,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 fontSize: 12,
+                height: 1.15,
                 fontWeight: FontWeight.w700,
                 color: Ex.mint,
               ),

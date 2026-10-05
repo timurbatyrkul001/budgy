@@ -30,38 +30,71 @@ class GoalsScreen extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: c.bg,
-      appBar: AppBar(
-        backgroundColor: c.bg,
-        elevation: 0,
-        title: Text(str.goalsTitle),
-      ),
-      body: goals.isEmpty
-          ? Center(
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text('🎯', style: TextStyle(fontSize: 56)),
-                    const SizedBox(height: 16),
-                    Text(
-                      str.goalsEmpty,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: c.textMuted, height: 1.4),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Başlık: Material AppBar yerine diğer ekranlardaki desen
+            // (Kategoriler ile aynı) — ortak geri düğmesi + kalın başlık.
+            // BudgyBackButton altına 12 px boşluk koyuyor; başlık aynı hizada
+            // dursun diye o da aynı boşluğu alır.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+              child: Row(
+                children: [
+                  const BudgyBackButton(),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Text(
+                        str.goalsTitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.7,
+                          color: c.text,
+                        ),
+                      ),
                     ),
-                  ],
-                ),
-              ),
-            )
-          : ListView(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-              children: [
-                for (final (i, goal) in goals.indexed) ...[
-                  _GoalCard(goal: goal, colorIndex: i),
-                  const SizedBox(height: 12),
+                  ),
                 ],
-              ],
+              ),
             ),
+            Expanded(
+              child: goals.isEmpty
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(32),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Text('🎯', style: TextStyle(fontSize: 56)),
+                            const SizedBox(height: 16),
+                            Text(
+                              str.goalsEmpty,
+                              textAlign: TextAlign.center,
+                              style:
+                                  TextStyle(color: c.textMuted, height: 1.4),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : ListView(
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                      children: [
+                        for (final (i, goal) in goals.indexed) ...[
+                          _GoalCard(goal: goal, colorIndex: i),
+                          const SizedBox(height: 12),
+                        ],
+                      ],
+                    ),
+            ),
+          ],
+        ),
+      ),
       bottomNavigationBar: SafeArea(
         minimum: const EdgeInsets.fromLTRB(20, 0, 20, 12),
         child: FilledButton.icon(

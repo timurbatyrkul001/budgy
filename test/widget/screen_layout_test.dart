@@ -2,10 +2,18 @@ import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:kopilka_app/core/ex_style.dart';
 import 'package:kopilka_app/core/l10n.dart';
+import 'package:kopilka_app/features/categories/categories_screen.dart';
 import 'package:kopilka_app/features/envelopes/envelope.dart';
 import 'package:kopilka_app/features/envelopes/home_screen.dart';
 import 'package:kopilka_app/features/goals/goals_screen.dart';
+import 'package:kopilka_app/features/profile/contact_screen.dart';
+import 'package:kopilka_app/features/profile/currency_screen.dart';
+import 'package:kopilka_app/features/profile/help_screen.dart';
+import 'package:kopilka_app/features/profile/language_screen.dart';
+import 'package:kopilka_app/features/profile/privacy_policy_screen.dart';
+import 'package:kopilka_app/features/profile/terms_of_use_screen.dart';
 import 'package:kopilka_app/features/stats/stats_screen.dart';
 import 'package:kopilka_app/features/transactions/journal_screen.dart';
 import 'package:kopilka_app/features/transactions/tx.dart';
@@ -13,6 +21,43 @@ import 'package:kopilka_app/features/workdays/calendar_screen.dart';
 import 'package:kopilka_app/features/workdays/work_days_repository.dart';
 
 import '../support/harness.dart';
+
+/// Ekranı `home` olarak değil, boş bir sayfanın ÜSTÜNE itilmiş bir route
+/// olarak açar.
+///
+/// [BudgyBackButton] geri gidilecek yer yoksa kendini gizliyor; ekran
+/// doğrudan `home` olarak pump edilirse başlık satırı gerçek hâlinden daha
+/// geniş ölçülür ve dar ekrandaki taşma gözden kaçar. Her zaman menüden
+/// itilen ekranlar bu sarmalayıcıyla sınanır.
+class _PushOnStart extends StatefulWidget {
+  const _PushOnStart(this.screen);
+
+  final Widget screen;
+
+  @override
+  State<_PushOnStart> createState() => _PushOnStartState();
+}
+
+class _PushOnStartState extends State<_PushOnStart> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (ctx) => MediaQuery(
+            // Harness'teki ayarla aynı: giriş animasyonları anında biter.
+            data: MediaQuery.of(ctx).copyWith(disableAnimations: true),
+            child: widget.screen,
+          ),
+        ),
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => const Scaffold();
+}
 
 /// Ekranların dar telefonlarda taşmadığını doğrular.
 ///
@@ -119,8 +164,54 @@ void main() {
     'Geçmiş': const JournalScreen(),
   };
 
+  /// Menüden/ayarlardan itilerek açılan ekranlar: başlık satırında ortak
+  /// geri düğmesi ([BudgyBackButton]) görünür hâlde ölçülür.
+  final pushedScreens = <String, Widget>{
+    'Hedefler (itilmiş)': const GoalsScreen(),
+    'Kategoriler': const CategoriesScreen(),
+    'Dil': const LanguageScreen(),
+    'Para birimi': const CurrencyScreen(),
+    'SSS': const HelpScreen(),
+    'Gizlilik': const PrivacyPolicyScreen(),
+    'Yardım Merkezi': const ContactScreen(),
+    'Kullanım koşulları': const TermsOfUseScreen(),
+  };
+
   // 320dp: iPhone SE (1. nesil) · 360dp: en yaygın Android genişliği.
   for (final width in [320.0, 360.0]) {
+    for (final entry in pushedScreens.entries) {
+      for (final lang in AppLanguage.values) {
+        testWidgets(
+          '${entry.key} · ${width.toInt()}dp · ${lang.code} taşmıyor',
+          (tester) async {
+            final db = FakeFirebaseFirestore();
+            for (final e in envelopes) {
+              await seedEnvelope(db, e);
+            }
+            await pumpBudgyScreen(
+              tester,
+              _PushOnStart(entry.value),
+              db: db,
+              envelopes: envelopes,
+              transactions: transactions,
+              workDays: workDays,
+              language: lang,
+              logicalSize: Size(width, 800),
+            );
+            expect(tester.takeException(), isNull);
+            // Üç ayrı "geri" biçimi yerine tek ortak düğme: ekran gerçekten
+            // itilmiş olduğundan düğme görünür olmalı.
+            expect(find.byType(BudgyBackButton), findsOneWidget);
+            expect(find.byIcon(Icons.arrow_back_rounded), findsOneWidget);
+            expect(find.byIcon(Icons.arrow_back_ios_new_rounded),
+                findsNothing);
+            // Material AppBar hiçbir ekranda kalmadı (Hedefler dahil).
+            expect(find.byType(AppBar), findsNothing);
+          },
+        );
+      }
+    }
+
     for (final entry in screens.entries) {
       for (final lang in AppLanguage.values) {
         testWidgets(

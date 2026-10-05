@@ -23,7 +23,7 @@ import '../accounts/accounts_repository.dart';
 import '../envelopes/budget_repository.dart';
 import '../envelopes/envelope.dart';
 import '../envelopes/envelope_l10n.dart';
-import '../home/accounts_screen.dart';
+import '../space/currency_wallets.dart';
 import '../home/fx_providers.dart';
 import '../pro/pro_gate.dart';
 import '../pro/pro_state.dart';

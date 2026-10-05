@@ -246,18 +246,26 @@ class _NavBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Görünen kutu 36 px; dokunma alanı 44 px (Apple asgarisi). Kutu
+    // 44'lük saydam alanın ortasında, görünüm değişmez.
     return InkWell(
       borderRadius: BorderRadius.circular(Ex.iconRadius),
       onTap: onTap,
-      child: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          color: Ex.surfaceHi,
-          borderRadius: BorderRadius.circular(Ex.iconRadius),
+      child: SizedBox(
+        width: 44,
+        height: 44,
+        child: Center(
+          child: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: Ex.surfaceHi,
+              borderRadius: BorderRadius.circular(Ex.iconRadius),
+            ),
+            child: Icon(icon,
+                size: 22, color: onTap == null ? Ex.textFaint : Ex.text),
+          ),
         ),
-        child: Icon(icon,
-            size: 22, color: onTap == null ? Ex.textFaint : Ex.text),
       ),
     );
   }

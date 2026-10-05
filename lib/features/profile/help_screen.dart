@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/ex_style.dart';
 import '../../core/l10n.dart';
 import '../../core/tokens.dart';
 
@@ -28,30 +29,37 @@ class _HelpScreenState extends ConsumerState<HelpScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Başlık çubuğu: dairesel geri butonu + ortalanmış başlık.
+            // Başlık çubuğu: ortak geri düğmesi + ortalanmış başlık.
+            // BudgyBackButton altına 12 px boşluk koyuyor; başlık aynı
+            // hizada dursun diye o da aynı boşluğu alır, satırın kendi alt
+            // boşluğu ise sıfırlandı (toplam yükseklik değişmedi sayılır).
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 2, 20, 4),
+              padding: const EdgeInsets.fromLTRB(20, 2, 20, 0),
               child: Row(
                 children: [
-                  _BackButton(),
+                  const BudgyBackButton(),
                   Expanded(
-                    child: Text(
-                      str.faqs,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.3,
-                          color: c.text),
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Text(
+                        str.faqs,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.3,
+                            color: c.text),
+                      ),
                     ),
                   ),
+                  // Geri düğmesiyle aynı genişlikte boşluk: başlık tam ortada.
                   const SizedBox(width: 40),
                 ],
               ),
             ),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 14, 20, 32),
+                padding: const EdgeInsets.fromLTRB(20, 6, 20, 32),
                 children: [
                   for (var i = 0; i < faqs.length; i++) ...[
                     _FaqCard(
@@ -257,24 +265,3 @@ class _FaqCard extends StatelessWidget {
   }
 }
 
-/// Dairesel geri butonu — surface zemin + border (tasarımdaki başlık deseni).
-class _BackButton extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final c = context.budgy;
-    return Material(
-      color: c.surface,
-      shape: CircleBorder(side: BorderSide(color: c.border)),
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: () => Navigator.of(context).maybePop(),
-        child: SizedBox(
-          width: 40,
-          height: 40,
-          child: Icon(Icons.arrow_back_ios_new_rounded,
-              size: 18, color: c.text),
-        ),
-      ),
-    );
-  }
-}

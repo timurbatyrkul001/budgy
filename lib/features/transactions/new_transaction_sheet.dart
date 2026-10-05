@@ -780,15 +780,24 @@ class _StepBtn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.budgy;
+    // Görünen daire 34 px; dokunma alanı Apple'ın istediği 44 px — daire
+    // 44'lük saydam kutunun ortasında durur, görünüm değişmez.
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
-        width: 34,
-        height: 34,
-        decoration: BoxDecoration(color: c.surface2, shape: BoxShape.circle),
-        child: Icon(icon,
-            size: 20, color: onTap == null ? c.textFaint : c.text),
+      customBorder: const CircleBorder(),
+      child: SizedBox(
+        width: 44,
+        height: 44,
+        child: Center(
+          child: Container(
+            width: 34,
+            height: 34,
+            decoration:
+                BoxDecoration(color: c.surface2, shape: BoxShape.circle),
+            child: Icon(icon,
+                size: 20, color: onTap == null ? c.textFaint : c.text),
+          ),
+        ),
       ),
     );
   }

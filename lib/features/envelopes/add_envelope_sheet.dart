@@ -331,26 +331,47 @@ class _EnvelopeEditorScreenState extends ConsumerState<EnvelopeEditorScreen> {
             ),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 28, 20, 16),
+                // Üst boşluk 28'den 19'a: avatar Stack içinde 9 px aşağı
+                // kaydı (aşağıya bak), ekrandaki yeri değişmedi.
+                padding: const EdgeInsets.fromLTRB(20, 19, 20, 16),
                 children: [
                   Center(
                     child: Stack(
                       clipBehavior: Clip.none,
                       children: [
-                        CategoryAvatar(envelope: preview, size: 96),
+                        // Kalemin 44 px'lik dokunma alanı avatarın dışına
+                        // taşıyor; Stack'in dışına düşen dokunuşlar sayılmadığı
+                        // için avatar 9 px içeri alındı. Görünen kalem dairesi
+                        // (34 px) eskisiyle aynı yerde: sağ üst köşeden -4/-4.
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(9, 9, 9, 0),
+                          child: CategoryAvatar(envelope: preview, size: 96),
+                        ),
                         Positioned(
-                          right: -4,
-                          top: -4,
+                          right: 0,
+                          top: 0,
                           child: Material(
-                            color: Ex.surfaceHi,
-                            shape: const CircleBorder(side: BorderSide(color: Ex.bg, width: 3)),
+                            type: MaterialType.transparency,
                             child: InkWell(
                               customBorder: const CircleBorder(),
                               onTap: _pickEmoji,
-                              child: const SizedBox(
-                                width: 34,
-                                height: 34,
-                                child: Icon(Icons.edit_rounded, size: 16, color: Ex.text),
+                              child: SizedBox(
+                                width: 44,
+                                height: 44,
+                                child: Center(
+                                  child: Container(
+                                    width: 34,
+                                    height: 34,
+                                    decoration: BoxDecoration(
+                                      color: Ex.surfaceHi,
+                                      shape: BoxShape.circle,
+                                      border:
+                                          Border.all(color: Ex.bg, width: 3),
+                                    ),
+                                    child: const Icon(Icons.edit_rounded,
+                                        size: 16, color: Ex.text),
+                                  ),
+                                ),
                               ),
                             ),
                           ),

@@ -33,7 +33,6 @@ class RS {
     required this.searchCurrency,
     required this.walletTitle,
     required this.walletSubtitle,
-    required this.letsGo,
     required this.customize,
     required this.defaultWalletName,
     required this.startingAmount,
@@ -52,7 +51,6 @@ class RS {
     required this.summarySpent,
     required this.summaryTop,
     required this.summaryDaysTpl,
-    required this.shareSummary,
     required this.budgetEmpty,
     required this.setBudget,
     required this.monthlyBudget,
@@ -64,6 +62,7 @@ class RS {
     required this.accounts,
     required this.cash,
     required this.addAccount,
+    required this.addSavingsWallet,
     required this.recent,
     required this.recentEmpty,
     required this.seeAll,
@@ -71,11 +70,8 @@ class RS {
     required this.dailyReminderSub,
     required this.calendar,
     required this.goals,
-    required this.stats,
     required this.settings,
     required this.customizeWallet,
-    required this.ratesTitle,
-    required this.ratesNote,
     required this.ratesUnavailable,
     required this.scanTitle,
     required this.camera,
@@ -94,7 +90,6 @@ class RS {
     required this.photosDeniedAndroid,
     required this.photosRestricted,
     required this.aiLimitResetTpl,
-    required this.enterAmount,
     required this.saveAllTpl,
     required this.expense,
     required this.income,
@@ -171,7 +166,6 @@ class RS {
     required this.manage,
     required this.appSection,
     required this.accountSection,
-    required this.helpSection,
     required this.categories,
     required this.automation,
     required this.automationHint,
@@ -254,15 +248,11 @@ class RS {
     required this.paywallGoalsTitle,
     required this.paywallGoalsDesc,
     required this.proLocked,
-    required this.about,
-    required this.versionTpl,
     required this.archived,
     required this.searchNoMatch,
     required this.archive,
     required this.unarchive,
     required this.deleteCategoryTpl,
-    required this.categoryCountTpl,
-    required this.notInUse,
     required this.tapToAdd,
     required this.edit,
     required this.converterTitle,
@@ -276,7 +266,6 @@ class RS {
     required this.ratesOffline,
     required this.selectCurrency,
     required this.suggested,
-    required this.allCurrencies,
     required this.removeRow,
     required this.newCategoryTitle,
     required this.editCategoryTitle,
@@ -345,10 +334,6 @@ class RS {
     required this.saveSkip,
     required this.saveNote,
     required this.saveFailed,
-    required this.saveRowCurrency,
-    required this.saveRowFirstDay,
-    required this.saveRowWhere,
-    required this.saveRowWhereValue,
     required this.saveMarkLabel,
     required this.saveErrDifferent,
     required this.saveErrOffline,
@@ -356,8 +341,6 @@ class RS {
     required this.retry,
     required this.heroGreetingTpl,
     required this.heroGreetingPlain,
-    required this.heroSpentTpl,
-    required this.heroOpenJournal,
     required this.notifTitle,
     required this.notifBody,
     required this.notifAllow,
@@ -511,7 +494,6 @@ class RS {
   final String searchCurrency;
   final String walletTitle;
   final String walletSubtitle;
-  final String letsGo;
   final String customize;
   final String defaultWalletName;
   final String startingAmount;
@@ -530,7 +512,6 @@ class RS {
   final String summarySpent;
   final String summaryTop;
   final String summaryDaysTpl;
-  final String shareSummary;
   final String budgetEmpty;
   final String setBudget;
   final String monthlyBudget;
@@ -542,6 +523,10 @@ class RS {
   final String accounts;
   final String cash;
   final String addAccount;
+
+  /// Ana ekran "Birikim" bölümündeki "+" kutucuğu: döviz kumbarası ekler
+  /// (hesap değil). İki satıra sığacak kadar kısa.
+  final String addSavingsWallet;
   final String recent;
   final String recentEmpty;
   final String seeAll;
@@ -549,11 +534,8 @@ class RS {
   final String dailyReminderSub;
   final String calendar;
   final String goals;
-  final String stats;
   final String settings;
   final String customizeWallet;
-  final String ratesTitle;
-  final String ratesNote;
   final String ratesUnavailable;
   final String scanTitle;
   final String camera;
@@ -572,7 +554,6 @@ class RS {
   final String photosDeniedAndroid;
   final String photosRestricted;
   final String aiLimitResetTpl;
-  final String enterAmount;
   final String saveAllTpl;
   final String expense;
   final String income;
@@ -649,7 +630,6 @@ class RS {
   final String manage;
   final String appSection;
   final String accountSection;
-  final String helpSection;
   final String categories;
   final String automation;
   final String automationHint;
@@ -732,8 +712,6 @@ class RS {
   final String paywallGoalsTitle;
   final String paywallGoalsDesc;
   final String proLocked;
-  final String about;
-  final String versionTpl;
   final String archived;
 
   /// Arama hiçbir şey bulamadı — boş liste yerine çıkan metin.
@@ -741,8 +719,6 @@ class RS {
   final String archive;
   final String unarchive;
   final String deleteCategoryTpl;
-  final String categoryCountTpl;
-  final String notInUse;
   final String tapToAdd;
   final String edit;
   final String converterTitle;
@@ -756,7 +732,6 @@ class RS {
   final String ratesOffline;
   final String selectCurrency;
   final String suggested;
-  final String allCurrencies;
   final String removeRow;
   final String newCategoryTitle;
   final String editCategoryTitle;
@@ -833,10 +808,6 @@ class RS {
   final String saveFailed;
 
   /// Kapanış fişindeki satır etiketleri.
-  final String saveRowCurrency;
-  final String saveRowFirstDay;
-  final String saveRowWhere;
-  final String saveRowWhereValue;
 
   /// Kapanış sayfasındaki origami animasyonunun ekran okuyucu açıklaması.
   final String saveMarkLabel;
@@ -858,8 +829,6 @@ class RS {
   /// çıksın diye.
   final String heroGreetingTpl;
   final String heroGreetingPlain;
-  final String heroSpentTpl;
-  final String heroOpenJournal;
   final String notifTitle;
   final String notifBody;
   final String notifAllow;
@@ -1091,7 +1060,6 @@ class RS {
     walletTitle: 'Name your wallet',
     walletSubtitle:
         'This is where your money lives. You can change its name, icon and color any time.',
-    letsGo: 'Let’s go',
     customize: 'Customize',
     defaultWalletName: 'Personal',
     startingAmount: 'How much do you have now?',
@@ -1111,7 +1079,6 @@ class RS {
     summarySpent: 'Spent',
     summaryTop: 'Top category',
     summaryDaysTpl: '{n} days worked',
-    shareSummary: 'Share month summary',
     budgetEmpty: 'Set a monthly limit and see how much you can still spend.',
     setBudget: 'Set budget',
     monthlyBudget: 'Monthly budget',
@@ -1123,6 +1090,7 @@ class RS {
     accounts: 'Accounts',
     cash: 'Cash',
     addAccount: 'Add',
+    addSavingsWallet: 'Currency wallet',
     recent: 'Recent activity',
     recentEmpty: 'Nothing here yet — tap + below to add your first expense.',
     seeAll: 'See all',
@@ -1130,11 +1098,8 @@ class RS {
     dailyReminderSub: 'A gentle nudge at 21:00 to log the day.',
     calendar: 'Calendar',
     goals: 'Goals',
-    stats: 'Statistics',
     settings: 'Settings',
     customizeWallet: 'Customize wallet',
-    ratesTitle: 'Exchange rates',
-    ratesNote: 'Price of 1 unit in {code}',
     ratesUnavailable: 'Rates are unavailable right now',
     scanTitle: 'Scan receipt',
     camera: 'Camera',
@@ -1160,7 +1125,6 @@ class RS {
     photosRestricted:
         'Access to photos is blocked on this device (Screen Time or a device profile). Take a photo with the camera instead.',
     aiLimitResetTpl: 'Your AI quota for this month is used up — it resets on {date}.',
-    enterAmount: 'Enter an amount',
     saveAllTpl: 'Save ({n})',
     expense: 'Expense',
     income: 'Income',
@@ -1243,7 +1207,6 @@ class RS {
     manage: 'Manage',
     appSection: 'App',
     accountSection: 'Account',
-    helpSection: 'Help',
     categories: 'Categories',
     automation: 'Category automation',
     automationHint:
@@ -1335,15 +1298,11 @@ class RS {
     paywallGoalsDesc: 'Set targets and watch your savings grow',
     proLocked: 'Included in Budgy Pro',
     termsUpdated: 'Last updated 22 September 2026',
-    about: 'About',
-    versionTpl: 'Version {v}',
     archived: 'Archived',
     searchNoMatch: 'Nothing matches that. Try a shorter word.',
     archive: 'Archive',
     unarchive: 'Unarchive',
     deleteCategoryTpl: 'Delete "{name}"? Past transactions keep their history.',
-    categoryCountTpl: '{n}',
-    notInUse: 'Not added yet',
     tapToAdd: 'Tap to add',
     edit: 'Edit',
     converterTitle: 'Currency converter',
@@ -1358,7 +1317,6 @@ class RS {
         'No rates yet — connect to the internet once to download them.',
     selectCurrency: 'Select currency',
     suggested: 'Suggested',
-    allCurrencies: 'All currencies',
     removeRow: 'Remove',
     newCategoryTitle: 'New category',
     editCategoryTitle: 'Edit category',
@@ -1437,10 +1395,6 @@ class RS {
     saveSkip: "Not now",
     saveNote: "You can do this later in Settings.",
     saveFailed: "Couldn't connect the account. Your data is safe — try again from Settings.",
-    saveRowCurrency: "Currency",
-    saveRowFirstDay: "First day",
-    saveRowWhere: "Stored on",
-    saveRowWhereValue: "This phone only",
     saveMarkLabel: "Your book, safely stored",
     saveErrDifferent: "This email is already registered with another sign-in method. Use that one instead.",
     saveErrOffline: "No connection. Try again once you are back online.",
@@ -1448,8 +1402,6 @@ class RS {
     retry: "Try again",
     heroGreetingTpl: "Hey {name}!",
     heroGreetingPlain: "Hey there!",
-    heroSpentTpl: "You spent {amount} this month",
-    heroOpenJournal: "Open all transactions",
     notifTitle: "Don't forget to mark the day",
     notifBody:
         'One tap in the evening: "What did you earn today?" Miss a day and the month won\'t add up — let us remind you.',
@@ -1618,7 +1570,6 @@ class RS {
     walletTitle: 'Cüzdanına bir ad ver',
     walletSubtitle:
         'Paran burada duracak. Adını, simgesini ve rengini istediğin zaman değiştirebilirsin.',
-    letsGo: 'Başlayalım',
     customize: 'Özelleştir',
     defaultWalletName: 'Kişisel',
     startingAmount: 'Şu an ne kadar var?',
@@ -1638,7 +1589,6 @@ class RS {
     summarySpent: 'Harcandı',
     summaryTop: 'En çok',
     summaryDaysTpl: '{n} gün çalışıldı',
-    shareSummary: 'Ay özetini paylaş',
     budgetEmpty: 'Aylık bir sınır koy, daha ne kadar harcayabileceğini gör.',
     setBudget: 'Bütçe koy',
     monthlyBudget: 'Aylık bütçe',
@@ -1650,6 +1600,7 @@ class RS {
     accounts: 'Hesaplar',
     cash: 'Nakit',
     addAccount: 'Ekle',
+    addSavingsWallet: 'Döviz cüzdanı',
     recent: 'Son hareketler',
     recentEmpty: 'Henüz bir şey yok — ilk harcamanı aşağıdaki + ile ekle.',
     seeAll: 'Tümü',
@@ -1658,11 +1609,8 @@ class RS {
         'Her akşam 21:00’de günü kaydetmen için hafif bir dürtme.',
     calendar: 'Takvim',
     goals: 'Hedefler',
-    stats: 'İstatistik',
     settings: 'Ayarlar',
     customizeWallet: 'Cüzdanı özelleştir',
-    ratesTitle: 'Döviz kurları',
-    ratesNote: '1 birimin {code} karşılığı',
     ratesUnavailable: 'Kurlar şu an alınamıyor',
     scanTitle: 'Fiş tara',
     camera: 'Kamera',
@@ -1688,7 +1636,6 @@ class RS {
     photosRestricted:
         'Bu cihazda fotoğraflara erişim engellenmiş (Ekran Süresi ya da cihaz profili). Bunun yerine kamerayla çek.',
     aiLimitResetTpl: 'Bu ayki yapay zekâ hakkın doldu — {date} tarihinde yenilenir.',
-    enterAmount: 'Bir tutar gir',
     saveAllTpl: 'Kaydet ({n})',
     expense: 'Gider',
     income: 'Gelir',
@@ -1771,7 +1718,6 @@ class RS {
     manage: 'Yönet',
     appSection: 'Uygulama',
     accountSection: 'Hesap',
-    helpSection: 'Yardım',
     categories: 'Kategoriler',
     automation: 'Kategori otomasyonu',
     automationHint:
@@ -1861,15 +1807,11 @@ class RS {
     paywallGoalsDesc: 'Hedef koy, birikimin büyüsün',
     proLocked: 'Budgy Pro\'ya dahil',
     termsUpdated: 'Son güncelleme 22 Eylül 2026',
-    about: 'Hakkında',
-    versionTpl: 'Sürüm {v}',
     archived: 'Arşiv',
     searchNoMatch: 'Eşleşen bir şey yok. Daha kısa bir kelime dene.',
     archive: 'Arşivle',
     unarchive: 'Arşivden çıkar',
     deleteCategoryTpl: '"{name}" silinsin mi? Geçmiş işlemler kayıtta kalır.',
-    categoryCountTpl: '{n}',
-    notInUse: 'Henüz eklenmedi',
     tapToAdd: 'Eklemek için dokun',
     edit: 'Düzenle',
     converterTitle: 'Döviz çevirici',
@@ -1883,7 +1825,6 @@ class RS {
     ratesOffline: 'Henüz kur yok — bir kez internete bağlan, indirilsin.',
     selectCurrency: 'Para birimi seç',
     suggested: 'Önerilen',
-    allCurrencies: 'Tüm para birimleri',
     removeRow: 'Kaldır',
     newCategoryTitle: 'Yeni kategori',
     editCategoryTitle: 'Kategoriyi düzenle',
@@ -1962,10 +1903,6 @@ class RS {
     saveSkip: "Şimdi değil",
     saveNote: "Bunu sonra Ayarlar'dan da yapabilirsin.",
     saveFailed: "Hesap bağlanamadı. Verin duruyor — Ayarlar'dan tekrar deneyebilirsin.",
-    saveRowCurrency: "Para birimi",
-    saveRowFirstDay: "İlk gün",
-    saveRowWhere: "Kayıtlı yer",
-    saveRowWhereValue: "Yalnızca bu telefon",
     saveMarkLabel: "Defterin güvende saklanıyor",
     saveErrDifferent: "Bu e-posta başka bir giriş yöntemiyle kayıtlı. Onunla girmen gerekiyor.",
     saveErrOffline: "Bağlantı yok. İnternete bağlanınca tekrar dene.",
@@ -1973,8 +1910,6 @@ class RS {
     retry: "Tekrar dene",
     heroGreetingTpl: "Merhaba {name}!",
     heroGreetingPlain: "Merhaba!",
-    heroSpentTpl: "Bu ay {amount} harcadın",
-    heroOpenJournal: "Tüm işlemleri aç",
     notifTitle: 'Günü işaretlemeyi unutma',
     notifBody:
         'Akşam tek bir dokunuş: "Bugün ne kazandın?" Bir kez unutursan ay sonu hesabı tutmaz — hatırlatalım.',
@@ -2144,7 +2079,6 @@ class RS {
     walletTitle: 'Назови свой кошелёк',
     walletSubtitle:
         'Здесь будут жить твои деньги. Название, иконку и цвет можно поменять в любой момент.',
-    letsGo: 'Поехали',
     customize: 'Настроить',
     defaultWalletName: 'Личное',
     startingAmount: 'Сколько у тебя сейчас?',
@@ -2164,7 +2098,6 @@ class RS {
     summarySpent: 'Потрачено',
     summaryTop: 'Больше всего',
     summaryDaysTpl: 'отработано {n} дн.',
-    shareSummary: 'Поделиться итогами месяца',
     budgetEmpty:
         'Поставь лимит на месяц и смотри, сколько ещё можно потратить.',
     setBudget: 'Задать',
@@ -2177,6 +2110,7 @@ class RS {
     accounts: 'Счета',
     cash: 'Наличные',
     addAccount: 'Добавить',
+    addSavingsWallet: 'Валютный кошелёк',
     recent: 'Последние операции',
     recentEmpty: 'Пока пусто — добавь первую трату кнопкой + внизу.',
     seeAll: 'Все',
@@ -2184,11 +2118,8 @@ class RS {
     dailyReminderSub: 'Лёгкое напоминание в 21:00 записать день.',
     calendar: 'Календарь',
     goals: 'Цели',
-    stats: 'Статистика',
     settings: 'Настройки',
     customizeWallet: 'Настроить кошелёк',
-    ratesTitle: 'Курсы валют',
-    ratesNote: 'Цена 1 единицы в {code}',
     ratesUnavailable: 'Курсы сейчас недоступны',
     scanTitle: 'Сканировать чек',
     camera: 'Камера',
@@ -2214,7 +2145,6 @@ class RS {
     photosRestricted:
         'Доступ к фото на этом устройстве заблокирован (Экранное время или профиль устройства). Сними чек камерой.',
     aiLimitResetTpl: 'Лимит ИИ на этот месяц исчерпан — обновится {date}.',
-    enterAmount: 'Введи сумму',
     saveAllTpl: 'Сохранить ({n})',
     expense: 'Расход',
     income: 'Доход',
@@ -2296,7 +2226,6 @@ class RS {
     manage: 'Управление',
     appSection: 'Приложение',
     accountSection: 'Аккаунт',
-    helpSection: 'Помощь',
     categories: 'Категории',
     automation: 'Автокатегории',
     automationHint:
@@ -2386,15 +2315,11 @@ class RS {
     paywallGoalsDesc: 'Ставь цели и смотри, как растут накопления',
     proLocked: 'Входит в Budgy Pro',
     termsUpdated: 'Обновлено 22 сентября 2026',
-    about: 'О приложении',
-    versionTpl: 'Версия {v}',
     archived: 'Архив',
     searchNoMatch: 'Ничего не нашлось. Попробуй слово покороче.',
     archive: 'В архив',
     unarchive: 'Из архива',
     deleteCategoryTpl: 'Удалить «{name}»? История операций сохранится.',
-    categoryCountTpl: '{n}',
-    notInUse: 'Ещё не добавлена',
     tapToAdd: 'Нажми, чтобы добавить',
     edit: 'Изменить',
     converterTitle: 'Конвертер валют',
@@ -2409,7 +2334,6 @@ class RS {
         'Курсов пока нет — подключись к интернету один раз, чтобы загрузить.',
     selectCurrency: 'Выбор валюты',
     suggested: 'Рекомендуемые',
-    allCurrencies: 'Все валюты',
     removeRow: 'Убрать',
     newCategoryTitle: 'Новая категория',
     editCategoryTitle: 'Изменить категорию',
@@ -2488,10 +2412,6 @@ class RS {
     saveSkip: "Не сейчас",
     saveNote: "Это можно сделать позже в настройках.",
     saveFailed: "Не удалось привязать аккаунт. Данные на месте — попробуй ещё раз в настройках.",
-    saveRowCurrency: "Валюта",
-    saveRowFirstDay: "Первый день",
-    saveRowWhere: "Хранится",
-    saveRowWhereValue: "Только на телефоне",
     saveMarkLabel: "Твой блокнот надёжно сохранён",
     saveErrDifferent: "Эта почта уже зарегистрирована другим способом входа. Войди через него.",
     saveErrOffline: "Нет соединения. Попробуй ещё раз, когда появится интернет.",
@@ -2499,8 +2419,6 @@ class RS {
     retry: "Повторить",
     heroGreetingTpl: "Привет, {name}!",
     heroGreetingPlain: "Привет!",
-    heroSpentTpl: "В этом месяце ты потратил {amount}",
-    heroOpenJournal: "Открыть все операции",
     notifTitle: 'Не забывай отмечать день',
     notifBody:
         'Одно касание вечером: «Сколько заработал сегодня?» Пропустишь день — месяц не сойдётся. Мы напомним.',

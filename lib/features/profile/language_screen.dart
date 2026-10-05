@@ -33,24 +33,9 @@ class LanguageScreen extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
           children: [
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Material(
-                color: c.surface,
-                shape: CircleBorder(side: BorderSide(color: c.border)),
-                child: InkWell(
-                  customBorder: const CircleBorder(),
-                  onTap: () => Navigator.of(context).maybePop(),
-                  child: SizedBox(
-                    width: 40,
-                    height: 40,
-                    child: Icon(Icons.arrow_back_ios_new_rounded,
-                        size: 18, color: c.text),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
+            // Ortak geri düğmesi: hizayı (sola yaslı) ve altındaki 12 px
+            // boşluğu kendisi getiriyor; buraya ayrıca Align/SizedBox gerekmez.
+            const BudgyBackButton(),
             Text(str.languageTitle,
                 style: TextStyle(
                     fontSize: 26,

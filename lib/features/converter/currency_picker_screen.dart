@@ -6,7 +6,7 @@ import '../../core/ex_style.dart';
 import '../../core/fx.dart';
 import '../../core/l10n.dart';
 import '../../core/redesign_l10n.dart';
-import '../home/accounts_screen.dart';
+import '../space/currency_wallets.dart';
 import '../home/fx_providers.dart';
 import '../settings/app_settings.dart';
 import 'converter_logic.dart';

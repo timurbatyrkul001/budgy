@@ -290,29 +290,36 @@ class TermsOfUseScreen extends ConsumerWidget {
       body: SafeArea(
         child: Column(
           children: [
+            // Diğer profil ekranlarıyla aynı geri düğmesi. BudgyBackButton
+            // altına 12 px boşluk koyuyor; başlık aynı hizada dursun diye o da
+            // aynı boşluğu alır, satırın kendi alt boşluğu sıfırlandı.
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 2, 20, 10),
+              padding: const EdgeInsets.fromLTRB(20, 2, 20, 0),
               child: Row(
                 children: [
-                  const ExBackButton(),
+                  const BudgyBackButton(),
                   Expanded(
-                    child: Text(
-                      rs.termsTitle,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.3,
-                          color: Ex.text),
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Text(
+                        rs.termsTitle,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.3,
+                            color: Ex.text),
+                      ),
                     ),
                   ),
+                  // Geri düğmesiyle aynı genişlikte boşluk: başlık tam ortada.
                   const SizedBox(width: 40),
                 ],
               ),
             ),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+                padding: const EdgeInsets.fromLTRB(20, 6, 20, 28),
                 children: [
                   Text(rs.termsUpdated,
                       style: const TextStyle(
