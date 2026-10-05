@@ -420,6 +420,8 @@ class RS {
     required this.accountToTitle,
     required this.fxFreezeUnavailableIncome,
     required this.fxFreezeUnavailableEdit,
+    required this.entrySourcesUnavailable,
+    required this.categoriesUnavailable,
     required this.signinBodyMember,
     required this.signinBodyAnon,
     required this.signinMethodsLabel,
@@ -958,6 +960,16 @@ class RS {
   final String accountToTitle;
   final String fxFreezeUnavailableIncome;
   final String fxFreezeUnavailableEdit;
+
+  // ── Dayanak yoksa yazma (2026-10) ──────────────────────────────────────
+  // Kaydın dayandığı akışlar (hesaplar, ana birim, kategoriler) düşmüşse
+  // hızlı giriş kaydetmez. [entrySourcesUnavailable] bu ret; kur metniyle
+  // aynı kalıp: ne olduğu + ne yapılacağı + "kaydedilmedi" açıkça.
+  // [categoriesUnavailable] kategori listesi düşünce seçici yerine çıkar:
+  // kullanıcı "kategorilerim silindi" sanıp yeniden kurmasın — kopya
+  // kategorileri sonra elle ayıklamak zorunda kalırdı; metin bunu söyler.
+  final String entrySourcesUnavailable;
+  final String categoriesUnavailable;
 
   // ── Giriş ve güvenlik (2026-10) ────────────────────────────────────────
   // [signinBodyMember] / [signinBodyAnon]: ekran başı paragrafı. Anonim ve
@@ -1525,6 +1537,10 @@ class RS {
         'Couldn\'t get the exchange rate — try again in a moment. The income was not saved.',
     fxFreezeUnavailableEdit:
         'Couldn\'t get the exchange rate — try again in a moment. The changes were not saved.',
+    entrySourcesUnavailable:
+        'Couldn\'t load your accounts, categories or main currency — nothing was saved. Tap "Try again" above and save once they load.',
+    categoriesUnavailable:
+        'Couldn\'t load your categories. They are not deleted — don\'t recreate them, try again in a moment.',
     signinBodyMember:
         'The ways you can sign in to this account, and the email it belongs to. Link another method and both will work.',
     signinBodyAnon:
@@ -2044,6 +2060,10 @@ class RS {
         'Kur alınamadı — birazdan tekrar dene. Gelir kaydedilmedi.',
     fxFreezeUnavailableEdit:
         'Kur alınamadı — birazdan tekrar dene. Değişiklik kaydedilmedi.',
+    entrySourcesUnavailable:
+        'Hesaplar, kategoriler ya da ana para birimi yüklenemedi — hiçbir şey kaydedilmedi. Üstteki "Tekrar dene"ye bas, yüklenince kaydet.',
+    categoriesUnavailable:
+        'Kategoriler yüklenemedi. Silinmediler — yeniden oluşturma, birazdan tekrar dene.',
     signinBodyMember:
         'Bu hesaba hangi yollarla girebildiğin ve bağlı olduğu e-posta. Başka bir yöntem bağlarsan ikisi de çalışır.',
     signinBodyAnon:
@@ -2564,6 +2584,10 @@ class RS {
         'Курс не получен — попробуй чуть позже. Доход не сохранён.',
     fxFreezeUnavailableEdit:
         'Курс не получен — попробуй чуть позже. Изменения не сохранены.',
+    entrySourcesUnavailable:
+        'Не удалось загрузить счета, категории или основную валюту — ничего не сохранено. Нажми «Повторить» выше и сохрани, когда они загрузятся.',
+    categoriesUnavailable:
+        'Не удалось загрузить категории. Они не удалены — не создавай их заново, попробуй чуть позже.',
     signinBodyMember:
         'Способы входа в этот аккаунт и почта, к которой он привязан. Привяжи ещё один способ — будут работать оба.',
     signinBodyAnon:

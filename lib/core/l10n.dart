@@ -266,6 +266,7 @@ class Strings {
     required this.signInErrorDisabled,
     required this.signOutFailed,
     required this.dataLoadFailed,
+    required this.verifySendFailed,
     required this.aiAddTitle,
     required this.aiAddHint,
     required this.aiInputHint,
@@ -531,6 +532,11 @@ class Strings {
   /// Onboarding yerine bu gösterilir — yoksa eski kullanıcı "verim gitti"
   /// sanır.
   final String dataLoadFailed;
+
+  /// Doğrulama postası gönderilemedi (ağ dışı bir sebep). Eskiden gönderim
+  /// hatası yutulup her seferinde "gönderildi" yazılıyordu — kullanıcı
+  /// hiç gitmemiş bir postayı bekliyordu.
+  final String verifySendFailed;
 
   /// AI hızlı giriş (yaz/söyle → işlemler).
   final String aiAddTitle;
@@ -805,6 +811,8 @@ class Strings {
     signOutFailed: "Couldn't sign out. Check your connection and try again.",
     dataLoadFailed:
         "Couldn't load your data. Check your connection and try again.",
+    verifySendFailed:
+        "Couldn't send the verification email. Please try again.",
     aiAddTitle: 'Quick add',
     aiAddHint: 'Type or speak — amounts and categories are filled in for you.',
     aiInputHint: 'e.g. "coffee 90, groceries 450"',
@@ -1081,6 +1089,7 @@ class Strings {
     signOutFailed: 'Çıkış yapılamadı. Bağlantını kontrol edip tekrar dene.',
     dataLoadFailed:
         'Verilerin yüklenemedi. Bağlantını kontrol edip tekrar dene.',
+    verifySendFailed: 'Doğrulama e-postası gönderilemedi. Lütfen tekrar dene.',
     aiAddTitle: 'Hızlı ekle',
     aiAddHint: 'Yaz ya da söyle — tutar ve kategori senin yerine doldurulur.',
     aiInputHint: 'örn. "kahve 90, market 450"',
@@ -1357,6 +1366,8 @@ class Strings {
     signOutFailed: 'Не удалось выйти. Проверь соединение и попробуй снова.',
     dataLoadFailed:
         'Не удалось загрузить данные. Проверь соединение и попробуй снова.',
+    verifySendFailed:
+        'Не удалось отправить письмо для подтверждения. Попробуй ещё раз.',
     aiAddTitle: 'Быстрая запись',
     aiAddHint: 'Напиши или скажи — суммы и категории заполнятся сами.',
     aiInputHint: 'напр. «кофе 90, продукты 450»',

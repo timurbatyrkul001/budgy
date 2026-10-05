@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../auth/auth_gate.dart';
+import '../envelopes/budget_repository.dart' show currencyProvider;
 import 'account.dart';
 
 /// `BudgetRepository` ile aynı desen: aynı Firestore örneği + aynı uid
@@ -18,19 +19,48 @@ final accountsProvider = StreamProvider<List<Account>>((ref) {
   return ref.watch(accountsRepositoryProvider).watchAccounts();
 });
 
-/// Hızlı girişte önceden seçili hesap: listenin ilki. Liste boşsa
-/// (ilk açılış, `cash` belgesi henüz yazılmadı) sentetik nakit — kullanıcı
-/// hiç hesap kurmadan da harcama girebilsin; eski kod zaten `accounts/cash`
-/// belgesini ilk yazımda `set+merge` ile oluşturuyor.
-final defaultAccountProvider = Provider<Account>((ref) {
-  final accounts = ref.watch(accountsProvider).value ?? const [];
-  if (accounts.isNotEmpty) return accounts.first;
-  return const Account(
-    id: Account.cashId,
-    name: '',
-    currency: 'TRY',
-    kind: AccountKind.cash,
-    balance: 0,
+/// Önceden seçili hesap: listenin ilki.
+///
+/// Düz `Account` değil [AsyncValue] — üç durum birbirinden AYRILMALI:
+///
+/// * Akış yüklendi, liste dolu → ilk hesap.
+/// * Akış yüklendi, liste BOŞ (ilk açılış, `cash` belgesi henüz yazılmadı)
+///   → sentetik nakit. Bu bir hata değil, yeni kullanıcının olağan hâli:
+///   hiç hesap kurmadan da harcama girebilsin; eski kod `accounts/cash`
+///   belgesini ilk yazımda `set+merge` ile zaten oluşturuyor. Birimi sabit
+///   'TRY' DEĞİL, gerçek ana birim ([currencyProvider]) — listedeki nakit de
+///   öyle gelir ([AccountsRepository.watchAccounts]). 'TRY' yazsaydık tenge
+///   kullanıcısının nakit kaydı [Tx.legacyMainCode] ile karışır, kur
+///   dondurma ₺→₸ çapraz kur uygular ve tutar ×13 yazılırdı
+///   ([Tx.isMislabeledCash] tam da bu kazanın okuma-anı yaması).
+/// * Akış DÜŞTÜ → [AsyncError]; henüz gelmedi → [AsyncLoading]. İkisinde de
+///   uydurma hesap YOK. Eskiden burada "Nakit, TRY, 0" dönüyordu: okuyan
+///   taraf parayı var olmayan bir hesaba, yanlış birimde yazabilirdi. Kur
+///   kuralıyla aynı ilke (`freezeToBase` / `FxUnavailable`): dayanak yoksa
+///   yazma, uydurma. Yazan taraf `hasError`/`hasValue`'ya bakıp beklesin
+///   ya da reddetsin.
+final defaultAccountProvider = Provider<AsyncValue<Account>>((ref) {
+  final accounts = ref.watch(accountsProvider);
+  if (accounts.hasError) {
+    return AsyncError(accounts.error!, accounts.stackTrace ?? StackTrace.empty);
+  }
+  if (!accounts.hasValue) return const AsyncLoading();
+  final list = accounts.requireValue;
+  if (list.isNotEmpty) return AsyncData(list.first);
+
+  final main = ref.watch(currencyProvider);
+  if (main.hasError) {
+    return AsyncError(main.error!, main.stackTrace ?? StackTrace.empty);
+  }
+  if (!main.hasValue) return const AsyncLoading();
+  return AsyncData(
+    Account(
+      id: Account.cashId,
+      name: '',
+      currency: main.requireValue,
+      kind: AccountKind.cash,
+      balance: 0,
+    ),
   );
 });
 

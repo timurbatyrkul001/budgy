@@ -26,6 +26,17 @@ final envelopesProvider = StreamProvider<List<Envelope>>((ref) {
 });
 
 /// Ana ekranda görünen zarflar: arşivlenmemiş, hedef olmayan.
+///
+/// DİKKAT — bu ve ondan türeyen [allocatableEnvelopesProvider] /
+/// [incomeCategoriesProvider] düz liste verir ve [envelopesProvider]'ın
+/// durumunu DÜZLEŞTİRİR: akış henüz gelmemişse de, DÜŞMÜŞSE de boş liste.
+/// Boş liste "kategorin yok" demek değildir; "elimizde liste yok" da
+/// olabilir. Kullanıcıya "kategori yok" gösteren ya da bir kaydı kategoriye
+/// bağlayan her yer önce [envelopesProvider]'ın `hasError` / `hasValue`
+/// bayraklarına bakmalı — yoksa kullanıcı silindi sanıp kategorilerini
+/// yeniden kurar ve elinde kopyalar kalır (hızlı giriş bunu yapıyor:
+/// `QuickEntryScreen`). Tipi burada değiştirmiyoruz: liste bekleyen çok
+/// sayıda ekran var; durum bilgisinin tek kaynağı [envelopesProvider].
 final activeEnvelopesProvider = Provider<List<Envelope>>((ref) {
   final envelopes = ref.watch(envelopesProvider).value ?? const [];
   return envelopes.where((e) => !e.archived && !e.isGoal).toList();
@@ -33,6 +44,7 @@ final activeEnvelopesProvider = Provider<List<Envelope>>((ref) {
 
 /// ₺ gelirin dağıtılabileceği zarflar: aktif + para birimi TRY.
 /// Döviz zarfına ₺ yazmak bakiyeyi bozar, hedefler ayrı kumbara.
+/// Boş liste ≠ "kategori yok" — bkz. [activeEnvelopesProvider] notu.
 final allocatableEnvelopesProvider = Provider<List<Envelope>>((ref) {
   return ref
       .watch(activeEnvelopesProvider)

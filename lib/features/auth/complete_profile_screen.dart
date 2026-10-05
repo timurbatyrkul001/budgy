@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/ex_style.dart';
+import '../../core/feedback.dart';
 import '../../core/l10n.dart';
 import '../../core/tokens.dart';
 import '../envelopes/budget_repository.dart';
@@ -40,13 +41,31 @@ class _CompleteProfileScreenState extends ConsumerState<CompleteProfileScreen> {
   }
 
   Future<void> _saveAndContinue() async {
+    if (_saving) return;
     setState(() => _saving = true);
     final phone = _phone.text.trim();
-    await ref.read(budgetRepositoryProvider).saveProfile({
-      'name': _name.text.trim(),
-      'phone': phone.isEmpty ? null : '$_dialCode $phone',
-    });
-    if (mounted) widget.onComplete();
+    final repo = ref.read(budgetRepositoryProvider);
+    // Ad düzenleme ekranıyla aynı kapı ([guardWrite]): hata → kırmızı şerit,
+    // ekran açık kalır; çevrimdışı → kayıt yerel kuyrukta, "eşitlenecek"
+    // notuyla devam. Eskiden `await` çıplaktı: ağ yokken Firestore'un
+    // Future'ı hiç dönmüyor, düğme sonsuza kadar "..." gösteriyordu; kural
+    // hatası fırlarsa da yakalanmıyor, düğme yine kilitli kalıyordu.
+    final ok = await guardWrite(
+      context,
+      ref.read(strProvider),
+      () => repo.saveProfile({
+        'name': _name.text.trim(),
+        'phone': phone.isEmpty ? null : '$_dialCode $phone',
+      }),
+      reason: 'saveProfile',
+    );
+    if (!mounted) return;
+    if (!ok) {
+      // Şerit zaten gösterildi; düğmeyi geri aç, kullanıcı tekrar dener.
+      setState(() => _saving = false);
+      return;
+    }
+    widget.onComplete();
   }
 
   @override

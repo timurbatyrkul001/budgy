@@ -14,6 +14,7 @@ import '../../core/formatters.dart';
 import '../../core/fx.dart';
 import '../../core/fx_freeze.dart';
 import '../../core/l10n.dart';
+import '../../core/load_error_banner.dart';
 import '../../core/redesign_l10n.dart';
 import '../accounts/account.dart';
 import '../accounts/account_editor_sheet.dart';
@@ -120,6 +121,31 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
   }
 
   bool get _isEditing => widget.editing != null;
+
+  /// Kaydın DAYANAKLARI: hesap listesi (hangi hesaptan, hangi birimde),
+  /// ana birim (kur neye dondurulacak) ve zarflar (kategori). Kaydet yalnız
+  /// üçü de GERÇEKTEN elimizdeyken açık.
+  ///
+  /// Neden: eskiden `.value ?? []` / `?? 'TRY'` ile boşluk doldurulup
+  /// kayıt yine yazılıyordu. Hesap akışı düşmüşse iki kartlı kullanıcının
+  /// formu "tek kasa" sanıp parayı nakitten, ana birimde düşüyordu; ana
+  /// birim akışı düşmüşse tenge kullanıcısının kart harcaması ₺'ye
+  /// dondurulup ay toplamını kalıcı bozuyordu. Kur kuralıyla aynı ilke
+  /// (`freezeToBase` / `FxUnavailable`): dayanak yoksa yazma, uydurma.
+  ///
+  /// "Yükleniyor" ile "düştü" ayrı: ikisinde de düğme kapalı, ama şerit
+  /// ([LoadErrorBanner]) yalnız düşende çıkar ve "Tekrar dene" verir.
+  /// Düşen akışın önbellekten taşıdığı eski değer ("hata + değer") de
+  /// yetmez — `hasError` doğruyken kayıt yok. Yeni kullanıcı için boş
+  /// hesap listesi ve varsayılan ₺ birer DEĞERDİR, hata değil: eski
+  /// tek-kasa yolu onlar için aynen çalışır.
+  static bool _ready(AsyncValue<Object?> state) =>
+      state.hasValue && !state.hasError;
+
+  bool get _sourcesReady =>
+      _ready(ref.read(accountsProvider)) &&
+      _ready(ref.read(currencyProvider)) &&
+      _ready(ref.read(envelopesProvider));
 
   /// Tutarı klavye ifadesine çevir: 450 → "450", 12.5 → "12.5".
   static String _exprFor(double amount) {
@@ -322,6 +348,13 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
   }
 
   Future<void> _pickCategory({double initialScroll = 0}) async {
+    // Zarf akışı düşmüşse seçici "kategorin yok" derdi — yalan: liste
+    // elimizde yok, kategoriler silinmedi. Kullanıcı yeniden kurup kopya
+    // biriktirmesin; ne olduğunu söyleyip seçiciyi hiç açmıyoruz.
+    if (ref.read(envelopesProvider).hasError) {
+      showErrorSnack(context, ref.read(rsProvider).categoriesUnavailable);
+      return;
+    }
     final pick = await showCategorySheet(
       context,
       selectedId: _category?.id,
@@ -490,6 +523,14 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
   Future<void> _save() async {
     final amount = _amount;
     if (amount <= 0 || _saving) return;
+    // Düğme zaten kapalı ([_sourcesReady]); bu ikinci kilit, düğmeyi
+    // atlayan bir yol (test, kısayol, ileride klavye) olursa diye. Buradan
+    // sonrası "liste yoksa boş liste / birim yoksa ₺" diye okur — o
+    // varsayımlar artık yalnız değer GERÇEKTEN geldiğinde çalışır.
+    if (!_sourcesReady) {
+      showErrorSnack(context, ref.read(rsProvider).entrySourcesUnavailable);
+      return;
+    }
     setState(() => _saving = true);
     final repo = ref.read(budgetRepositoryProvider);
     final str = ref.read(strProvider);
@@ -505,10 +546,13 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
     // zaten öyle gelir; burada bir kez daha uygulamak, tenge kullanıcısının
     // nakit harcamasının hiçbir yoldan ₺ sanılıp çapraz kurla
     // dondurulmamasını garanti eder — kur dondurma `currency`'den okuyor.
+    // Ana birim [knownCurrencyCodeProvider]'dan: yukarıdaki kilit sayesinde
+    // burada null olamaz; `!` o sözleşmeyi görünür kılar — `?? 'TRY'`
+    // değil, "bilinmiyorsa buraya gelinmez".
     final account = _currentAccount(
-      ref.read(accountsProvider).value ?? const <Account>[],
+      ref.read(accountsProvider).requireValue,
       ref.read(recentTxsProvider).value ?? const <Tx>[],
-    )?.withMainCurrency(ref.read(currencyCodeProvider));
+    )?.withMainCurrency(ref.read(knownCurrencyCodeProvider)!);
     // Hesap kimliği: formdaki seçim; düzenlemede seçim yoksa kaydın kendi
     // hesabı — liste henüz gelmemiş ya da hesap arşivlenmiş olsa bile bağ
     // kopmaz, yoksa kayıt sessizce nakde taşınırdı. Döviz zarfına geçildiyse
@@ -714,7 +758,12 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
     final rs = ref.watch(rsProvider);
     final str = ref.watch(strProvider);
     final code = ref.watch(currencyCodeProvider);
-    final accounts = ref.watch(accountsProvider).value ?? const <Account>[];
+    // Üç dayanak izlenir ki akış düşünce/gelince Kaydet anında güncellensin.
+    final accountsState = ref.watch(accountsProvider);
+    final sourcesReady = _ready(accountsState) &&
+        _ready(ref.watch(currencyProvider)) &&
+        _ready(ref.watch(envelopesProvider));
+    final accounts = accountsState.value ?? const <Account>[];
     final recent = ref.watch(recentTxsProvider).value ?? const <Tx>[];
     final account = _currentAccount(accounts, recent);
     // Tutarın yanındaki simge girilen paranın birimi: manat kartı seçiliyse
@@ -725,7 +774,7 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
         _editingAccountCurrency ??
         code;
     final symbol = kCurrencies[accountCode] ?? accountCode;
-    final canSave = _amount > 0 && !_saving;
+    final canSave = _amount > 0 && !_saving && sourcesReady;
     final bottom = MediaQuery.paddingOf(context).bottom;
 
     return PopScope(
@@ -819,6 +868,17 @@ class _QuickEntryScreenState extends ConsumerState<QuickEntryScreen> {
                       ),
                       child: Column(
                         children: [
+                          // Dayanak akışlarından biri düşünce şerit: ne
+                          // olduğu + "Tekrar dene". Kaydet bu sırada kapalı
+                          // (bkz. _sourcesReady). Düşen yoksa hiç çizilmez.
+                          LoadErrorBanner(
+                            sources: [
+                              accountsProvider,
+                              currencyProvider,
+                              envelopesProvider,
+                            ],
+                            padding: const EdgeInsets.fromLTRB(12, 12, 12, 0),
+                          ),
                           // Gider / Gelir görünür anahtar: gelir girmek tek
                           // dokunuş olsun diye menüde saklı değil.
                           Padding(

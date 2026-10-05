@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kopilka_app/features/accounts/account.dart';
 import 'package:kopilka_app/features/accounts/accounts_repository.dart';
+import 'package:kopilka_app/features/envelopes/budget_repository.dart';
 
 const _uid = 'test-user';
 
@@ -316,12 +319,28 @@ void main() {
     /// Riverpod 3: dinleyicisi olmayan provider bir sonraki döngüde
     /// atılır, `read(.future)` yüklenirken askıda kalır. Testte canlı
     /// tutmak için boş bir dinleyici takıyoruz.
-    ProviderContainer container() {
+    ///
+    /// [currency]: ana birim akışı (gerçek `currencyProvider` Firebase
+    /// Auth'a bağlı, testte fırlatır). [accounts] verilirse hesap akışı
+    /// depodan değil ondan beslenir — düşen/askıda akışı sınamak için.
+    ProviderContainer container({
+      Stream<String>? currency,
+      Stream<List<Account>>? accounts,
+    }) {
       final c = ProviderContainer(
-        overrides: [accountsRepositoryProvider.overrideWithValue(repo)],
+        overrides: [
+          accountsRepositoryProvider.overrideWithValue(repo),
+          currencyProvider.overrideWith(
+            (ref) => currency ?? Stream.value('TRY'),
+          ),
+          if (accounts != null)
+            accountsProvider.overrideWith((ref) => accounts),
+        ],
       );
       addTearDown(c.dispose);
       c.listen(accountsProvider, (_, _) {});
+      c.listen(currencyProvider, (_, _) {});
+      c.listen(defaultAccountProvider, (_, _) {});
       return c;
     }
 
@@ -331,17 +350,69 @@ void main() {
 
       final c = container();
       final list = await c.read(accountsProvider.future);
+      await c.read(currencyProvider.future);
       expect(list.length, 2);
-      expect(c.read(defaultAccountProvider).id, Account.cashId);
+      expect(c.read(defaultAccountProvider).requireValue.id, Account.cashId);
     });
 
-    test('hiç hesap yoksa nakit', () async {
+    test('hiç hesap yoksa nakit — yeni kullanıcı, hata değil', () async {
       final c = container();
       await c.read(accountsProvider.future);
-      final d = c.read(defaultAccountProvider);
+      await c.read(currencyProvider.future);
+      final state = c.read(defaultAccountProvider);
+      expect(state.hasValue, isTrue);
+      expect(state.hasError, isFalse);
+      final d = state.requireValue;
       expect(d.id, Account.cashId);
       expect(d.kind, AccountKind.cash);
       expect(d.currency, 'TRY');
+    });
+
+    test('sentetik nakdin birimi sabit TRY değil, ana birim', () async {
+      // Tenge kullanıcısı: 'TRY' yazılsaydı kayıt Tx.legacyMainCode ile
+      // karışır, kur dondurma ₺→₸ çapraz kur uygulardı.
+      final c = container(currency: Stream.value('KZT'));
+      await c.read(accountsProvider.future);
+      await c.read(currencyProvider.future);
+      expect(c.read(defaultAccountProvider).requireValue.currency, 'KZT');
+    });
+
+    test('hesap akışı düşünce uydurma hesap YOK — AsyncError', () async {
+      final denied = FirebaseException(
+        plugin: 'cloud_firestore',
+        code: 'permission-denied',
+      );
+      final c = container(accounts: Stream.error(denied));
+      await c.read(currencyProvider.future);
+      // Hata akıştan sağlayıcıya bir mikro görevde düşer.
+      await Future<void>.delayed(Duration.zero);
+      final state = c.read(defaultAccountProvider);
+      expect(state.hasError, isTrue);
+      expect(state.hasValue, isFalse,
+          reason: 'eskiden burada "Nakit, TRY, 0" dönüyordu');
+    });
+
+    test('ana birim akışı düşünce de uydurma nakit YOK', () async {
+      final c = container(
+        currency: Stream.error(StateError('settings/main okunamadı')),
+      );
+      await c.read(accountsProvider.future);
+      await Future<void>.delayed(Duration.zero);
+      final state = c.read(defaultAccountProvider);
+      expect(state.hasError, isTrue);
+      expect(state.hasValue, isFalse);
+    });
+
+    test('akış henüz gelmediyse AsyncLoading, değer yok', () async {
+      // Hiç yayın yapmayan akış: "yükleniyor" ile "düştü" ayrı.
+      final pending = StreamController<List<Account>>();
+      addTearDown(pending.close);
+      final c = container(accounts: pending.stream);
+      await c.read(currencyProvider.future);
+      final state = c.read(defaultAccountProvider);
+      expect(state.isLoading, isTrue);
+      expect(state.hasValue, isFalse);
+      expect(state.hasError, isFalse);
     });
   });
 }

@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart' show FirebaseAuthException;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -102,6 +105,41 @@ void main() {
       expect(find.text(RS.tr.signinConnected), findsOneWidget);
       // Bağlanınca e-posta kartı da belirir.
       expect(find.text('timur@example.com'), findsOneWidget);
+    });
+
+    testWidgets('bağlama sürerken çift dokunuş ikinci sağlayıcı sayfası açmaz',
+        (tester) async {
+      final gate = Completer<SignInSnapshot>();
+      var calls = 0;
+      await pump(tester, anon, connect: (_) {
+        calls++;
+        return gate.future;
+      });
+      await tester.tap(find.text(RS.tr.signinConnectGoogle));
+      await tester.pump();
+      await tester.tap(find.text(RS.tr.signinConnectGoogle));
+      await tester.pump();
+      // Başka sağlayıcıya dokunmak da kuyruğa girmez.
+      await tester.tap(find.text(RS.tr.signinConnectApple));
+      await tester.pump();
+      expect(calls, 1);
+
+      gate.complete(googleUser);
+      await tester.pumpAndSettle();
+      expect(find.text(RS.tr.signinConnected), findsOneWidget);
+    });
+
+    testWidgets('bağlama ağ yüzünden düşerse anlaşılır metin, ekran yerinde',
+        (tester) async {
+      await pump(tester, anon, connect: (_) async {
+        throw FirebaseAuthException(code: 'network-request-failed');
+      });
+      await tester.tap(find.text(RS.tr.signinConnectGoogle));
+      await tester.pumpAndSettle();
+      expect(find.text(RS.tr.saveErrOffline), findsOneWidget);
+      expect(find.textContaining('network-request-failed'), findsNothing);
+      // Hiçbir şey değişmedi: hâlâ anonim, satır hâlâ "bağla".
+      expect(find.text(RS.tr.signinConnectGoogle), findsOneWidget);
     });
   });
 

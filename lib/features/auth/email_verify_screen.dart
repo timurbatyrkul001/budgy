@@ -5,8 +5,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/ex_style.dart';
+import '../../core/feedback.dart';
 import '../../core/l10n.dart';
 import '../../core/tokens.dart';
+import 'auth_service.dart';
+
+/// Doğrulama postasını yollayan fonksiyon.
+///
+/// Ekran varsayılan olarak Firebase'i çağırır; widget testinde Firebase
+/// başlatılamadığı için bu nokta dışarıdan sahte bir fonksiyonla
+/// değiştirilir (şifre sıfırlama ekranındaki `SendResetEmail` ile aynı
+/// kalıp). Böylece "ağ yok", "çok fazla deneme" gibi yollar gerçek
+/// Firebase'e dokunmadan sınanabiliyor.
+typedef SendVerification = Future<void> Function();
+
+/// Kullanıcıyı yeniden yükleyip e-postanın doğrulanmış olup olmadığını
+/// söyleyen fonksiyon. Null → `currentUser.reload()` + `emailVerified`.
+typedef CheckVerified = Future<bool> Function();
 
 /// GERÇEK e-posta doğrulama: Firebase doğrulama linkini gönderir, kullanıcı
 /// mailindeki linke tıklar. Bu ekran periyodik reload ile emailVerified'i
@@ -16,10 +31,18 @@ class EmailVerifyScreen extends ConsumerStatefulWidget {
     super.key,
     required this.email,
     required this.onVerified,
+    this.sendVerification,
+    this.checkVerified,
   });
 
   final String email;
   final VoidCallback onVerified;
+
+  /// Null ise `FirebaseAuth.instance.currentUser.sendEmailVerification()`.
+  final SendVerification? sendVerification;
+
+  /// Null ise `currentUser.reload()` sonrası `emailVerified` okunur.
+  final CheckVerified? checkVerified;
 
   @override
   ConsumerState<EmailVerifyScreen> createState() => _EmailVerifyScreenState();
@@ -29,12 +52,27 @@ class _EmailVerifyScreenState extends ConsumerState<EmailVerifyScreen> {
   Timer? _poll;
   int _cooldown = 0;
   Timer? _cooldownTimer;
+
+  /// Herhangi bir reload sürüyor (arka plan yoklaması dâhil) — iki reload
+  /// üst üste binmesin.
   bool _checking = false;
+
+  /// Kullanıcı "Doğruladım"a bastı, sonuç bekleniyor — düğme kapalı.
+  /// [_checking]'den ayrı: arka plan yoklaması düğmeyi titretmemeli.
+  bool _manualCheck = false;
+
+  /// Posta gönderimi sürüyor — "Tekrar gönder" kapalı. Çift dokunuş iki
+  /// posta yollar ve too-many-requests'e yaklaştırır.
+  bool _sending = false;
 
   @override
   void initState() {
     super.initState();
-    _send(initial: true);
+    // İlk kadrodan sonra: `_send` düğmeyi kilitlemek için setState çağırır,
+    // initState içinde bunu yapmak doğru değil.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _send(initial: true);
+    });
     // Arka planda her 4 sn'de bir doğrulanmış mı diye bak — link tıklanınca
     // ekran kendiliğinden geçsin.
     _poll = Timer.periodic(
@@ -50,17 +88,92 @@ class _EmailVerifyScreenState extends ConsumerState<EmailVerifyScreen> {
     super.dispose();
   }
 
-  Future<void> _send({bool initial = false}) async {
+  Future<void> _dispatchSend() {
+    final send = widget.sendVerification;
+    if (send != null) return send();
     final user = FirebaseAuth.instance.currentUser;
-    try {
-      await user?.sendEmailVerification();
-    } catch (_) {}
-    if (!mounted) return;
-    if (!initial) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(ref.read(strProvider).verifySent)));
+    if (user == null) {
+      // Oturum yoksa gönderilecek adres de yok. Eskiden `user?.send…` null'a
+      // düşüp sessizce geçiyor ve ekran yine "gönderildi" diyordu;
+      // sınıflandırılabilir bir hata fırlatıp aşağıda genel metne düşürüyoruz.
+      throw FirebaseAuthException(code: 'user-not-found');
     }
+    return user.sendEmailVerification();
+  }
+
+  Future<bool> _dispatchCheck() async {
+    final check = widget.checkVerified;
+    if (check != null) return check();
+    final auth = FirebaseAuth.instance;
+    await auth.currentUser?.reload();
+    return auth.currentUser?.emailVerified ?? false;
+  }
+
+  /// Gönderim hatasının kullanıcıya söylenecek hâli.
+  ///
+  /// Giriş ekranındaki sınıflandırıcı yeniden kullanılıyor: ağ, deneme
+  /// sınırı ve kapatılmış hesap kodları aynı. `credentials` burada "hesap bu
+  /// arada silinmiş" (user-not-found) demek; kullanıcıya söylenecek tek şey
+  /// postanın gitmediği, o yüzden geri kalan her şeyle aynı metne düşüyor.
+  static String _sendErrorText(Strings str, EmailSignInFailure failure) =>
+      switch (failure) {
+        EmailSignInFailure.network => str.signInErrorNetwork,
+        EmailSignInFailure.tooManyRequests => str.signInErrorTooMany,
+        EmailSignInFailure.disabled => str.signInErrorDisabled,
+        EmailSignInFailure.credentials ||
+        EmailSignInFailure.invalidEmail ||
+        EmailSignInFailure.unknown =>
+          str.verifySendFailed,
+      };
+
+  /// Elle kontrolde reload düşerse kullanıcıya söylenecek hâli.
+  static String _checkErrorText(Strings str, EmailSignInFailure failure) =>
+      switch (failure) {
+        EmailSignInFailure.network => str.signInErrorNetwork,
+        EmailSignInFailure.tooManyRequests => str.signInErrorTooMany,
+        EmailSignInFailure.disabled => str.signInErrorDisabled,
+        EmailSignInFailure.credentials ||
+        EmailSignInFailure.invalidEmail ||
+        EmailSignInFailure.unknown =>
+          str.errorGeneric,
+      };
+
+  Future<void> _send({bool initial = false}) async {
+    if (_sending) return;
+    setState(() => _sending = true);
+
+    EmailSignInFailure? failure;
+    try {
+      await _dispatchSend();
+    } on FirebaseAuthException catch (e) {
+      // Ham `e.message` basılmıyor: İngilizce geliyor ve kullanıcıya bir
+      // şey anlatmıyor.
+      failure = classifyEmailSignInError(e.code);
+    } catch (_) {
+      failure = EmailSignInFailure.unknown;
+    }
+
+    if (!mounted) return;
+    setState(() => _sending = false);
+    // Metinler await'ten SONRA okunur: açılıştaki gönderim ilk kadroda
+    // başlıyor ve o anda dil akışı henüz gelmemiş olabiliyor — önce
+    // okunsa Türkçe arayüzde İngilizce şerit çıkıyor.
+    final str = ref.read(strProvider);
+    final error = failure == null ? null : _sendErrorText(str, failure);
+
+    if (error != null) {
+      // Posta GİTMEDİ. Eskiden hata boş `catch`te yutuluyor, "gönderildi"
+      // her hâlde yazılıyor ve 45 sn'lik bekleme başlıyordu — kullanıcı hiç
+      // gitmemiş bir postayı bekliyordu. Şimdi sebebi görür; bekleme de
+      // başlamaz, hemen yeniden deneyebilir.
+      showErrorSnack(context, error);
+      return;
+    }
+    if (!initial) showInfoSnack(context, str.verifySent);
+    _startCooldown();
+  }
+
+  void _startCooldown() {
     setState(() => _cooldown = 45);
     _cooldownTimer?.cancel();
     _cooldownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
@@ -75,23 +188,37 @@ class _EmailVerifyScreenState extends ConsumerState<EmailVerifyScreen> {
   Future<void> _check({bool silent = false}) async {
     if (_checking) return;
     _checking = true;
+    if (!silent) setState(() => _manualCheck = true);
     try {
-      await FirebaseAuth.instance.currentUser?.reload();
-      final verified =
-          FirebaseAuth.instance.currentUser?.emailVerified ?? false;
+      final verified = await _dispatchCheck();
+      if (!mounted) return;
       if (verified) {
         _poll?.cancel();
-        if (mounted) widget.onVerified();
+        widget.onVerified();
         return;
       }
+      if (!silent) showInfoSnack(context, ref.read(strProvider).verifyNotYet);
+    } on FirebaseAuthException catch (e) {
+      // Arka plan yoklaması sessiz kalır: ağ gidip gelirken her 4 sn'de bir
+      // şerit çıkmasın. Kullanıcı kendi bastıysa neden olmadığını görmeli —
+      // eskiden burası da boş `catch`ti ve düğme hiçbir şey yapmıyormuş gibi
+      // duruyordu.
       if (!silent && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(ref.read(strProvider).verifyNotYet)),
+        showErrorSnack(
+          context,
+          _checkErrorText(
+            ref.read(strProvider),
+            classifyEmailSignInError(e.code),
+          ),
         );
       }
     } catch (_) {
+      if (!silent && mounted) {
+        showErrorSnack(context, ref.read(strProvider).errorGeneric);
+      }
     } finally {
       _checking = false;
+      if (!silent && mounted) setState(() => _manualCheck = false);
     }
   }
 
@@ -163,8 +290,19 @@ class _EmailVerifyScreenState extends ConsumerState<EmailVerifyScreen> {
                     borderRadius: BorderRadius.circular(15),
                   ),
                 ),
-                onPressed: () => _check(),
-                child: Text(str.verifyDone),
+                // Kontrol sürerken düğme kapalı: çift dokunuş iki reload
+                // yollamasın, kullanıcı da bir şey olduğunu görsün.
+                onPressed: _manualCheck ? null : () => _check(),
+                child: _manualCheck
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: Ex.onBrand,
+                        ),
+                      )
+                    : Text(str.verifyDone),
               ),
             ),
             const SizedBox(height: 10),
@@ -179,7 +317,7 @@ class _EmailVerifyScreenState extends ConsumerState<EmailVerifyScreen> {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                onPressed: _cooldown == 0 ? () => _send() : null,
+                onPressed: _cooldown == 0 && !_sending ? () => _send() : null,
                 child: Text(
                   _cooldown == 0
                       ? str.verifyResend
