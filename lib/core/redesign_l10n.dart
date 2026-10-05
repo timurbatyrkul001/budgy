@@ -457,6 +457,11 @@ class RS {
     required this.editAvatarResetTitle,
     required this.editAvatarResetBody,
     required this.editAvatarResetConfirm,
+    required this.editAvatarPhotoBody,
+    required this.editAvatarStyle,
+    required this.editAvatarPhotoFailed,
+    required this.editAvatarPhotoTooBig,
+    required this.editAvatarResetBodyPhoto,
     required this.tabHome,
     required this.tabJournal,
     required this.tabCalendar,
@@ -1044,6 +1049,23 @@ class RS {
   final String editAvatarResetBody;
   final String editAvatarResetConfirm;
 
+  // ── Avatar fotoğrafı (2026-10) ──────────────────────────────────────────
+  // Yukarıdaki "fotoğraf yükleme YOK" notu artık geçerli değil: kalem
+  // galeriyi açar, fotoğraf profil belgesinde base64 durur (Storage yok;
+  // gerekçe space/space_photo.dart'ta). Eski [editAvatarBody] ekranda
+  // kullanılmıyor; yerine [editAvatarPhotoBody]. [editAvatarStyle]: renk +
+  // simge seçicisine giden ikincil düğme (sheet başlığı
+  // [editAvatarPickTitle] ile AYNI OLMAMALI — test ikisini ayrı sayar).
+  // [editAvatarPhotoTooBig]: 50 KB sınırını küçültmeye rağmen aşan fotoğraf
+  // yazılmaz; kullanıcıya nedenini söyleriz, "hata oldu" demeyiz.
+  // [editAvatarResetBodyPhoto]: çöp kutusu fotoğraf varken onu da kaldırır;
+  // diyalog bunu açıkça söyler.
+  final String editAvatarPhotoBody;
+  final String editAvatarStyle;
+  final String editAvatarPhotoFailed;
+  final String editAvatarPhotoTooBig;
+  final String editAvatarResetBodyPhoto;
+
   // ── alt sekme çubuğu + "+" seçim sayfası ──────────────────────────────
   final String tabHome;
   final String tabJournal;
@@ -1617,6 +1639,14 @@ class RS {
     editAvatarResetBody:
         'The colour goes back to the default green and the icon is replaced by the initial. Your data and account are not affected.',
     editAvatarResetConfirm: 'Reset',
+    editAvatarPhotoBody:
+        'Tap the pencil to pick a photo from your library — or keep a colour and an icon instead.',
+    editAvatarStyle: 'Choose colour & icon',
+    editAvatarPhotoFailed: 'Couldn’t load that photo. Try another one.',
+    editAvatarPhotoTooBig:
+        'That photo is still too large even after shrinking. Try a smaller or simpler one.',
+    editAvatarResetBodyPhoto:
+        'The photo is removed, the colour goes back to the default green and the icon is replaced by the initial. Your data and account are not affected.',
     tabHome: 'Home',
     tabJournal: 'Expenses',
     tabCalendar: 'Calendar',
@@ -2151,6 +2181,14 @@ class RS {
     editAvatarResetBody:
         'Renk varsayılan yeşile döner, simgenin yerini baş harf alır. Verilerine ve hesabına dokunulmaz.',
     editAvatarResetConfirm: 'Sıfırla',
+    editAvatarPhotoBody:
+        'Kaleme dokunup galeriden bir fotoğraf seç — ya da renk ve simgeyle kal.',
+    editAvatarStyle: 'Renk ve simge seç',
+    editAvatarPhotoFailed: 'Fotoğraf alınamadı. Başka birini dene.',
+    editAvatarPhotoTooBig:
+        'Bu fotoğraf küçültülmesine rağmen sığmadı. Daha küçük ya da daha sade bir fotoğraf dene.',
+    editAvatarResetBodyPhoto:
+        'Fotoğraf kaldırılır, renk varsayılan yeşile döner, simgenin yerini baş harf alır. Verilerine ve hesabına dokunulmaz.',
     tabHome: 'Ana sayfa',
     tabJournal: 'Harcamalar',
     tabCalendar: 'Takvim',
@@ -2687,6 +2725,14 @@ class RS {
     editAvatarResetBody:
         'Цвет вернётся к зелёному по умолчанию, вместо значка будет первая буква. Данные и аккаунт не затрагиваются.',
     editAvatarResetConfirm: 'Сбросить',
+    editAvatarPhotoBody:
+        'Нажми на карандаш и выбери фото из галереи — или оставь цвет и значок.',
+    editAvatarStyle: 'Выбрать цвет и значок',
+    editAvatarPhotoFailed: 'Не удалось загрузить фото. Попробуй другое.',
+    editAvatarPhotoTooBig:
+        'Это фото слишком большое даже после сжатия. Попробуй поменьше или попроще.',
+    editAvatarResetBodyPhoto:
+        'Фото будет удалено, цвет вернётся к зелёному по умолчанию, вместо значка будет первая буква. Данные и аккаунт не затрагиваются.',
     tabHome: 'Главная',
     tabJournal: 'Расходы',
     tabCalendar: 'Календарь',

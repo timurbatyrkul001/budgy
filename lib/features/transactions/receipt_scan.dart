@@ -1,8 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show PlatformException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -12,6 +10,7 @@ import '../../core/category_avatar.dart';
 import '../../core/ex_style.dart';
 import '../../core/feedback.dart';
 import '../../core/formatters.dart';
+import '../../core/image_picking.dart';
 import '../../core/l10n.dart';
 import '../../core/redesign_l10n.dart';
 import '../envelopes/budget_repository.dart';
@@ -19,9 +18,11 @@ import '../envelopes/envelope.dart';
 import '../envelopes/envelope_l10n.dart';
 import '../pro/pro_state.dart';
 
-/// Fotoğraf seçici — gerçekte image_picker; testte sahte (izin reddi,
-/// kamerasız cihaz gibi hâlleri taklit etmek için).
-final imagePickerProvider = Provider<ImagePicker>((_) => ImagePicker());
+// [imagePickerProvider] ve [pickerErrorMessage] core/image_picking.dart'a
+// taşındı (avatar fotoğrafı da kullanıyor; AI bayrağından bağımsız). Eski
+// içe aktaranlar bozulmasın diye buradan yeniden dışa açılıyor.
+export '../../core/image_picking.dart'
+    show imagePickerProvider, pickerErrorMessage;
 
 /// Fiş okuyucu — gerçekte [ExpenseParser]; testte sahte (hak bitti, ağ
 /// yok gibi hataları fırlatmak için).
@@ -73,33 +74,6 @@ Future<void> pickAndScanReceipt(BuildContext context, WidgetRef ref) async {
       file.path.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
   if (!context.mounted) return;
   await showExSheet(context, _ReceiptSheet(bytes: bytes, mediaType: mediaType));
-}
-
-/// image_picker hatasını insan diline çevirir. Kodlar eklentinin kendi
-/// kodları (iOS: camera/photo_access_denied|restricted, no_available_camera;
-/// Android: camera_access_denied — galeri izin istemez). Tanınmayan hata
-/// eski genel metne düşer.
-///
-/// Ayar yolu platforma göre: iOS'ta "Ayarlar → Budgy → Kamera", Android'de
-/// "Ayarlar → Uygulamalar → Budgy → İzinler". [platform] testte verilir.
-String pickerErrorMessage(
-  RS rs,
-  Object error,
-  ImageSource source, {
-  TargetPlatform? platform,
-}) {
-  final android = (platform ?? defaultTargetPlatform) == TargetPlatform.android;
-  final code = error is PlatformException ? error.code : '';
-  return switch (code) {
-    'camera_access_denied' =>
-      android ? rs.cameraDeniedAndroid : rs.cameraDenied,
-    'camera_access_restricted' => rs.cameraRestricted,
-    'no_available_camera' => rs.cameraUnavailable,
-    'photo_access_denied' =>
-      android ? rs.photosDeniedAndroid : rs.photosDenied,
-    'photo_access_restricted' => rs.photosRestricted,
-    _ => rs.scanFailed,
-  };
 }
 
 /// AI çağrısının hatasını insan diline çevirir. Üç ayrı şey üç ayrı metin:

@@ -82,8 +82,12 @@ const kProEnabled = false;
 //     açıklaması (kamera, fotoğraf, mikrofon, konuşma tanıma) BİLİNÇLİ
 //     OLARAK DURUYOR: image_picker ve speech_to_text pubspec'te kaldığı
 //     için ikili bu API'lere başvuruyor; açıklama yoksa App Store Connect
-//     yüklemeyi reddeder (ITMS-90683). Açıklamalar kullanıcıya hiç
-//     gösterilmez — izin istenmediği için.
+//     yüklemeyi reddeder (ITMS-90683).
+//     NOT: Fotoğraf açıklaması artık KULLANILIYOR — avatar galeriden
+//     seçiliyor (settings_edit_avatar_screen.dart). iOS 14+ PHPicker izin
+//     sormadan açıldığı için metin çoğu kullanıcıya yine görünmüyor, ama
+//     eski sürümlerde ve kısıtlı durumlarda çıkabilir. Kamera, mikrofon ve
+//     konuşma tanıma açıklamaları ise gerçekten kullanılmıyor.
 //
 // Dokunulmayanlar: nottan kategori (settings/category_resolver.dart) ve Siri
 // eylemi (intents/) AI kullanmaz, yerel kurallarla çalışır — açık kalıyorlar.

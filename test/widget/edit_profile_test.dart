@@ -183,8 +183,10 @@ void main() {
     SpaceInfo previewSpace(WidgetTester tester) =>
         tester.widget<SpaceAvatar>(preview).space;
 
+    // Renk + simge seçicisi artık kalemde değil (kalem galeriye gidiyor,
+    // bkz. avatar_photo_test.dart), avatarın altındaki düğmede.
     Future<void> openPicker(WidgetTester tester) async {
-      await tester.tap(find.byIcon(Icons.edit_rounded));
+      await tester.tap(find.byKey(const ValueKey('editAvatar.style')));
       await tester.pumpAndSettle();
     }
 
@@ -375,78 +377,6 @@ void main() {
     });
   });
 
-  // ── fotoğraf vaadi yok ─────────────────────────────────────────────────
-  // Storage bağlı değil; ekran ve seçici ne metinle ne ikonla fotoğraf,
-  // galeri ya da kamera ima etmemeli.
-  group('fotoğraf yok', () {
-    const banned = [
-      'foto',
-      'photo',
-      'galeri',
-      'gallery',
-      'kamera',
-      'camera',
-      'фото',
-      'галере',
-      'камер',
-    ];
-    const bannedIcons = [
-      Icons.camera_alt_rounded,
-      Icons.camera_alt,
-      Icons.photo_camera_rounded,
-      Icons.photo_camera,
-      Icons.photo_library_rounded,
-      Icons.photo_library,
-      Icons.add_a_photo_rounded,
-      Icons.add_a_photo,
-      Icons.image_rounded,
-      Icons.image,
-    ];
-
-    for (final lang in AppLanguage.values) {
-      testWidgets('avatar ekranı + seçici · ${lang.code}', (tester) async {
-        await pumpBudgyScreen(
-          tester,
-          const SettingsEditAvatarScreen(),
-          db: FakeFirebaseFirestore(),
-          language: lang,
-        );
-        await tester.tap(find.byIcon(Icons.edit_rounded));
-        await tester.pumpAndSettle();
-        final texts = tester
-            .widgetList<Text>(find.byType(Text))
-            .map(
-              (t) => (t.data ?? t.textSpan?.toPlainText() ?? '').toLowerCase(),
-            )
-            .join('\n');
-        for (final word in banned) {
-          expect(texts.contains(word), isFalse, reason: '"$word" geçmemeli');
-        }
-        for (final icon in bannedIcons) {
-          expect(find.byIcon(icon), findsNothing);
-        }
-        // Dil dosyasındaki metinler de temiz (ekranda görünmeyen diyalog
-        // dahil).
-        final rs = RS.of(lang.code);
-        for (final s in [
-          rs.editAvatarBody,
-          rs.editAvatarPickTitle,
-          rs.editAvatarResetTitle,
-          rs.editAvatarResetBody,
-          rs.editAvatarLetter,
-        ]) {
-          for (final word in banned) {
-            expect(
-              s.toLowerCase().contains(word),
-              isFalse,
-              reason: '"$s" içinde "$word" olmamalı',
-            );
-          }
-        }
-      });
-    }
-  });
-
   // ── yerleşim ───────────────────────────────────────────────────────────
   group('yerleşim', () {
     final screens = <String, Widget>{
@@ -473,7 +403,7 @@ void main() {
               expect(tester.takeException(), isNull);
               if (entry.value is SettingsEditAvatarScreen) {
                 // Seçici sheet'i ve sıfırlama diyaloğu da dar ekranda sığsın.
-                await tester.tap(find.byIcon(Icons.edit_rounded));
+                await tester.tap(find.byKey(const ValueKey('editAvatar.style')));
                 await tester.pumpAndSettle();
                 expect(tester.takeException(), isNull);
                 await tester.tap(find.byIcon(Icons.close_rounded));

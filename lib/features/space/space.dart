@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -6,12 +8,19 @@ import '../../core/ex_style.dart';
 import '../../core/formatters.dart';
 import '../../core/redesign_l10n.dart';
 import '../envelopes/budget_repository.dart';
+import 'space_photo.dart';
 
-/// Cüzdan ("space") görünümü: ad, renk, simge. settings/main içinde
-/// `spaceName` / `spaceColor` / `spaceIcon` alanlarında durur; eski
-/// kullanıcılarda alanlar yok → varsayılanlar (marka yeşili, "Cüzdanım").
+/// Cüzdan ("space") görünümü: ad, renk, simge, fotoğraf. settings/main
+/// içinde `spaceName` / `spaceColor` / `spaceIcon` / `spacePhoto`
+/// alanlarında durur; eski kullanıcılarda alanlar yok → varsayılanlar
+/// (marka yeşili, "Cüzdanım", fotoğraf yok).
 class SpaceInfo {
-  const SpaceInfo({required this.name, required this.color, this.icon = ''});
+  const SpaceInfo({
+    required this.name,
+    required this.color,
+    this.icon = '',
+    this.photo = '',
+  });
 
   final String name;
 
@@ -21,6 +30,10 @@ class SpaceInfo {
   /// [kSpaceIcons] anahtarı; boşsa adın ilk harfi gösterilir.
   final String icon;
 
+  /// Avatar fotoğrafı, base64 (JPEG/PNG); boşsa yok. Varsa simgeyi ve baş
+  /// harfi örter. Neden Storage değil de profilde: bkz. space_photo.dart.
+  final String photo;
+
   Color get colorValue => Color(color);
 
   String get initial =>
@@ -28,14 +41,23 @@ class SpaceInfo {
 
   IconData? get iconData => kSpaceIcons[icon];
 
-  SpaceInfo copyWith({String? name, int? color, String? icon}) => SpaceInfo(
+  /// Çözülmüş fotoğraf; yoksa ya da metin bozuksa null (→ simge/baş harf).
+  Uint8List? get photoBytes => decodeSpacePhoto(photo);
+
+  SpaceInfo copyWith({String? name, int? color, String? icon, String? photo}) =>
+      SpaceInfo(
         name: name ?? this.name,
         color: color ?? this.color,
         icon: icon ?? this.icon,
+        photo: photo ?? this.photo,
       );
 
-  Map<String, dynamic> toProfile() =>
-      {'spaceName': name, 'spaceColor': color, 'spaceIcon': icon};
+  Map<String, dynamic> toProfile() => {
+        'spaceName': name,
+        'spaceColor': color,
+        'spaceIcon': icon,
+        'spacePhoto': photo,
+      };
 
   static SpaceInfo fromProfile(Map<String, dynamic> p, RS rs) {
     final name = (p['spaceName'] as String?)?.trim();
@@ -43,6 +65,7 @@ class SpaceInfo {
       name: name == null || name.isEmpty ? rs.defaultWalletName : name,
       color: (p['spaceColor'] as num?)?.toInt() ?? Ex.spaceColors.first.toARGB32(),
       icon: p['spaceIcon'] as String? ?? '',
+      photo: p['spacePhoto'] as String? ?? '',
     );
   }
 }
@@ -89,7 +112,9 @@ final spaceInfoProvider = Provider<SpaceInfo>((ref) {
   return SpaceInfo.fromProfile(profile, ref.watch(rsProvider));
 });
 
-/// Squircle avatar: seçilen renk zemin, üstünde simge ya da baş harf.
+/// Squircle avatar: fotoğraf varsa o (squircle'a kırpılmış, oranı koruyarak
+/// doldurur — esnemez); yoksa seçilen renk zemin, üstünde simge ya da baş
+/// harf. Fotoğraf çözülemezse de renk/simge dalına düşer.
 class SpaceAvatar extends StatelessWidget {
   const SpaceAvatar({super.key, required this.space, this.size = 40});
 
@@ -98,6 +123,27 @@ class SpaceAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final photo = space.photoBytes;
+    if (photo != null) {
+      return ClipRRect(
+        borderRadius: Ex.squircle(size),
+        child: Image.memory(
+          photo,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          // Aynı baytlar yeniden gelince (yeniden çizim) eski kare kalsın,
+          // bir an boşluk/harf görünmesin.
+          gaplessPlayback: true,
+          filterQuality: FilterQuality.medium,
+          errorBuilder: (_, _, _) => _fallback(),
+        ),
+      );
+    }
+    return _fallback();
+  }
+
+  Widget _fallback() {
     final icon = space.iconData;
     final onColor = _onColor(space.colorValue);
     return Container(
