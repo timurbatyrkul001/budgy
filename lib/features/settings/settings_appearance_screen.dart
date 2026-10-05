@@ -15,21 +15,28 @@ import 'voice_language_screen.dart';
 
 /// Görünüm — hub'daki "Uygulama" bölümünün alt ekranı.
 ///
-/// Üç kart:
+/// İki kart:
 ///  1. Tercihler — tuş takımı düzeni, dil, para birimi, sesli giriş dili.
 ///     Dördü de "tercih" türünden, hiçbiri tehlikeli değil ve her satır
 ///     sağda mevcut değerini gösteriyor — kullanıcı ekrana girmeden ne
 ///     seçili olduğunu görür.
-///  2. Okunabilirlik — "Yazı kontrastını artır" anahtarı (erişilebilirlik).
-///  3. Kurulum — "Kurulum sihirbazını göster": onboarding'i yeniden açar.
+///  2. Kurulum — "Kurulum sihirbazını göster": onboarding'i yeniden açar.
 ///
 /// BİLİNÇLİ OLARAK "TEMA" SATIRI YOK. Uygulama tek temalı (app.dart →
 /// `ThemeMode.light`) ve ekranların büyük kısmı `Ex.*` derleme-zamanı
-/// sabitleriyle boyanıyor (~850 kullanım); tema anahtarı koysak hiçbir şey
+/// sabitleriyle boyanıyor (~910 kullanım); tema anahtarı koysak hiçbir şey
 /// değişmezdi. Hiçbir işe yaramayan ayar, olmayan ayardan kötüdür — sahibin
-/// kararı. `themeMode` alanı veride duruyor (onboarding "dünya" seçimini
-/// yazıyor) ama burada okunmaz/yazılmaz. Bunu geri getirecek olan önce
-/// `Ex`'i çalışma zamanına taşımalı; test dosyası satırın yokluğunu sınar.
+/// kararı. Onboarding'in dünya seçimi de artık `themeMode` yazmıyor; alan ve
+/// `themeModeProvider` 1.1 için yerinde bekliyor, burada okunmaz/yazılmaz.
+///
+/// AYNI SEBEPLE "YAZI KONTRASTINI ARTIR" ANAHTARI DA YOK (1.1'e ertelendi).
+/// Anahtar `context.budgy` okuyan paleti değiştiriyordu — ama bu ekran dahil
+/// ~50 ekran `Ex.*` ile boyanıyor; kullanıcı anahtarı çevirip çevirdiği
+/// ekranda bile hiçbir fark görmüyordu. Çalışan yarısı bırakılsa daha kötü:
+/// uygulamanın yarısı değişir, yarısı değişmez. Mekanizma duruyor
+/// (`highContrastProvider`, `setHighContrast`, `BudgyColors.highContrast`,
+/// app.dart'taki palet seçimi) — `Ex` çalışma zamanına taşınınca anahtar
+/// buraya geri gelir. Test dosyası iki satırın da yokluğunu sınar.
 class SettingsAppearanceScreen extends ConsumerWidget {
   const SettingsAppearanceScreen({super.key});
 
@@ -130,7 +137,6 @@ class SettingsAppearanceScreen extends ConsumerWidget {
     final currency = ref.watch(currencyCodeProvider);
     final keypadTop = ref.watch(keypadOneTwoThreeOnTopProvider);
     final voice = ref.watch(voiceLocaleProvider) ?? rs.voiceAppLanguage;
-    final highContrast = ref.watch(highContrastProvider).value ?? false;
 
     return SettingsPage(
       hero: SettingsHero(
@@ -165,25 +171,11 @@ class SettingsAppearanceScreen extends ConsumerWidget {
             onTap: () => pushSettings(context, const VoiceLanguageScreen()),
           ),
         ]),
-        // Erişilebilirlik ayrı kartta: "tercih" değil, ihtiyaç. Satırın
-        // tamamı dokunulabilir (yalnız anahtar değil) — küçük anahtara
-        // nişan almak zaten görme zorluğu çekenler için en zor hareket.
-        SettingsCard(label: rs.appearanceReadabilityLabel, rows: [
-          SettingsRow(
-            icon: Icons.contrast_rounded,
-            title: rs.highContrastTitle,
-            description: rs.highContrastBody,
-            trailing: Switch.adaptive(
-              value: highContrast,
-              activeTrackColor: Ex.mint,
-              onChanged: (on) =>
-                  ref.read(budgetRepositoryProvider).setHighContrast(on),
-            ),
-            onTap: () => ref
-                .read(budgetRepositoryProvider)
-                .setHighContrast(!highContrast),
-          ),
-        ]),
+        // "Okunabilirlik" kartı (yüksek kontrast anahtarı) bilinçli olarak
+        // yok — sınıf notuna bak. Geri geldiğinde: ayrı kart, satırın tamamı
+        // dokunulabilir (küçük anahtara nişan almak görme zorluğu çekenler
+        // için en zor hareket); RS metinleri (`highContrastTitle/Body`,
+        // `appearanceReadabilityLabel`) üç dilde hazır duruyor.
         // Eylem satırı: ikon + açıklama + ok. [SettingsActionRow] (ikonsuz
         // yeşil metin) "tümünü aç" gibi küçük eylemler için; burada
         // kullanıcı neyin açılacağını ve verisine dokunmayacağını okumalı.

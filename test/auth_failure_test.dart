@@ -105,4 +105,52 @@ void main() {
       );
     });
   });
+
+  group('classifyEmailSignInError', () {
+    // Giriş ekranı eskiden HER kodu "e-posta ya da şifre yanlış" sayıyordu.
+    // Ağ, deneme sınırı ve kapatılmış hesap artık ayrı; yalnız gerçekten
+    // kimlikle ilgili olanlar credentials.
+    test('kimlik hataları — Firebase\'in eski ve yeni kodları', () {
+      for (final code in const [
+        'wrong-password',
+        'user-not-found',
+        'invalid-credential',
+        'INVALID_LOGIN_CREDENTIALS',
+        'invalid-login-credentials',
+      ]) {
+        expect(
+          classifyEmailSignInError(code),
+          EmailSignInFailure.credentials,
+          reason: code,
+        );
+      }
+    });
+
+    test('ağ, deneme sınırı, kapatılmış hesap, bozuk e-posta ayrı ayrı', () {
+      expect(
+        classifyEmailSignInError('network-request-failed'),
+        EmailSignInFailure.network,
+      );
+      expect(
+        classifyEmailSignInError('too-many-requests'),
+        EmailSignInFailure.tooManyRequests,
+      );
+      expect(
+        classifyEmailSignInError('user-disabled'),
+        EmailSignInFailure.disabled,
+      );
+      expect(
+        classifyEmailSignInError('invalid-email'),
+        EmailSignInFailure.invalidEmail,
+      );
+    });
+
+    test('tanınmayan kod unknown — şifre hatası DEĞİL', () {
+      expect(
+        classifyEmailSignInError('operation-not-allowed'),
+        EmailSignInFailure.unknown,
+      );
+      expect(classifyEmailSignInError(''), EmailSignInFailure.unknown);
+    });
+  });
 }

@@ -12,10 +12,13 @@ import 'package:kopilka_app/features/settings/settings_hub.dart';
 
 import '../support/harness.dart';
 
-/// Görünüm ekranı: yüksek kontrast anahtarı Firestore'a yazar ve palet
-/// gerçekten koyulaşır; kurulum sihirbazı satırı onaydan sonra onboarding'i
+/// Görünüm ekranı: kurulum sihirbazı satırı onaydan sonra onboarding'i
 /// üste açar (zarflar varken bile), iptal hiçbir şey yapmaz, yarıda
-/// bırakılınca bayrak geri gelir; "Tema" satırı bilinçli olarak yok.
+/// bırakılınca bayrak geri gelir; "Tema" satırı VE "yazı kontrastı" anahtarı
+/// bilinçli olarak yok (ikisi de 1.1'e ertelendi — ekranlar `Ex.*` sabitleriyle
+/// boyandığı için kullanıcı hiçbir etki görmüyordu). Palet mekanizması
+/// (`BudgyColors.highContrast`, `context.budgy`) yerinde duruyor; onun
+/// birim testleri de burada kalıyor.
 void main() {
   setUpAll(() async {
     for (final lang in AppLanguage.values) {
@@ -44,40 +47,40 @@ void main() {
   Future<Map<String, dynamic>> settingsDoc(FakeFirebaseFirestore db) async =>
       (await db.doc(settingsPath).get()).data() ?? const {};
 
-  group('yüksek kontrast', () {
-    testWidgets('anahtar görünür, kapalı başlar; dokununca yazar ve açılır',
+  group('kontrast anahtarı yok (bilinçli)', () {
+    // Anahtar `context.budgy` paletini değiştiriyordu ama bu ekran dahil
+    // ~50 ekran `Ex.*` ile boyanıyor: kullanıcı çevirip hiçbir fark
+    // görmüyordu. Çalışmayan ayar gösterilmez; biri "eksik" sanıp geri
+    // eklemesin diye açık test. Mekanizma 1.1 için yerinde (aşağıdaki
+    // palet testleri).
+    for (final lang in AppLanguage.values) {
+      testWidgets('${lang.code}: ekranda kontrast satırı/anahtarı yok',
+          (tester) async {
+        await pumpBudgyScreen(tester, const SettingsAppearanceScreen(),
+            db: await seededDb(), envelopes: envelopes, language: lang);
+        final rs = RS.of(lang.code);
+        expect(find.byType(Switch), findsNothing);
+        expect(find.text(rs.highContrastTitle), findsNothing);
+        expect(find.text(rs.highContrastBody), findsNothing);
+        expect(find.text(rs.appearanceReadabilityLabel), findsNothing);
+      });
+    }
+
+    testWidgets('veride highContrast=true kalmış olsa da ekran değişmez',
         (tester) async {
-      final db = await seededDb();
+      // Eski bir sürümde anahtarı açmış kullanıcı: ekranda sürpriz bir
+      // "açık" anahtar ya da satır belirmesin.
       await pumpBudgyScreen(tester, const SettingsAppearanceScreen(),
-          db: db, envelopes: envelopes, language: AppLanguage.tr);
-      final rs = RS.tr;
-      expect(find.text(rs.highContrastTitle), findsOneWidget);
-      expect(find.text(rs.highContrastBody), findsOneWidget);
-      expect(tester.widget<Switch>(find.byType(Switch)).value, isFalse);
-
-      await tester.tap(find.byType(Switch));
-      await tester.pumpAndSettle();
-      expect((await settingsDoc(db))['highContrast'], isTrue);
-      // Sağlayıcı stream'den okuyor: yazı anahtara geri yansır.
-      expect(tester.widget<Switch>(find.byType(Switch)).value, isTrue);
-      // Diğer alanlar korunur (merge).
-      expect((await settingsDoc(db))['onboardingDone'], isTrue);
-
-      // Satırın kendisine dokunmak da çevirir — küçük anahtara nişan
-      // almak zorunlu değil.
-      await tester.tap(find.text(rs.highContrastTitle));
-      await tester.pumpAndSettle();
-      expect((await settingsDoc(db))['highContrast'], isFalse);
-      expect(tester.widget<Switch>(find.byType(Switch)).value, isFalse);
+          db: await seededDb(highContrast: true),
+          envelopes: envelopes,
+          language: AppLanguage.en);
+      expect(find.byType(Switch), findsNothing);
+      expect(find.text(RS.en.highContrastTitle), findsNothing);
     });
 
-    testWidgets('kayıtlı ayar açıksa anahtar açık başlar', (tester) async {
-      final db = await seededDb(highContrast: true);
-      await pumpBudgyScreen(tester, const SettingsAppearanceScreen(),
-          db: db, envelopes: envelopes, language: AppLanguage.en);
-      expect(tester.widget<Switch>(find.byType(Switch)).value, isTrue);
-    });
-
+    // Aşağıdaki iki test ANAHTARI değil, bekleyen MEKANİZMAYI sınar:
+    // tokens.dart'taki palet ve app.dart'ın onu tema uzantısı olarak
+    // vermesi. Anahtar geri gelince bunlar olduğu gibi kalır.
     test('palet ikincil metni gerçekten koyulaştırır, ana metne dokunmaz',
         () {
       final normal = BudgyColors.forContrast(high: false);
@@ -128,9 +131,9 @@ void main() {
   });
 
   group('kurulum sihirbazı', () {
-    // Üçüncü kart 800 px'de katlanmanın hemen altında: widget kurulu ama
-    // görünmüyor; `scrollUntilVisible` bulucuyu zaten eşleşmiş sayar,
-    // o yüzden `ensureVisible` ile gerçekten kaydırıyoruz.
+    // Kurulum kartı 800 px'de katlanmanın yakınında: widget kurulu ama
+    // tam görünmeyebilir; `scrollUntilVisible` bulucuyu zaten eşleşmiş
+    // sayar, o yüzden `ensureVisible` ile gerçekten kaydırıyoruz.
     Future<void> openRow(WidgetTester tester, RS rs) async {
       await tester.ensureVisible(find.text(rs.rerunOnboardingTitle));
       await tester.pumpAndSettle();
@@ -246,8 +249,8 @@ void main() {
           expect(t, isNot(contains('theme')));
           expect(t, isNot(contains('тема')));
         }
-        expect(find.byType(Switch), findsOneWidget,
-            reason: 'tek anahtar: kontrast; tema anahtarı yok');
+        expect(find.byType(Switch), findsNothing,
+            reason: 'ne tema ne kontrast anahtarı — ikisi de 1.1\'e kaldı');
       });
     }
   });
@@ -263,9 +266,10 @@ void main() {
               language: lang,
               logicalSize: Size(width, 800));
           expect(tester.takeException(), isNull);
-          // Üçüncü kart katlanmanın altında; kaydırıp onu da görünür çiz.
+          // Son kart katlanmanın altında kalabilir; kaydırıp onu da
+          // görünür çiz.
           final rs = RS.of(lang.code);
-          // 320 dp'de üçüncü kart tembel ListView'da henüz KURULU DEĞİL:
+          // 320 dp'de son kart tembel ListView'da henüz KURULU OLMAYABİLİR:
           // önce kurulana kadar kaydır, sonra tam görünür yap.
           await tester.scrollUntilVisible(find.text(rs.rerunOnboardingTitle),
               120,
@@ -273,7 +277,7 @@ void main() {
           await tester.ensureVisible(find.text(rs.rerunOnboardingTitle));
           await tester.pumpAndSettle();
           expect(tester.takeException(), isNull);
-          expect(find.text(rs.highContrastTitle), findsOneWidget);
+          expect(find.text(rs.rerunOnboardingTitle), findsOneWidget);
         });
       }
     }

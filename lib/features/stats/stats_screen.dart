@@ -7,6 +7,7 @@ import '../../core/category_avatar.dart';
 import '../../core/ex_style.dart';
 import '../../core/formatters.dart';
 import '../../core/l10n.dart';
+import '../../core/load_error_banner.dart';
 import '../../core/redesign_l10n.dart';
 import '../envelopes/budget_repository.dart';
 import '../envelopes/envelope.dart';
@@ -150,7 +151,8 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
   Widget build(BuildContext context) {
     final rs = ref.watch(rsProvider);
     final str = ref.watch(strProvider);
-    final txs = ref.watch(recentTxsProvider).value ?? const <Tx>[];
+    final recent = ref.watch(recentTxsProvider);
+    final txs = recent.value ?? const <Tx>[];
     final envelopes = {
       for (final e in ref.watch(envelopesProvider).value ?? const <Envelope>[])
         e.id: e,
@@ -225,6 +227,13 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
                       onTap: () => shareMonthSummary(context, ref),
                     ),
                 ],
+              ),
+              // Akış düştüyse başlığın altında uyarı şeridi: aşağıdaki
+              // "0 ₺" ve boş kovalar "hiç harcamadın" değil "yüklenemedi"
+              // okunsun. Düşmemişse hiç çizilmez.
+              LoadErrorBanner(
+                sources: [recentTxsProvider, envelopesProvider],
+                padding: const EdgeInsets.only(top: 14),
               ),
               const SizedBox(height: 14),
               // ── kategori filtresi ───────────────────────────────────────
@@ -363,7 +372,12 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
                 ),
               ),
               const SizedBox(height: 22),
-              if (a.isEmpty)
+              // "Yeterli veri yok" yalnız akış gerçekten veri verdiyse ve ay
+              // boşsa. Akış hiç veri vermediyse (yükleniyor / düştü) kart
+              // çizilmez — düşme hâlini üstteki şerit anlatıyor.
+              if (a.isEmpty && !recent.hasValue)
+                const SizedBox.shrink()
+              else if (a.isEmpty)
                 ExCard(
                   child: Row(
                     children: [

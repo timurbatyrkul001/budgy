@@ -73,6 +73,7 @@ void main() {
       language: language,
       currency: currency,
       fxSnapshot: fxSnapshot,
+      overrideAccounts: false,
       extraOverrides: [
         accountsProvider.overrideWith((ref) => Stream.value(accounts)),
       ],
@@ -408,6 +409,7 @@ void main() {
       const IntentChannelHost(child: SizedBox()),
       db: db,
       language: AppLanguage.en,
+      overrideAccounts: false,
       extraOverrides: [
         accountsProvider.overrideWith((ref) => Stream.value(const [cash])),
       ],

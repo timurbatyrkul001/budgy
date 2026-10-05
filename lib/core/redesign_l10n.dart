@@ -1409,10 +1409,11 @@ class RS {
     bubblesContinue: 'Continue',
     bubblesContinueTpl: 'Continue with {n}',
     receiptEmpty: 'Tap a category to print it here',
-    worldTitle: 'Pick a world that fits you',
+    worldTitle: 'Which world feels like you?',
     worldSubtitle:
-        'Night and Forest are dark, Dawn and Ocean are light. Your pick is saved as your look preference.',
-    worldFootnote: 'Just a look preference — your budget stays the same.',
+        'A small mood check before your first entry: night owl, early bird, deep forest or open sea.',
+    worldFootnote:
+        'Just a moment for fun — Budgy itself keeps its paper look.',
     worldGo: "Let's do this",
     worldNight: 'Night',
     worldDawn: 'Dawn',
@@ -1927,10 +1928,11 @@ class RS {
     bubblesContinue: 'Devam et',
     bubblesContinueTpl: '{n} tanesiyle devam et',
     receiptEmpty: 'Bir kategoriye dokun, fişe yazılsın',
-    worldTitle: 'Sana uyan bir dünya seç',
+    worldTitle: 'Hangi dünya sana benziyor?',
     worldSubtitle:
-        'Gece ve Orman koyu, Şafak ve Okyanus açık ton. Seçimin görünüm tercihi olarak kaydedilir.',
-    worldFootnote: 'Sadece görünüm tercihi — bütçen aynı kalır.',
+        'İlk kaydından önce küçük bir ruh hâli sorusu: gece kuşu, erkenci, derin orman ya da açık deniz.',
+    worldFootnote:
+        'Sadece keyfine bir an — Budgy\'nin kendisi kâğıt görünümünde kalır.',
     worldGo: 'Hadi başlayalım',
     worldNight: 'Gece',
     worldDawn: 'Şafak',
@@ -2446,10 +2448,11 @@ class RS {
     bubblesContinue: 'Продолжить',
     bubblesContinueTpl: 'Выбрано {n} · Продолжить',
     receiptEmpty: 'Нажми на категорию — она появится в чеке',
-    worldTitle: 'Выбери мир под себя',
+    worldTitle: 'Какой мир похож на тебя?',
     worldSubtitle:
-        'Ночь и Лес — тёмные, Рассвет и Океан — светлые. Выбор сохранится как настройка оформления.',
-    worldFootnote: 'Только оформление — бюджет тот же.',
+        'Маленький вопрос о настроении перед первой записью: ночь, рассвет, глухой лес или открытое море.',
+    worldFootnote:
+        'Просто минутка для настроения — сам Budgy остаётся в бумажном оформлении.',
     worldGo: 'Поехали',
     worldNight: 'Ночь',
     worldDawn: 'Рассвет',

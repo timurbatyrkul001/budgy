@@ -7,8 +7,8 @@ import 'package:kopilka_app/core/l10n.dart';
 import 'package:kopilka_app/core/theme.dart';
 import 'package:kopilka_app/features/onboarding/onboarding_finale.dart';
 
-/// Onboarding finali: tema seçimi arka planı canlı değiştirir ve seçilen
-/// kimliği verir; karşılama animasyonu biter, onDone'u bir kez çağırır,
+/// Onboarding finali: dünya seçimi arka planı canlı değiştirir ve seçilen
+/// kimliği verir (tema yazmaz — bkz. onboarding_flow_test); karşılama animasyonu biter, onDone'u bir kez çağırır,
 /// controller sızdırmaz; üç dilde 320dp'de taşma yok.
 void main() {
   /// Sayfayı Firebase'siz açar. `pumpBudgyScreen` hareketi kapatıyor; burada
@@ -56,14 +56,14 @@ void main() {
   AnimatedContainer pillOf(WidgetTester tester) => tester
       .widget<AnimatedContainer>(find.byType(AnimatedContainer).last);
 
-  group('ThemePickerPage', () {
+  group('WorldPickerPage', () {
     testWidgets('kart seçilince dünya dışarı bildirilir, onNext id verir',
         (tester) async {
       String? picked;
       final seen = <String>[];
       await pumpFinale(
         tester,
-        ThemePickerPage(
+        WorldPickerPage(
           onNext: (id) => picked = id,
           onWorldChanged: (w) => seen.add(w.id),
         ),
@@ -88,7 +88,7 @@ void main() {
     testWidgets('hareket azaltmada geçiş anında', (tester) async {
       await pumpFinale(
         tester,
-        ThemePickerPage(onNext: (_) {}, onWorldChanged: (_) {}),
+        WorldPickerPage(onNext: (_) {}, onWorldChanged: (_) {}),
         reduceMotion: true,
       );
       await tester.tap(find.byKey(const ValueKey('world-night')));
@@ -102,7 +102,7 @@ void main() {
       testWidgets('320dp · ${lang.code} taşmıyor', (tester) async {
         await pumpFinale(
           tester,
-          ThemePickerPage(onNext: (_) {}, onWorldChanged: (_) {}),
+          WorldPickerPage(onNext: (_) {}, onWorldChanged: (_) {}),
           language: lang,
           size: const Size(320, 800),
           reduceMotion: true,

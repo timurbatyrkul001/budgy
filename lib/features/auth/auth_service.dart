@@ -247,3 +247,49 @@ SocialAuthFailure classifySocialAuthError(Object error) {
     _ => SocialAuthFailure.unknown,
   };
 }
+
+/// E-posta + şifre girişinin başarısızlık sebebi — kullanıcıya söylenecek
+/// hâliyle.
+///
+/// Eskiden giriş ekranı her `FirebaseAuthException`'ı "e-posta ya da şifre
+/// yanlış" diye gösteriyordu. Ağ yokken, deneme sınırı dolunca ya da hesap
+/// kapatılmışken de aynı metin çıkıyordu — kullanıcı doğru şifresini
+/// değiştirip duruyordu. Kayıt ekranındaki ayrımın aynısı burada.
+enum EmailSignInFailure {
+  /// E-posta ya da şifre yanlış (hesap yok dâhil — Firebase ikisini artık
+  /// ayırmıyor, biz de ayırmıyoruz: "hesap yok" demek adres taraması).
+  credentials,
+
+  /// E-posta biçimi bozuk.
+  invalidEmail,
+
+  /// Ağ yok ya da istek düştü.
+  network,
+
+  /// Çok fazla başarısız deneme; Firebase geçici olarak kilitledi.
+  tooManyRequests,
+
+  /// Hesap konsoldan devre dışı bırakılmış.
+  disabled,
+
+  /// Geri kalan her şey (operation-not-allowed gibi yapılandırma hataları
+  /// dâhil — kullanıcının yapabileceği bir şey yok).
+  unknown,
+}
+
+/// Firebase'in e-posta girişi hata kodunu [EmailSignInFailure]'a çevirir.
+EmailSignInFailure classifyEmailSignInError(String code) {
+  return switch (code.toLowerCase()) {
+    'wrong-password' ||
+    'user-not-found' ||
+    'invalid-credential' ||
+    // Eski sürümlerin büyük harfli hâli; toLowerCase ile buraya düşer.
+    'invalid_login_credentials' ||
+    'invalid-login-credentials' => EmailSignInFailure.credentials,
+    'invalid-email' => EmailSignInFailure.invalidEmail,
+    'network-request-failed' => EmailSignInFailure.network,
+    'too-many-requests' => EmailSignInFailure.tooManyRequests,
+    'user-disabled' => EmailSignInFailure.disabled,
+    _ => EmailSignInFailure.unknown,
+  };
+}

@@ -100,6 +100,7 @@ void main() {
       language: language,
       cashBalance: cashBalance,
       logicalSize: Size(width, 800),
+      overrideAccounts: false,
       extraOverrides: [
         accountsRepositoryProvider.overrideWithValue(repo),
         accountsProvider.overrideWith((ref) => repo.watchAccounts()),

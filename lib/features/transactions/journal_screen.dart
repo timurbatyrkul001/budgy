@@ -6,6 +6,7 @@ import '../../core/category_avatar.dart';
 import '../../core/ex_style.dart';
 import '../../core/formatters.dart';
 import '../../core/l10n.dart';
+import '../../core/load_error_banner.dart';
 import '../../core/redesign_l10n.dart';
 import '../../core/tokens.dart';
 import '../accounts/account.dart';
@@ -90,7 +91,8 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
   Widget build(BuildContext context) {
     final c = context.budgy;
     final str = ref.watch(strProvider);
-    final all = ref.watch(journalFullProvider).value ?? [];
+    final journal = ref.watch(journalFullProvider);
+    final all = journal.value ?? <Tx>[];
     final workDays = ref.watch(allWorkDaysProvider).value ?? const <WorkDay>[];
     final mainCurrency = ref.watch(currencyProvider).value ?? 'TRY';
     // Hesaplar burada WATCH edilir, alt sayfa açılırken read değil: Riverpod 3
@@ -189,18 +191,34 @@ class _JournalScreenState extends ConsumerState<JournalScreen> {
                       ),
                     ],
                   ),
+                  // Akış düştüyse arama satırının altında uyarı şeridi;
+                  // liste (önbellekten ne kaldıysa) altında durur.
+                  LoadErrorBanner(
+                    sources: [
+                      journalFullProvider,
+                      allWorkDaysProvider,
+                      accountsProvider,
+                    ],
+                    padding: const EdgeInsets.only(top: 12),
+                  ),
                   const SizedBox(height: 8),
                 ],
               ),
             ),
             Expanded(
               child: list.isEmpty
-                  ? Center(
-                      child: Text(
-                        str.noOperations,
-                        style: TextStyle(color: c.textFaint),
-                      ),
-                    )
+                  // "Henüz işlem yok" yalnız akış gerçekten boş liste
+                  // verdiyse. Veri hiç gelmediyse (yükleniyor / düştü) alan
+                  // boş kalır — düşme hâlini şerit anlatıyor, sahte "boş"
+                  // metni kullanıcıya "işlemlerin silindi" derdi.
+                  ? journal.hasValue
+                        ? Center(
+                            child: Text(
+                              str.noOperations,
+                              style: TextStyle(color: c.textFaint),
+                            ),
+                          )
+                        : const SizedBox.shrink()
                   : ListView(
                       padding: EdgeInsets.fromLTRB(20, 8, 20, 24 + bottomInset),
                       children: _grouped(list, str),

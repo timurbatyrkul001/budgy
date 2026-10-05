@@ -58,7 +58,25 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   final _password = TextEditingController();
   bool _obscure = true;
   bool _loading = false;
-  bool _error = false;
+
+  /// Son girişin başarısızlık sebebi; null → hata yok.
+  EmailSignInFailure? _failure;
+
+  /// Alanlar yalnız KİMLİK hatasında kırmızı olur. Ağ yokken alanları
+  /// kırmızıya boyamak "şifren yanlış" demektir — tam da düzelttiğimiz
+  /// yanlış izlenim.
+  bool get _credentialError =>
+      _failure == EmailSignInFailure.credentials ||
+      _failure == EmailSignInFailure.invalidEmail;
+
+  String _failureText(Strings str) => switch (_failure!) {
+        EmailSignInFailure.credentials => str.signInError,
+        EmailSignInFailure.invalidEmail => str.invalidEmail,
+        EmailSignInFailure.network => str.signInErrorNetwork,
+        EmailSignInFailure.tooManyRequests => str.signInErrorTooMany,
+        EmailSignInFailure.disabled => str.signInErrorDisabled,
+        EmailSignInFailure.unknown => str.errorGeneric,
+      };
 
   @override
   void dispose() {
@@ -103,7 +121,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   Future<void> _signIn() async {
     setState(() {
       _loading = true;
-      _error = false;
+      _failure = null;
     });
     try {
       // E-posta girişi hesabı DEĞİŞTİRİR (bağlamaz — nedeni
@@ -117,8 +135,12 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
       );
       if (!ok) return;
       if (mounted) widget.onSignedIn();
-    } on FirebaseAuthException {
-      if (mounted) setState(() => _error = true);
+    } on FirebaseAuthException catch (e) {
+      // Kod → anlaşılır metin. Hepsini "şifre yanlış" saymak ağ yokken
+      // kullanıcıyı doğru şifresini değiştirmeye itiyordu.
+      if (mounted) {
+        setState(() => _failure = classifyEmailSignInError(e.code));
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -190,7 +212,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
               label: str.emailLabel,
               hint: str.emailHint,
               controller: _email,
-              error: _error,
+              error: _credentialError,
               leading: Icons.mail_outline_rounded,
               keyboardType: TextInputType.emailAddress,
             ),
@@ -199,7 +221,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
               label: str.passwordLabel,
               hint: str.passwordHint,
               controller: _password,
-              error: _error,
+              error: _credentialError,
               obscure: _obscure,
               leading: Icons.lock_outline_rounded,
               trailing: IconButton(
@@ -212,10 +234,10 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                 onPressed: () => setState(() => _obscure = !_obscure),
               ),
             ),
-            if (_error) ...[
+            if (_failure != null) ...[
               const SizedBox(height: 12),
               Text(
-                str.signInError,
+                _failureText(str),
                 style: const TextStyle(
                   fontSize: 14,
                   height: 1.4,

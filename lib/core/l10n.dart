@@ -261,6 +261,11 @@ class Strings {
     required this.confirmPasswordTitle,
     required this.deleteAccountFailed,
     required this.deleteAccountReauthFailed,
+    required this.signInErrorNetwork,
+    required this.signInErrorTooMany,
+    required this.signInErrorDisabled,
+    required this.signOutFailed,
+    required this.dataLoadFailed,
     required this.aiAddTitle,
     required this.aiAddHint,
     required this.aiInputHint,
@@ -511,6 +516,21 @@ class Strings {
   final String confirmPasswordTitle;
   final String deleteAccountFailed;
   final String deleteAccountReauthFailed;
+
+  /// Giriş ekranı: yanlış şifre DIŞINDAKİ sebepler. Eskiden hepsi
+  /// [signInError] ("e-posta ya da şifre yanlış") olarak çıkıyordu — ağ
+  /// yokken kullanıcı doğru şifresini değiştirip duruyordu.
+  final String signInErrorNetwork;
+  final String signInErrorTooMany;
+  final String signInErrorDisabled;
+
+  /// Çıkış için anonim oturum açılamadı (ağ yok); kullanıcı hesabında kaldı.
+  final String signOutFailed;
+
+  /// Açılışta Firestore akışları hata verdi (kural, App Check, dizin...).
+  /// Onboarding yerine bu gösterilir — yoksa eski kullanıcı "verim gitti"
+  /// sanır.
+  final String dataLoadFailed;
 
   /// AI hızlı giriş (yaz/söyle → işlemler).
   final String aiAddTitle;
@@ -776,6 +796,15 @@ class Strings {
     deleteAccountReauthFailed:
         'We need to verify it\'s you before deleting the account. '
         'Sign in again and retry.',
+    signInErrorNetwork:
+        'No connection. Check your internet and try again.',
+    signInErrorTooMany:
+        'Too many attempts. Wait a moment and try again.',
+    signInErrorDisabled:
+        'This account has been disabled. Please contact support.',
+    signOutFailed: "Couldn't sign out. Check your connection and try again.",
+    dataLoadFailed:
+        "Couldn't load your data. Check your connection and try again.",
     aiAddTitle: 'Quick add',
     aiAddHint: 'Type or speak — amounts and categories are filled in for you.',
     aiInputHint: 'e.g. "coffee 90, groceries 450"',
@@ -1045,6 +1074,13 @@ class Strings {
     deleteAccountReauthFailed:
         'Hesabı silmeden önce kimliğini doğrulamamız gerekiyor. '
         'Tekrar giriş yapıp yeniden dene.',
+    signInErrorNetwork: 'Bağlantı yok. İnternetini kontrol edip tekrar dene.',
+    signInErrorTooMany: 'Çok fazla deneme oldu. Biraz bekleyip tekrar dene.',
+    signInErrorDisabled:
+        'Bu hesap devre dışı bırakılmış. Lütfen destekle iletişime geç.',
+    signOutFailed: 'Çıkış yapılamadı. Bağlantını kontrol edip tekrar dene.',
+    dataLoadFailed:
+        'Verilerin yüklenemedi. Bağlantını kontrol edip tekrar dene.',
     aiAddTitle: 'Hızlı ekle',
     aiAddHint: 'Yaz ya da söyle — tutar ve kategori senin yerine doldurulur.',
     aiInputHint: 'örn. "kahve 90, market 450"',
@@ -1314,6 +1350,13 @@ class Strings {
     deleteAccountReauthFailed:
         'Перед удалением аккаунта нужно подтвердить личность. '
         'Войдите заново и повторите.',
+    signInErrorNetwork: 'Нет соединения. Проверь интернет и попробуй снова.',
+    signInErrorTooMany:
+        'Слишком много попыток. Подожди немного и попробуй снова.',
+    signInErrorDisabled: 'Этот аккаунт отключён. Обратись в поддержку.',
+    signOutFailed: 'Не удалось выйти. Проверь соединение и попробуй снова.',
+    dataLoadFailed:
+        'Не удалось загрузить данные. Проверь соединение и попробуй снова.',
     aiAddTitle: 'Быстрая запись',
     aiAddHint: 'Напиши или скажи — суммы и категории заполнятся сами.',
     aiInputHint: 'напр. «кофе 90, продукты 450»',

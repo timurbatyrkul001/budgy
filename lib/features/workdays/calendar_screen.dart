@@ -7,6 +7,7 @@ import '../../core/formatters.dart';
 import '../../core/l10n.dart';
 import '../../core/tokens.dart';
 import '../root/bottom_tab_bar.dart';
+import 'work_day_write.dart';
 import 'work_days_repository.dart';
 
 /// Календарь рабочих дней: тап по дню — указать заработок за этот день.
@@ -279,14 +280,31 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       ),
     );
 
+    // Diyalog kapanmış olabilirken ekran da kapanmış olabilir (sekme
+    // değişti); ref'e dokunmadan çık.
+    if (!mounted || result == null) return;
+
+    // setDay/removeDay transaction: çevrimdışıyken kuyruğa GİRMEZ, hata
+    // verir. Eskiden burada yakalanmıyordu — diyalog kapanıyor, gün
+    // işaretlenmiyor, kullanıcı hiçbir şey görmüyordu. Şimdi kırmızı şerit
+    // "kaydedilemedi, bağlantını kontrol et" der; bkz. guardDayWrite.
     final repo = ref.read(workDaysRepositoryProvider);
     switch (result) {
       case _DayAction.save:
-        await repo.setDay(day, amount: parseAmount(controller.text));
+        final amount = parseAmount(controller.text);
+        await guardDayWrite(
+          context,
+          ref,
+          () => repo.setDay(day, amount: amount),
+          reason: 'workDays.setDay',
+        );
       case _DayAction.remove:
-        await repo.removeDay(day);
-      case null:
-        break;
+        await guardDayWrite(
+          context,
+          ref,
+          () => repo.removeDay(day),
+          reason: 'workDays.removeDay',
+        );
     }
   }
 }

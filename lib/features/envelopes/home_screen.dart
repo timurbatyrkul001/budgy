@@ -10,6 +10,7 @@ import '../../core/motion.dart';
 import '../../core/feedback.dart';
 import '../../core/formatters.dart';
 import '../../core/l10n.dart';
+import '../../core/load_error_banner.dart';
 import '../../core/redesign_l10n.dart';
 import '../accounts/account.dart';
 import '../accounts/account_editor_sheet.dart'
@@ -130,6 +131,20 @@ class HomeScreen extends ConsumerWidget {
             // gelir; başlık sabit kalır. Yeniden kurulum tekrar oynatmaz.
             children: [
               const _Header(),
+              // Akışlardan biri düştüyse (kural, App Check, dizin) başlığın
+              // hemen altında uyarı şeridi: aşağıdaki sıfırlar ve boş kartlar
+              // "paran gitti" değil "yüklenemedi" okunsun. Düşmemişse hiç
+              // çizilmez. Ana ekranın okuduğu her akış burada listeli.
+              LoadErrorBanner(
+                sources: [
+                  recentTxsProvider,
+                  journalProvider,
+                  accountsProvider,
+                  cashBalanceProvider,
+                  envelopesProvider,
+                ],
+                padding: const EdgeInsets.only(top: 18),
+              ),
               const SizedBox(height: 34),
               const _Hero().enterUp(context, index: 0),
               const SizedBox(height: 14),
@@ -1178,7 +1193,13 @@ class _RecentSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final rs = ref.watch(rsProvider);
     final str = ref.watch(strProvider);
-    final txs = (ref.watch(journalProvider).value ?? const <Tx>[])
+    final journal = ref.watch(journalProvider);
+    // "Henüz hareket yok" yalnız akış gerçekten boş liste verdiyse. Veri
+    // hiç gelmediyse (yükleniyor ya da düştü) bölüm çizilmez — düşme hâlini
+    // üstteki [LoadErrorBanner] anlatıyor; sahte bir "boş" kart onunla
+    // çelişirdi.
+    if (!journal.hasValue) return const SizedBox.shrink();
+    final txs = (journal.value ?? const <Tx>[])
         .where((t) => !t.isGoalFund)
         .take(6)
         .toList();

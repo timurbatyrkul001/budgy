@@ -215,8 +215,8 @@ void main() {
   });
 
   testWidgets(
-      'uçtan uca: seçimler tek seferde yazılır — kategoriler, tema, ilk gün, '
-      'onboardingDone', (tester) async {
+      'uçtan uca: seçimler tek seferde yazılır — kategoriler, dünya cevabı, '
+      'ilk gün, onboardingDone; themeMode YAZILMAZ', (tester) async {
     final db = FakeFirebaseFirestore();
     await pumpBudgyScreen(
       tester,
@@ -291,7 +291,11 @@ void main() {
     final settings =
         (await db.doc('users/$testUid/settings/main').get()).data()!;
     expect(settings['onboardingDone'], isTrue);
-    expect(settings['themeMode'], 'dark');
+    // Dünya seçimi tema DEĞİL: uygulama tek temalı, `themeMode` alanı
+    // onboarding'den yazılmaz (yazılsa hiçbir ekranın okumadığı bir
+    // "tercih" olurdu). Seçim yalnız anket cevabında (aşağıda `world`).
+    expect(settings.containsKey('themeMode'), isFalse,
+        reason: 'dünya seçimi themeMode yazmamalı');
     expect(settings['currency'], isNotNull);
     expect(settings['onboardingAnswers'], {
       'mood': 'stressed',
@@ -323,7 +327,7 @@ void main() {
   });
 
   testWidgets('balon seçilmezse hazır set yazılır; ilk gün atlanınca cüzdan '
-      'boş kalır; şafak açık tema', (tester) async {
+      'boş kalır; varsayılan dünyada da themeMode yazılmaz', (tester) async {
     final db = FakeFirebaseFirestore();
     await pumpBudgyScreen(
       tester,
@@ -355,7 +359,8 @@ void main() {
     final settings =
         (await db.doc('users/$testUid/settings/main').get()).data()!;
     expect(settings['onboardingDone'], isTrue);
-    expect(settings['themeMode'], 'light');
+    expect(settings.containsKey('themeMode'), isFalse);
+    expect(settings['onboardingAnswers']?['world'], 'dawn');
     final envs = (await db.collection('users/$testUid/envelopes').get()).docs;
     expect(
       [for (final d in envs) d.data()['preset']],
@@ -366,9 +371,10 @@ void main() {
         (await db.collection('users/$testUid/workDays').get()).docs, isEmpty);
   });
 
-  // Tema sayfasında gökyüzü ekranın tamamını kaplamalı: kullanıcı durum
-  // çubuğunun altında kâğıt şerit kalınca "kaymış" diye bildirmişti.
-  testWidgets('tema sayfası · gökyüzü durum çubuğunun arkasına da geçer',
+  // Dünya sayfasında gökyüzü ekranın tamamını kaplamalı: kullanıcı durum
+  // çubuğunun altında kâğıt şerit kalınca "kaymış" diye bildirmişti. Bu
+  // sayfanın GERÇEK işi budur (tema değil); o yüzden sayfa kaldırılmadı.
+  testWidgets('dünya sayfası · gökyüzü durum çubuğunun arkasına da geçer',
       (tester) async {
     const screen = Size(390, 844);
     await pumpBudgyScreen(

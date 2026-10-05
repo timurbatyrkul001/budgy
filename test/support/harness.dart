@@ -7,6 +7,7 @@ import 'package:kopilka_app/core/l10n.dart';
 import 'package:kopilka_app/features/pro/pro_state.dart';
 import 'package:kopilka_app/core/fx.dart';
 import 'package:kopilka_app/core/theme.dart';
+import 'package:kopilka_app/features/accounts/accounts_repository.dart';
 import 'package:kopilka_app/features/home/fx_providers.dart';
 import 'package:kopilka_app/features/envelopes/budget_repository.dart';
 import 'package:kopilka_app/features/envelopes/envelope.dart';
@@ -15,6 +16,7 @@ import 'package:kopilka_app/features/reminders/reminders_repository.dart';
 import 'package:kopilka_app/features/settings/app_settings.dart';
 import 'package:kopilka_app/features/settings/settings_hub.dart';
 import 'package:kopilka_app/features/transactions/tx.dart';
+import 'package:kopilka_app/features/workdays/work_day_write.dart';
 import 'package:kopilka_app/features/workdays/work_days_repository.dart';
 
 /// Widget testlerinde kullanılan sabit kullanıcı kimliği.
@@ -82,6 +84,23 @@ Future<void> pumpBudgyScreen(
   /// uyarılarını sınamak için).
   List<RecurringRule> recurringRules = const [],
 
+  /// Çalışma günleri deposu; verilmezse [db] üzerinde gerçek repository.
+  /// Testler kaydı patlatan bir sahte vermek için kullanır.
+  WorkDaysRepository? workDaysRepository,
+
+  /// Takvimde başarısız gün yazmasının raporlayıcısı. Varsayılan no-op:
+  /// testte Firebase açık değil, Crashlytics'e dokunulamaz. Hata yolunu
+  /// sınayan test kendi kaydedicisini verir.
+  WorkDayErrorReporter? onWorkDayError,
+
+  /// Hesap akışı için varsayılan boş override. Gerçek `accountsProvider`
+  /// uidProvider'a bağlı ve testte HATA durumuna düşüyor; eskiden `?? []`
+  /// bunu gizliyordu, artık ana ekran/günlük düşen akışı hata şeridiyle
+  /// gösteriyor — override olmadan her normal-yol testinde şerit çıkardı.
+  /// Hesapları [extraOverrides] ile kendisi veren test bunu `false` yapar:
+  /// aynı sağlayıcı aynı kapsamda iki kez ezilemez (Riverpod assert).
+  bool overrideAccounts = true,
+
   /// Ekranın kendi sağlayıcıları için ek override'lar (ör. sahte fotoğraf
   /// seçici, sahte sesli giriş). Buradaki varsayılanlarla ÇAKIŞMAMALI.
   /// Tür `dynamic`: Riverpod 3 `Override` sınıfını dışa açmıyor; liste
@@ -112,8 +131,10 @@ Future<void> pumpBudgyScreen(
             .overrideWithValue(BudgetRepository(db, testUid)),
         // Onboarding'in ilk gün adımı buraya yazar; gerçek sağlayıcı
         // uidProvider'a bağlı ve testte fırlatır.
-        workDaysRepositoryProvider
-            .overrideWithValue(WorkDaysRepository(db, testUid)),
+        workDaysRepositoryProvider.overrideWithValue(
+            workDaysRepository ?? WorkDaysRepository(db, testUid)),
+        workDayErrorReporterProvider
+            .overrideWithValue(onWorkDayError ?? (_, _, _) {}),
         languageProvider.overrideWith((ref) => Stream.value(language)),
         currencyProvider.overrideWith((ref) => Stream.value(currency)),
         envelopesProvider.overrideWith((ref) => Stream.value(envelopes)),
@@ -123,6 +144,8 @@ Future<void> pumpBudgyScreen(
         allWorkDaysProvider.overrideWith((ref) => Stream.value(workDays)),
         cashBalanceProvider
             .overrideWith((ref) => Stream.value(cashBalance)),
+        if (overrideAccounts)
+          accountsProvider.overrideWith((ref) => Stream.value(const [])),
         profileProvider.overrideWith((ref) => Stream.value(profile)),
         // Bildirim zamanlayıcısı platform kanallarına dokunuyor; testte
         // no-op'a çeviriyoruz (yoksa MissingPluginException fırlar).

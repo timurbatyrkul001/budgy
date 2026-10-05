@@ -100,8 +100,14 @@ const kOnboardingLastStep = _pSave;
 ///
 /// Hiçbir sayfa Firestore'a yazmaz; cevaplar bu state'te birikir ve
 /// karşılama patlaması açılırken TEK SEFERDE yazılır (para birimi, cüzdan,
-/// balonlardan kategoriler, tema tercihi, ilk gün). Patlama bitince
-/// `onboardingDone` işaretlenir; auth kapısı ana ekrana geçer.
+/// balonlardan kategoriler, ilk gün). Patlama bitince `onboardingDone`
+/// işaretlenir; auth kapısı ana ekrana geçer.
+///
+/// Dünya seçimi (`_pWorld`) uygulama teması DEĞİL: yalnız o sayfanın
+/// gökyüzünü boyar ve anket cevabı olarak saklanır. `setThemeMode` buradan
+/// bilinçli olarak çağrılmıyor — uygulama tek temalı, vaat edilmeyen şey
+/// yazılmaz (bkz. `settings_appearance_screen.dart` notu). Mekanizma 1.1 için
+/// `budget_repository.dart`'ta duruyor.
 ///
 /// [preview] (yalnız `--dart-define=PREVIEW_ONBOARDING=true`): hiçbir şey
 /// yazmaz, son sayfa sadece geri döner — ekran görüntüsü almak için.
@@ -140,7 +146,8 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
   Set<String> _expenseKeys = const {};
   Set<String> _incomeKeys = const {};
 
-  /// Seçilen dünya (`kOnboardingWorlds` id'si); tema tercihine çevrilir.
+  /// Seçilen dünya (`kOnboardingWorlds` id'si); yalnız anket cevabı olarak
+  /// yazılır (`onboardingAnswers.world`), tema tercihine ÇEVRİLMEZ.
   String _worldId = 'dawn';
 
   /// İlk gün ekranında girilen kazanç; atlandıysa null.
@@ -212,7 +219,7 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
     color: Ex.spaceColors.first.toARGB32(),
   );
 
-  /// Tema sayfasındayken ekranı baştan aşağı kaplayan gökyüzü; diğer
+  /// Dünya sayfasındayken ekranı baştan aşağı kaplayan gökyüzü; diğer
   /// sayfalarda null (kâğıt zemin). Gradyanı sayfa değil akış çiziyor ki
   /// durum çubuğunun ve alt güvenli alanın arkasına da geçsin.
   OnboardingWorld? _sky;
@@ -220,7 +227,7 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
   void _go(int page) => setState(() {
     _forward = page > _page;
     _page = page;
-    // Tema sayfasından çıkıldı: gökyüzü kâğıda döner.
+    // Dünya sayfasından çıkıldı: gökyüzü kâğıda döner.
     if (page != _pWorld) _sky = null;
   });
 
@@ -253,10 +260,6 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
       ),
     );
   }
-
-  /// Seçilen dünya koyu mu? Gece ve orman → koyu; şafak ve okyanus → açık.
-  bool get _worldIsDark =>
-      kOnboardingWorlds.firstWhere((w) => w.id == _worldId).dark;
 
   /// Karşılama patlamasına geç; gerçek akışta yazma ANİMASYONLA PARALEL
   /// başlar (1,8 s'lik patlama ağ gecikmesini örter). `ignore()`: hata
@@ -311,8 +314,8 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
   /// Akışta biriken her şeyi kullanıcının ağacına yazar (kimlik bu noktada
   /// belli — uygulama anonim oturumla açılır, `uidProvider` dolu).
   ///
-  /// Sıra: para birimi + profil + tema tercihi → kategoriler → başlangıç
-  /// bakiyesi → döviz cüzdanları → ilk gün. Kategoriler balonlardan
+  /// Sıra: para birimi + profil → kategoriler → başlangıç bakiyesi → döviz
+  /// cüzdanları → ilk gün. Kategoriler balonlardan
   /// (gider balonu → gider zarfı, gelir balonu → gelir kategorisi; ikisi de
   /// katalog anahtarıyla `preset` olarak yazılır, bölüm katalogdan türer).
   /// Gider seçilmediyse eski hazır set — kullanıcı kategorisiz kalmasın.
@@ -334,7 +337,10 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
         'world': _worldId,
       },
     });
-    await repo.setThemeMode(_worldIsDark ? ThemeMode.dark : ThemeMode.light);
+    // `themeMode` BİLİNÇLİ OLARAK YAZILMIYOR: uygulama tek temalı, dünya
+    // seçimi yalnız yukarıdaki anket cevabı. Yazılsaydı veride bir "tercih"
+    // dururdu ki hiçbir ekran okumaz — yarım vaat. 1.1'de gerçek tema
+    // gelince `repo.setThemeMode` buradan tekrar bağlanabilir.
 
     // Kategoriler. Var olan preset'ler atlanır (tekrar denemede çift yok).
     final have = {for (final e in existing) e.presetKey};
@@ -593,7 +599,7 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
         // İzin sonucu sistemde kalır; akış için "sordu" yeterli.
         onNext: (_) => _go(_pWorld),
       ),
-      ThemePickerPage(
+      WorldPickerPage(
         onWorldChanged: (world) {
           if (_sky?.id != world.id) setState(() => _sky = world);
         },

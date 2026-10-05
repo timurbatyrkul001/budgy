@@ -16,9 +16,12 @@ import 'onboarding_palette.dart';
 /// Onboarding'de seçilebilen "dünya": kimlik, iki renkli gökyüzü gradyanı ve
 /// zeminin koyu mu açık mı olduğu (metin/düğme rengi buna göre ters döner).
 ///
-/// Sayfa kendisi hiçbir ayar yazmaz: seçilen kimlik [ThemePickerPage.onNext]
-/// ile dışarı verilir; akış [dark] bayrağına göre koyu/açık tema tercihini
-/// kaydeder (bkz. `onboarding_flow.dart`).
+/// Dünya YALNIZ bu sayfanın gökyüzüdür — uygulama teması değil. Sayfa hiçbir
+/// ayar yazmaz: seçilen kimlik [WorldPickerPage.onNext] ile dışarı verilir;
+/// akış onu yalnız anket cevabı (`onboardingAnswers.world`) olarak saklar.
+/// Eskiden [dark] bayrağından bir tema tercihi (`themeMode`) türetiliyordu;
+/// uygulama tek temalı olduğu için o yazma kaldırıldı — mekanizma
+/// (`themeModeProvider`, `setThemeMode`) 1.1 için yerinde bekliyor.
 class OnboardingWorld {
   const OnboardingWorld({
     required this.id,
@@ -93,33 +96,37 @@ String _worldName(RS rs, String id) => switch (id) {
 };
 
 // ---------------------------------------------------------------------------
-// Tema seçimi
+// Dünya seçimi
 // ---------------------------------------------------------------------------
 
-/// Tema seçimi — seçim canlı olarak arka plana yansır.
+/// Dünya seçimi — seçim canlı olarak bu sayfanın arka planına yansır.
 ///
 /// Kartlar yatay kayar; bir kart seçilince tüm sayfa zemini yumuşak geçişle o
 /// dünyanın gökyüzüne döner, metin ve düğme zemine göre açık/koyu olur.
 /// "Hadi başlayalım" [onNext]'e seçilen dünyanın kimliğini verir
 /// (`kOnboardingWorlds` içindeki `id`).
-class ThemePickerPage extends ConsumerStatefulWidget {
-  const ThemePickerPage({
+///
+/// Metinler bilinçli olarak tema VAAT ETMEZ ("görünüm tercihi olarak
+/// kaydedilir" yok): seçimin tek görünür etkisi bu ekranın gökyüzü, ve
+/// metin tam olarak bunu söyler. Uygulama geneline tema 1.1'de.
+class WorldPickerPage extends ConsumerStatefulWidget {
+  const WorldPickerPage({
     super.key,
     required this.onNext,
     required this.onWorldChanged,
   });
 
-  final void Function(String themeId) onNext;
+  final void Function(String worldId) onNext;
 
   /// Seçim değiştikçe akışa haber verir: gökyüzünü akış çiziyor, böylece
   /// gradyan durum çubuğunun ve alt güvenli alanın arkasına da geçiyor.
   final void Function(OnboardingWorld world) onWorldChanged;
 
   @override
-  ConsumerState<ThemePickerPage> createState() => _ThemePickerPageState();
+  ConsumerState<WorldPickerPage> createState() => _WorldPickerPageState();
 }
 
-class _ThemePickerPageState extends ConsumerState<ThemePickerPage> {
+class _WorldPickerPageState extends ConsumerState<WorldPickerPage> {
   /// Başlangıçta ikinci dünya (şafak): açık zemin, beyaz afişten yumuşak
   /// devam eder; kullanıcı ilk dokunuşta "gece"ye geçince fark çarpıcı olur.
   int _selected = 1;

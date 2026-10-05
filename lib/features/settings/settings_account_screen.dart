@@ -15,13 +15,33 @@ import 'settings_hub.dart';
 import 'settings_personal_details_screen.dart';
 import 'settings_signin_security_screen.dart';
 
-/// Geçerli kullanıcı; Firebase kurulu değilse (widget testi) null.
-User? _currentUser() {
-  try {
-    return FirebaseAuth.instance.currentUser;
-  } catch (_) {
-    return null;
+/// Hesap ekranının Firebase Auth'a dokunan eylemleri. Varsayılanlar gerçek
+/// Firebase; widget testinde (Firebase kurulu değil) sahteleriyle
+/// değiştiriliyor — çıkış/silme yolları ancak böyle sınanabiliyor.
+class AccountActions {
+  const AccountActions({
+    this.currentUser = _defaultCurrentUser,
+    this.signInAnonymously = _defaultSignInAnonymously,
+  });
+
+  /// Geçerli kullanıcı; oturum yoksa null.
+  final User? Function() currentUser;
+
+  /// Anonim oturum aç. Üye oturumu varsa onu kapatıp anonimle değiştirir;
+  /// ağ yoksa FIRLATIR ve mevcut oturuma dokunmaz.
+  final Future<void> Function() signInAnonymously;
+
+  /// Firebase kurulu değilse (widget testi) null.
+  static User? _defaultCurrentUser() {
+    try {
+      return FirebaseAuth.instance.currentUser;
+    } catch (_) {
+      return null;
+    }
   }
+
+  static Future<void> _defaultSignInAnonymously() =>
+      FirebaseAuth.instance.signInAnonymously();
 }
 
 /// Hesabım — hub'daki "Hesabım" kapısının alt ekranı.
@@ -41,14 +61,32 @@ User? _currentUser() {
 ///
 /// Biyometrik giriş satırı YOK: özellik üründen tamamen kaldırıldı
 /// (2026-10 kararı), bu ekrana taşınmadı.
-class SettingsAccountScreen extends ConsumerWidget {
-  const SettingsAccountScreen({super.key});
+class SettingsAccountScreen extends ConsumerStatefulWidget {
+  const SettingsAccountScreen({
+    super.key,
+    this.actions = const AccountActions(),
+  });
+
+  /// Test kancası; varsayılan gerçek Firebase.
+  final AccountActions actions;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsAccountScreen> createState() =>
+      _SettingsAccountScreenState();
+}
+
+class _SettingsAccountScreenState extends ConsumerState<SettingsAccountScreen> {
+  /// Çıkış ya da silme sürüyor. Silme binlerce belgeyi tek tek siler,
+  /// saniyeler alır; bu sürede satıra yeniden dokunulabiliyordu — ikinci
+  /// bir diyalog, ikinci bir silme. Meşgulken iki tehlikeli satır da
+  /// kilitli, silme satırında dönen gösterge var.
+  bool _busy = false;
+
+  @override
+  Widget build(BuildContext context) {
     final rs = ref.watch(rsProvider);
     final str = ref.watch(strProvider);
-    final user = _currentUser();
+    final user = widget.actions.currentUser();
     final anonymous = user?.isAnonymous ?? true;
 
     return SettingsPage(
@@ -136,13 +174,14 @@ class SettingsAccountScreen extends ConsumerWidget {
               icon: Icons.logout_rounded,
               title: str.signOutWord,
               danger: true,
-              onTap: () => _signOut(context, ref),
+              onTap: _busy ? null : _signOut,
             ),
           SettingsRow(
             icon: Icons.delete_rounded,
             title: str.deleteAccount,
             danger: true,
-            onTap: () => _deleteAccount(context, ref),
+            trailing: _busy ? const _BusyDot() : null,
+            onTap: _busy ? null : _deleteAccount,
           ),
         ]),
       ],
@@ -151,7 +190,8 @@ class SettingsAccountScreen extends ConsumerWidget {
 
   // ── hesap yardımcıları (eski hub'dan, oradan da eski profil ekranından) ──
 
-  Future<void> _signOut(BuildContext context, WidgetRef ref) async {
+  Future<void> _signOut() async {
+    if (_busy) return;
     final str = ref.read(strProvider);
     final ok = await showDialog<bool>(
       context: context,
@@ -168,14 +208,28 @@ class SettingsAccountScreen extends ConsumerWidget {
         ],
       ),
     );
-    if (ok == true) {
-      await FirebaseAuth.instance.signOut();
-      await FirebaseAuth.instance.signInAnonymously();
-      if (context.mounted) Navigator.of(context).popUntil((r) => r.isFirst);
+    if (ok != true || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      // `signOut()` ÇAĞRILMIYOR. Eskiden önce signOut (yerel, hep başarılı),
+      // sonra signInAnonymously (ağ ister) geliyordu: ağ yokken ikincisi
+      // yakalanmadan düşüyor, oturum çoktan kapanmış oluyor ve AuthGate
+      // düğmesiz açılış ekranını çiziyordu — tek çıkış uygulamayı yeniden
+      // başlatmaktı. `signInAnonymously` üye oturumunu zaten kendisi
+      // kapatıp anonimle değiştirir; ağ yoksa fırlatır ve HİÇBİR ŞEY
+      // değişmez: kullanıcı hesabında kalır, aşağıda nedenini görür.
+      await widget.actions.signInAnonymously();
+    } catch (_) {
+      if (mounted) showErrorSnack(context, str.signOutFailed);
+      return;
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
+    if (mounted) Navigator.of(context).popUntil((r) => r.isFirst);
   }
 
-  Future<void> _deleteAccount(BuildContext context, WidgetRef ref) async {
+  Future<void> _deleteAccount() async {
+    if (_busy) return;
     final str = ref.read(strProvider);
     final ok = await showDialog<bool>(
       context: context,
@@ -193,32 +247,40 @@ class SettingsAccountScreen extends ConsumerWidget {
         ],
       ),
     );
-    if (ok != true) return;
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null || !context.mounted) return;
-    // Sıra: doğrula → veriyi sil → hesabı sil (yarı silme olmasın).
+    if (ok != true || !mounted) return;
+    final user = widget.actions.currentUser();
+    if (user == null) return;
+    setState(() => _busy = true);
     try {
-      await _reauthenticateIfNeeded(context, ref, user);
-    } on _ReauthCancelled {
-      return;
-    } catch (_) {
-      if (context.mounted) showErrorSnack(context, str.deleteAccountReauthFailed);
-      return;
+      // Sıra: doğrula → veriyi sil → hesabı sil (yarı silme olmasın).
+      try {
+        await _reauthenticateIfNeeded(user);
+      } on _ReauthCancelled {
+        return;
+      } catch (_) {
+        if (mounted) showErrorSnack(context, str.deleteAccountReauthFailed);
+        return;
+      }
+      try {
+        await ref.read(budgetRepositoryProvider).deleteAccountData();
+        await user.delete();
+      } catch (_) {
+        if (mounted) showErrorSnack(context, str.deleteAccountFailed);
+        return;
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
-    try {
-      await ref.read(budgetRepositoryProvider).deleteAccountData();
-      await FirebaseAuth.instance.currentUser?.delete();
-    } catch (_) {
-      if (context.mounted) showErrorSnack(context, str.deleteAccountFailed);
-      return;
-    }
-    await FirebaseAuth.instance.signInAnonymously();
-    if (context.mounted) Navigator.of(context).popUntil((r) => r.isFirst);
+    // Burada anonim oturum AÇILMIYOR. `delete()` oturumu kapatır, akış
+    // null yayar ve AuthGate kendisi yeniden anonim girer; ağ yoksa orada
+    // "Tekrar dene" düğmeli hata ekranı çıkar. Eskiden buradaki yakalanmayan
+    // `signInAnonymously` ağ yokken kullanıcıyı düğmesiz açılış ekranına
+    // kilitliyordu.
+    if (mounted) Navigator.of(context).popUntil((r) => r.isFirst);
   }
 
   /// `requires-recent-login`: gerekiyorsa yeniden doğrulat; anonimde gerekmez.
-  Future<void> _reauthenticateIfNeeded(
-      BuildContext context, WidgetRef ref, User user) async {
+  Future<void> _reauthenticateIfNeeded(User user) async {
     if (user.isAnonymous) return;
     final lastSignIn = user.metadata.lastSignInTime;
     if (lastSignIn != null &&
@@ -231,8 +293,8 @@ class SettingsAccountScreen extends ConsumerWidget {
     } else if (providers.contains('apple.com')) {
       await user.reauthenticateWithProvider(AppleAuthProvider());
     } else if (providers.contains('password')) {
-      if (!context.mounted) throw const _ReauthCancelled();
-      final password = await _askPassword(context, ref);
+      if (!mounted) throw const _ReauthCancelled();
+      final password = await _askPassword();
       if (password == null) throw const _ReauthCancelled();
       await user.reauthenticateWithCredential(
         EmailAuthProvider.credential(email: user.email!, password: password),
@@ -240,7 +302,7 @@ class SettingsAccountScreen extends ConsumerWidget {
     }
   }
 
-  Future<String?> _askPassword(BuildContext context, WidgetRef ref) async {
+  Future<String?> _askPassword() async {
     final str = ref.read(strProvider);
     final controller = TextEditingController();
     try {
@@ -309,6 +371,20 @@ class _DataNoteCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Silme sürerken satırın sağında dönen küçük gösterge (ok yerine).
+class _BusyDot extends StatelessWidget {
+  const _BusyDot();
+
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox(
+      width: 18,
+      height: 18,
+      child: CircularProgressIndicator(strokeWidth: 2, color: Ex.red),
     );
   }
 }
