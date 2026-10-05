@@ -28,6 +28,12 @@
 		<false/>
 		<key>LSRequiresIPhoneOS</key>
 		<true/>
+		<!-- Kamera / mikrofon / fotoğraf / konuşma tanıma açıklamaları 1.0'da
+		     AI kapalıyken de (lib/features/pro/pro_state.dart, kAiEnabled)
+		     BİLİNÇLİ OLARAK DURUYOR: image_picker ve speech_to_text hâlâ
+		     bağlı, ikili bu API'lere başvuruyor; açıklama yoksa App Store
+		     Connect yüklemeyi reddeder (ITMS-90683). Kullanıcı bunları hiç
+		     görmez — 1.0'da hiçbir yol izin istemiyor. -->
 		<key>NSCameraUsageDescription</key>
 		<string>Fiş fotoğrafından harcama eklemek için kameraya erişim gerekiyor.</string>
 		<key>NSMicrophoneUsageDescription</key>

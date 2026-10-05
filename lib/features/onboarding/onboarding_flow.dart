@@ -22,6 +22,7 @@ import '../auth/sign_in_screen.dart';
 import '../envelopes/budget_repository.dart';
 import '../profile/privacy_policy_screen.dart';
 import '../profile/terms_of_use_screen.dart';
+import '../pro/pro_state.dart';
 import '../space/currency_wallet_sheet.dart';
 import '../space/space.dart';
 import '../workdays/work_days_repository.dart';
@@ -443,7 +444,9 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
       // Tanıtım sayfaları: maket üstte, ortalı başlık + alt başlık, Devam.
       _IntroPage(
         title: rs.introFastTitle,
-        subtitle: rs.introFastSubtitle,
+        // 1.0: AI kapalı — "sesle söyle / fişi tara" vaat etmeyen alt
+        // başlık (kAiEnabled, pro_state.dart).
+        subtitle: kAiEnabled ? rs.introFastSubtitle : rs.introFastSubtitleNoAi,
         buttonLabel: rs.continueLabel,
         onNext: () => _go(_pIntroRules),
         mockup: const FastEntryMock(),
@@ -514,7 +517,8 @@ class _OnboardingFlowState extends ConsumerState<OnboardingFlow> {
             'income': rs.rIncomeBody,
             'where': rs.rWhereBody,
             'monthEnd': rs.rMonthEndBody,
-            'habit': rs.rHabitBody,
+            // 1.0: AI kapalı — "sesle söyle / fişi çek" demeyen varyant.
+            'habit': kAiEnabled ? rs.rHabitBody : rs.rHabitBodyNoAi,
             'other': rs.rOtherBody,
           },
           next: rs.next,

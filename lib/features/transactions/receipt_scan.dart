@@ -17,6 +17,7 @@ import '../../core/redesign_l10n.dart';
 import '../envelopes/budget_repository.dart';
 import '../envelopes/envelope.dart';
 import '../envelopes/envelope_l10n.dart';
+import '../pro/pro_state.dart';
 
 /// Fotoğraf seçici — gerçekte image_picker; testte sahte (izin reddi,
 /// kamerasız cihaz gibi hâlleri taklit etmek için).
@@ -29,6 +30,10 @@ final receiptParserProvider = Provider<ExpenseParser>((_) => ExpenseParser());
 /// Fiş tarama: kaynak seç (kamera/galeri) → fotoğraf → AI ile oku →
 /// önizle → kaydet. Giriş yoksa kısa bir uyarı gösterip çıkar.
 Future<void> startReceiptScan(BuildContext context, WidgetRef ref) async {
+  // 1.0: AI kapalı — sessizce çık. Uyarı yok, "yakında" yok: kullanıcı
+  // özelliğin varlığını öğrenmemeli. "+" sayfası kartı zaten çizmiyor; bu
+  // ikinci kilit. Bkz. pro_state.dart, kAiEnabled.
+  if (!kAiEnabled) return;
   final rs = ref.read(rsProvider);
   if (!ExpenseParser.aiAvailable) {
     showErrorSnack(context, rs.aiKeyMissing);

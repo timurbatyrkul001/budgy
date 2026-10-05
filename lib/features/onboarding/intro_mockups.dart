@@ -10,6 +10,7 @@ import '../../core/ex_style.dart';
 import '../../core/formatters.dart';
 import '../../core/motion.dart';
 import '../budget/budget_ring.dart';
+import '../pro/pro_state.dart';
 import 'onboarding_palette.dart';
 
 /// Tanıtım sayfalarının maketleri — ekran görüntüsü değil, kendi
@@ -73,7 +74,9 @@ final _well = Poster.ink.withValues(alpha: 0.06);
 // ── 2) Hızlı giriş ───────────────────────────────────────────────────────
 
 /// Hafif eğik tuş takımı paneli, alt kenarı kırpılmış; tutar basamak basamak
-/// "yazılır" (tek vuruş). Sağ altta üç giriş yolu: yaz / söyle / tara.
+/// "yazılır" (tek vuruş). Sağ altta üç giriş yolu: yaz / söyle / tara —
+/// 1.0'da AI kapalıyken (kAiEnabled) çipler hiç çizilmez: tek "yaz" çipi
+/// maketin kendisini tekrar ederdi.
 class FastEntryMock extends StatelessWidget {
   const FastEntryMock({super.key});
 
@@ -187,23 +190,25 @@ class FastEntryMock extends StatelessWidget {
             ),
           ).enterUp(context, index: 0, dy: 16),
           // Üç yol: yaz / söyle / tara — panelin sağ alt köşesine tutunur.
-          Positioned(
-            right: 0,
-            bottom: 0,
-            child: Row(
-              children: [
-                for (final (i, w) in const [
-                  (Icons.dialpad_rounded, Ex.brand),
-                  (Icons.mic_rounded, CategoryPalette.violet),
-                  (Icons.document_scanner_outlined, CategoryPalette.sky),
-                ].indexed) ...[
-                  if (i > 0) const SizedBox(width: 8),
-                  _WayChip(w.$1, color: w.$2)
-                      .enterPop(context, index: i, baseDelay: kEnterStep * 6),
+          // 1.0: AI kapalı — söyle/tara yok, sıra çizilmez (pro_state.dart).
+          if (kAiEnabled)
+            Positioned(
+              right: 0,
+              bottom: 0,
+              child: Row(
+                children: [
+                  for (final (i, w) in const [
+                    (Icons.dialpad_rounded, Ex.brand),
+                    (Icons.mic_rounded, CategoryPalette.violet),
+                    (Icons.document_scanner_outlined, CategoryPalette.sky),
+                  ].indexed) ...[
+                    if (i > 0) const SizedBox(width: 8),
+                    _WayChip(w.$1, color: w.$2)
+                        .enterPop(context, index: i, baseDelay: kEnterStep * 6),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
         ],
       ),
     );

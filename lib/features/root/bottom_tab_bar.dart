@@ -281,6 +281,10 @@ class _TabItem extends StatelessWidget {
 /// "+" → "Ne yapmak istiyorsun?" sayfası: 2×2 kart. Elle gider / elle gelir
 /// / fiş tara (Pro) / sesle ekle (Pro).
 ///
+/// 1.0'da AI kapalı ([kAiEnabled] false, bkz. pro_state.dart): ikinci sıra
+/// hiç çizilmez, sayfa tek sıra iki kart olarak kalır; [_AddChoice.scan] ve
+/// [_AddChoice.voice] dallarına ulaşan yol yok. Dallar 1.1 için duruyor.
+///
 /// Elle girişten kayıt dönerse [onSaved] son işlemin kimliğiyle çağrılır;
 /// kök ekran "Kaydedildi · Geri al" çipini bununla gösterir.
 ///
@@ -356,26 +360,31 @@ class _AddGrid extends ConsumerWidget {
             ),
           ],
         ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _AddCard(
-                icon: Icons.document_scanner_outlined,
-                label: rs.addScanReceipt,
-                onTap: () => Navigator.of(context).pop(_AddChoice.scan),
+        // 1.0: AI kapalı — fiş tara / sesle ekle sırası hiç çizilmez; iki
+        // kartlık tek sıra tasarımın kendisi gibi durur, delikli ızgara
+        // değil. Bkz. pro_state.dart, kAiEnabled.
+        if (kAiEnabled) ...[
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _AddCard(
+                  icon: Icons.document_scanner_outlined,
+                  label: rs.addScanReceipt,
+                  onTap: () => Navigator.of(context).pop(_AddChoice.scan),
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: _AddCard(
-                icon: Icons.mic_rounded,
-                label: rs.addByVoice,
-                onTap: () => Navigator.of(context).pop(_AddChoice.voice),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _AddCard(
+                  icon: Icons.mic_rounded,
+                  label: rs.addByVoice,
+                  onTap: () => Navigator.of(context).pop(_AddChoice.voice),
+                ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
+        ],
       ],
     );
   }
@@ -385,6 +394,7 @@ class _AddGrid extends ConsumerWidget {
 ///
 /// Pro rozeti bilinçli olarak YOK: dört kart aynı görünüyor, kilidi olan
 /// ikisine basınca paywall açılıyor. Rozet listeyi kalabalıklaştırıyordu.
+/// (1.0'da yalnız iki kart var — kAiEnabled; görünüm aynı.)
 class _AddCard extends StatelessWidget {
   const _AddCard({
     required this.icon,

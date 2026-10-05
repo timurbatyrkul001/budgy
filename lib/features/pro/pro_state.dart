@@ -49,6 +49,62 @@ import '../envelopes/budget_repository.dart';
 // [proUnlockedProvider]'a sorar.
 const kProEnabled = false;
 
+// ── 1.0 sürümü: AI KAPALI ───────────────────────────────────────────────────
+//
+// Üç AI özelliği var — fiş tarama (transactions/receipt_scan.dart), yaz/söyle
+// hızlı giriş (transactions/ai_add_sheet.dart) ve bütçe dağılımını inceltme
+// (core/ai/budget_advisor.dart, budget/budget_screen.dart'tan çağrılır).
+// Hepsi `aiCall` Cloud Function'ı üzerinden Anthropic'e gider ve HER ÇAĞRI
+// bize gerçek para eder.
+//
+// 1.0 ücretsiz çıkıyor ([kProEnabled] false): AI açık kalsaydı herkese
+// bedava olurdu, faturayı biz öderdik. Üstelik fonksiyon deploy edilmedi,
+// Secret Manager'da Anthropic anahtarı yok — bugün "fiş tara"ya basan
+// herkes hata alırdı. Karar: 1.0'da AI YOK; 1.1'de Pro'nun ana satış
+// gerekçesi olarak geri gelecek (ekonomisi docs/PRO_PLAN.md'de).
+//
+// Çözüm yine SİLMEK DEĞİL, KAPATMAK. [kAiEnabled] false iken:
+//   • "+" seçim sayfası yalnız iki kart çizer (elle gider / elle gelir);
+//     fiş tarama ve sesle ekleme kartları hiç yok (root/bottom_tab_bar.dart).
+//   • [startReceiptScan] ve [showAiAdd] hiçbir şey yapmadan döner —
+//     uyarı, "yakında", kilit yok; özellik yokmuş gibi.
+//   • Bütçe "Öner" düğmesi yalnız yerel [autoSplit] sonucunu verir;
+//     [BudgetAdvisor.refine] hiç çağrılmaz (budget_screen.dart).
+//   • Ayarlar → Görünüm'deki "Sesli giriş dili" satırı çizilmez; kart
+//     açıklaması "sesli giriş" demeyen varyanta düşer
+//     (settings_appearance_screen.dart, RS.hubAppearanceBodyNoVoice).
+//   • Onboarding'de "sesle söyle / fişi tara" geçen iki metin AI'sız
+//     varyanta düşer (RS.introFastSubtitleNoAi, RS.rHabitBodyNoAi;
+//     onboarding_flow.dart) ve hızlı giriş maketindeki mikrofon+tarayıcı
+//     çipleri çizilmez (intro_mockups.dart).
+//   • Android manifestinden RECORD_AUDIO çıkarıldı: kullanılmayan mikrofon
+//     izni Play listesinde görünür. iOS Info.plist'teki dört kullanım
+//     açıklaması (kamera, fotoğraf, mikrofon, konuşma tanıma) BİLİNÇLİ
+//     OLARAK DURUYOR: image_picker ve speech_to_text pubspec'te kaldığı
+//     için ikili bu API'lere başvuruyor; açıklama yoksa App Store Connect
+//     yüklemeyi reddeder (ITMS-90683). Açıklamalar kullanıcıya hiç
+//     gösterilmez — izin istenmediği için.
+//
+// Dokunulmayanlar: nottan kategori (settings/category_resolver.dart) ve Siri
+// eylemi (intents/) AI kullanmaz, yerel kurallarla çalışır — açık kalıyorlar.
+//
+// GERİ AÇMAK İÇİN (1.1):
+//   1. functions/'ı deploy et, Secret Manager'a Anthropic anahtarını koy
+//      (yoksa [ClaudeClient.available] false döner; kartlar görünür ama
+//      "giriş yap" hatası verir).
+//   2. [kAiEnabled] = true yap. Başka kod değişikliği gerekmez: yukarıdaki
+//      her yer bu bayrağa bakar.
+//   3. android/app/src/main/AndroidManifest.xml'e RECORD_AUDIO iznini geri
+//      ekle — speech_to_text kendi manifestinde bildirmiyor (orada not var).
+//   4. AI'yı Pro'ya bağla: [kProEnabled] ile birlikte aç; requirePro
+//      kapıları bottom_tab_bar.dart'ta olduğu gibi duruyor.
+//   5. Testler "1.0 AI'sız" hâli doğruluyor: test/widget/ai_hidden_test.dart,
+//      pro_locks_test ("+" grubu), bottom_tabs_test ("+" grubu),
+//      settings_hub_test (Görünüm açıklaması); receipt_scan_errors_test ve
+//      voice_errors_test bayrağı atlayıp iç akışı sınıyor. AI'lı davranışın
+//      eski testleri git geçmişinde.
+const kAiEnabled = false;
+
 /// Pro özellikleri bu kullanıcıya açık mı?
 ///
 /// [kProEnabled] kapalıyken herkes için `true` (1.0: her şey ücretsiz);

@@ -18,6 +18,12 @@ import '../support/harness.dart';
 /// Fiş tarama dürüst konuşur: kamera/fotoğraf izni reddi "fiş okunamadı"
 /// DEĞİL; AI hakkı bitti / ağ yok / giriş yok da değil. Her hâlin kendi
 /// metni var, yalnız bilinmeyen hata genel metne düşer.
+///
+/// 1.0'da AI KAPALI (pro_state.dart, kAiEnabled): [startReceiptScan] hiçbir
+/// şey yapmadan döner ve arayüzde bu akışa giden yol yok. Burası bayrağı
+/// atlayıp akışın kendisini ([pickAndScanReceipt]) ve saf eşlemeleri
+/// sınıyor — kod 1.1 için duruyor ve çürümemeli. Kapalı kapının testi
+/// ai_hidden_test.dart'ta.
 void main() {
   setUpAll(() async {
     for (final lang in AppLanguage.values) {

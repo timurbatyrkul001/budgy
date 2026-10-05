@@ -14,6 +14,7 @@ import '../../core/redesign_l10n.dart';
 import '../envelopes/budget_repository.dart';
 import '../envelopes/envelope.dart';
 import '../envelopes/envelope_l10n.dart';
+import '../pro/pro_state.dart';
 import '../settings/app_settings.dart';
 import 'auto_split.dart';
 import 'budget_period.dart';
@@ -757,14 +758,19 @@ class _BudgetCategoriesStepState extends ConsumerState<BudgetCategoriesStep> {
       showErrorSnack(context, rs.notEnoughData);
       return;
     }
-    setState(() => _suggesting = true);
-    draft = await BudgetAdvisor.refine(
-      total: widget.settings.amount,
-      draft: draft,
-      names: {for (final e in envelopes) e.id: e.displayName(str)},
-      languageCode: str.localeCode,
-    );
-    if (!mounted) return;
+    // 1.0: AI kapalı — yerel dağılım olduğu gibi uygulanır. BudgetAdvisor
+    // (Claude ile inceltme) hiç çağrılmaz, bekleme hâli de yok; kullanıcı
+    // bir şeyin eksik olduğunu görmez. Bkz. pro_state.dart, kAiEnabled.
+    if (kAiEnabled) {
+      setState(() => _suggesting = true);
+      draft = await BudgetAdvisor.refine(
+        total: widget.settings.amount,
+        draft: draft,
+        names: {for (final e in envelopes) e.id: e.displayName(str)},
+        languageCode: str.localeCode,
+      );
+      if (!mounted) return;
+    }
     setState(() {
       _suggesting = false;
       for (final e in envelopes) {

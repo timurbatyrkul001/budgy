@@ -111,8 +111,14 @@ void main() {
   });
 
   // ── B. eski eylem kilitleri: "+" seçim sayfası (fiş tarama + sesli) ───
+  //
+  // 1.0'da AI de kapalı ([kAiEnabled] false, pro_state.dart): fiş tarama ve
+  // sesle ekleme kartları hiç çizilmiyor, dolayısıyla kilitlenecek eylem de
+  // yok. Bu grup artık "iki kart, rozet yok, paywall yok, AI izi yok" hâlini
+  // doğruluyor. 1.1'de AI ve abonelik geri gelince dört kart + Pro değilse
+  // paywall davranışı yeniden yazılmalı; eski testler git geçmişinde.
 
-  group('"+" seçim sayfası · kilit yok', () {
+  group('"+" seçim sayfası · kilit yok, AI yok', () {
     final scanCard = find.text(RS.tr.addScanReceipt);
     final micCard = find.text(RS.tr.addByVoice);
 
@@ -128,51 +134,28 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('abonesi olmayan dört kartı rozetsiz görür', (tester) async {
-      await openSheet(tester);
-
-      expect(scanCard, findsOneWidget);
-      expect(micCard, findsOneWidget);
-      expect(badge, findsNothing);
+    test('kAiEnabled 1.0 için kapalı', () {
+      expect(kAiEnabled, isFalse,
+          reason: 'AI 1.1\'de Pro ile birlikte açılacak (docs/PRO_PLAN.md)');
     });
 
-    testWidgets('fiş tarama: paywall açılmaz, tarama akışı başlar', (
-      tester,
-    ) async {
-      await openSheet(tester);
+    for (final pro in [false, true]) {
+      testWidgets(
+          'pro=$pro: iki kart; fiş tarama ve sesli giriş kartı yok, rozet ve '
+          'paywall yok', (tester) async {
+        await openSheet(tester, pro: pro);
 
-      await tester.tap(scanCard);
-      await tester.pumpAndSettle();
-
-      expect(paywall, findsNothing);
-      // Testte API anahtarı yok: akış ilk adımında "anahtar yok" der. Bu,
-      // kilidin olmadığının kanıtı — paywall değil, özelliğin kendisi konuştu.
-      expect(find.text(RS.tr.aiKeyMissing), findsOneWidget);
-    });
-
-    testWidgets('sesli giriş: paywall açılmaz, AI giriş sayfası açılır', (
-      tester,
-    ) async {
-      await openSheet(tester);
-
-      await tester.tap(micCard);
-      await tester.pumpAndSettle();
-
-      expect(paywall, findsNothing);
-      expect(find.text(Strings.tr.aiAddTitle), findsOneWidget);
-    });
-
-    testWidgets('Pro kullanıcı için de aynı: fiş tarama akışı başlar', (
-      tester,
-    ) async {
-      await openSheet(tester, pro: true);
-
-      await tester.tap(scanCard);
-      await tester.pumpAndSettle();
-
-      expect(paywall, findsNothing);
-      expect(find.text(RS.tr.aiKeyMissing), findsOneWidget);
-    });
+        expect(find.text(RS.tr.addExpenseManual), findsOneWidget);
+        expect(find.text(RS.tr.addIncomeManual), findsOneWidget);
+        expect(scanCard, findsNothing);
+        expect(micCard, findsNothing);
+        expect(badge, findsNothing);
+        expect(paywall, findsNothing);
+        // AI'nın hiçbir izi yok: ne "giriş yap" uyarısı ne AI giriş sayfası.
+        expect(find.text(RS.tr.aiKeyMissing), findsNothing);
+        expect(find.text(Strings.tr.aiAddTitle), findsNothing);
+      });
+    }
   });
 
   // ── B. eski eylem kilidi: hızlı girişte tekrar düğmesi ────────────────

@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:kopilka_app/core/l10n.dart';
 import 'package:kopilka_app/core/redesign_l10n.dart';
+import 'package:kopilka_app/features/pro/pro_state.dart';
 import 'package:kopilka_app/features/automation/automation_screen.dart';
 import 'package:kopilka_app/features/budget/budget_screen.dart';
 import 'package:kopilka_app/features/categories/categories_screen.dart';
@@ -188,7 +189,12 @@ void main() {
           db: FakeFirebaseFirestore(), language: AppLanguage.en);
       final rs = RS.en;
       await open(rs.hubMyAccount, rs.hubAccountBody);
-      await open(rs.hubAppearance, rs.hubAppearanceBody);
+      // 1.0: AI kapalı — Görünüm "sesli giriş" demeyen açıklamayı taşır
+      // (pro_state.dart, kAiEnabled).
+      await open(
+        rs.hubAppearance,
+        kAiEnabled ? rs.hubAppearanceBody : rs.hubAppearanceBodyNoVoice,
+      );
       await open(rs.hubAbout, rs.hubAboutBody);
     });
   });

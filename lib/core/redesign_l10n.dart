@@ -20,6 +20,7 @@ class RS {
     required this.getStarted,
     required this.introFastTitle,
     required this.introFastSubtitle,
+    required this.introFastSubtitleNoAi,
     required this.introRulesTitle,
     required this.introRulesSubtitleTpl,
     required this.introBudgetTitle,
@@ -305,6 +306,7 @@ class RS {
     required this.rMonthEndBody,
     required this.rHabitTitle,
     required this.rHabitBody,
+    required this.rHabitBodyNoAi,
     required this.rOtherTitle,
     required this.rOtherBody,
     required this.summaryTitle,
@@ -395,6 +397,7 @@ class RS {
     required this.hubAbout,
     required this.hubAccountBody,
     required this.hubAppearanceBody,
+    required this.hubAppearanceBodyNoVoice,
     required this.hubAboutBody,
     required this.hubProTitle,
     required this.hubProBody,
@@ -495,6 +498,10 @@ class RS {
   final String getStarted;
   final String introFastTitle;
   final String introFastSubtitle;
+
+  /// [introFastSubtitle]'ın AI'sız hâli: "sesle söyle / fişi tara" demez.
+  /// kAiEnabled kapalıyken (1.0) kullanılır; bkz. pro_state.dart.
+  final String introFastSubtitleNoAi;
   final String introRulesTitle;
   final String introRulesSubtitleTpl;
   final String introBudgetTitle;
@@ -787,6 +794,10 @@ class RS {
   final String rMonthEndBody;
   final String rHabitTitle;
   final String rHabitBody;
+
+  /// [rHabitBody]'nin AI'sız hâli: "sesle söyle / fişi çek" demez.
+  /// kAiEnabled kapalıyken (1.0) kullanılır; bkz. pro_state.dart.
+  final String rHabitBodyNoAi;
   final String rOtherTitle;
   final String rOtherBody;
   final String summaryTitle;
@@ -914,6 +925,11 @@ class RS {
   final String hubAbout;
   final String hubAccountBody;
   final String hubAppearanceBody;
+
+  /// [hubAppearanceBody]'nin "sesli giriş" demeyen hâli. kAiEnabled
+  /// kapalıyken (1.0) Görünüm ekranında sesli giriş dili satırı yok; bkz.
+  /// pro_state.dart.
+  final String hubAppearanceBodyNoVoice;
   final String hubAboutBody;
   final String hubProTitle;
   final String hubProBody;
@@ -1102,6 +1118,8 @@ class RS {
     introFastTitle: 'Log it in seconds',
     introFastSubtitle:
         'Type the amount on the keypad, say it out loud, or scan the receipt.',
+    introFastSubtitleNoAi:
+        'Type the amount on the keypad, pick a category — done.',
     introRulesTitle: 'Categories sort themselves',
     introRulesSubtitleTpl:
         'The merchant name picks the category: {n}+ built-in rules, plus any you add.',
@@ -1421,6 +1439,8 @@ class RS {
     rHabitTitle: "You didn't quit. The method was too much work.",
     rHabitBody:
         'A habit that costs five minutes a day never sticks. In Budgy an expense takes three seconds: tap it in, say it, or snap the receipt.',
+    rHabitBodyNoAi:
+        'A habit that costs five minutes a day never sticks. In Budgy an expense takes three seconds: tap it in and you\'re done.',
     rOtherTitle: 'Whatever it is, step one is the same.',
     rOtherBody:
         'You can only manage what you can see. Budgy starts by showing you — the rest shapes itself around you.',
@@ -1521,6 +1541,8 @@ class RS {
         'Your sign-in, personal details and security — and the way out, if you ever need it.',
     hubAppearanceBody:
         'How Budgy looks and talks to you: keypad, language, currency and voice input.',
+    hubAppearanceBodyNoVoice:
+        'How Budgy looks and talks to you: keypad, language and currency.',
     hubAboutBody: 'The legal bits, your data and which version you\'re on.',
     hubProTitle: 'Get more out of Budgy',
     hubProBody: 'Analytics, automation and AI entry — all in one Pro.',
@@ -1633,6 +1655,7 @@ class RS {
     getStarted: 'Hadi başlayalım',
     introFastTitle: 'Saniyeler içinde kaydet',
     introFastSubtitle: 'Tutarı tuş takımına yaz, sesle söyle ya da fişi tara.',
+    introFastSubtitleNoAi: 'Tutarı tuş takımına yaz, kategoriyi seç — bu kadar.',
     introRulesTitle: 'Kategori kendiliğinden gelir',
     introRulesSubtitleTpl:
         'İşletme adı kategoriyi seçer: {n}+ yerleşik kural, üstüne kendi kuralların.',
@@ -1950,6 +1973,8 @@ class RS {
     rHabitTitle: 'Bırakmadın. Yöntem çok uğraştırıyordu.',
     rHabitBody:
         "Günde beş dakika isteyen alışkanlık tutmaz. Budgy'de bir harcama üç saniye: tuşla, sesle söyle ya da fişi çek.",
+    rHabitBodyNoAi:
+        "Günde beş dakika isteyen alışkanlık tutmaz. Budgy'de bir harcama üç saniye: tuşla, bitti.",
     rOtherTitle: 'Ne olursa olsun, ilk adım aynı.',
     rOtherBody:
         'Gördüğün parayı yönetirsin. Budgy önce göstermeye başlar; gerisi sana göre şekillenir.',
@@ -2050,6 +2075,8 @@ class RS {
         'Giriş bilgilerin, kişisel verilerin ve güvenlik ayarların — gerekirse çıkış kapısı da burada.',
     hubAppearanceBody:
         'Budgy\'nin sana nasıl göründüğü ve seninle nasıl konuştuğu: tuş takımı, dil, para birimi, sesli giriş.',
+    hubAppearanceBodyNoVoice:
+        'Budgy\'nin sana nasıl göründüğü ve seninle nasıl konuştuğu: tuş takımı, dil, para birimi.',
     hubAboutBody: 'Yasal metinler, verin ve hangi sürümde olduğun.',
     hubProTitle: 'Budgy\'den daha fazlasını al',
     hubProBody: 'Analiz, otomasyon ve AI ile giriş — hepsi tek Pro\'da.',
@@ -2163,6 +2190,8 @@ class RS {
     introFastTitle: 'Записывай за секунды',
     introFastSubtitle:
         'Введи сумму на клавиатуре, скажи вслух или отсканируй чек.',
+    introFastSubtitleNoAi:
+        'Введи сумму на клавиатуре, выбери категорию — готово.',
     introRulesTitle: 'Категории проставляются сами',
     introRulesSubtitleTpl:
         'Категорию подбирает название магазина: {n}+ встроенных правил и твои собственные.',
@@ -2480,6 +2509,8 @@ class RS {
     rHabitTitle: 'Дело не в дисциплине. Дело в методе.',
     rHabitBody:
         'Привычка, которая требует пять минут в день, не приживается. В Budgy трата занимает три секунды: набери, надиктуй или сфотографируй чек.',
+    rHabitBodyNoAi:
+        'Привычка, которая требует пять минут в день, не приживается. В Budgy трата занимает три секунды: набери — и готово.',
     rOtherTitle: 'С чего бы ни начать, первый шаг один.',
     rOtherBody:
         'Управлять можно только тем, что видишь. Budgy начинает с того, что показывает, — остальное подстроится под тебя.',
@@ -2580,6 +2611,8 @@ class RS {
         'Вход, личные данные и безопасность — а если понадобится, и выход.',
     hubAppearanceBody:
         'Как Budgy выглядит и говорит с тобой: клавиатура, язык, валюта и голосовой ввод.',
+    hubAppearanceBodyNoVoice:
+        'Как Budgy выглядит и говорит с тобой: клавиатура, язык и валюта.',
     hubAboutBody: 'Юридические документы, твои данные и версия приложения.',
     hubProTitle: 'Возьми от Budgy больше',
     hubProBody: 'Аналитика, автоматизация и ввод с AI — всё в одном Pro.',

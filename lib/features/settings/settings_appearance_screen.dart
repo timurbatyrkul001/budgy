@@ -9,6 +9,7 @@ import '../home/fx_providers.dart';
 import '../onboarding/onboarding_flow.dart';
 import '../profile/currency_screen.dart';
 import '../profile/language_screen.dart';
+import '../pro/pro_state.dart';
 import 'app_settings.dart';
 import 'settings_hub.dart';
 import 'voice_language_screen.dart';
@@ -142,7 +143,8 @@ class SettingsAppearanceScreen extends ConsumerWidget {
       hero: SettingsHero(
         icon: Icons.tune_rounded,
         title: rs.hubAppearance,
-        body: rs.hubAppearanceBody,
+        // 1.0: AI kapalı — "sesli giriş" demeyen açıklama (kAiEnabled).
+        body: kAiEnabled ? rs.hubAppearanceBody : rs.hubAppearanceBodyNoVoice,
       ),
       children: [
         SettingsCard(label: rs.appearancePrefsLabel, rows: [
@@ -164,12 +166,15 @@ class SettingsAppearanceScreen extends ConsumerWidget {
             value: currency,
             onTap: () => pushSettings(context, const CurrencyScreen()),
           ),
-          SettingsRow(
-            icon: Icons.mic_rounded,
-            title: rs.voiceLanguage,
-            value: voice,
-            onTap: () => pushSettings(context, const VoiceLanguageScreen()),
-          ),
+          // 1.0: AI kapalı — sesli giriş yokken dil seçtirmek özelliği ele
+          // verir; satır hiç çizilmez. Bkz. pro_state.dart, kAiEnabled.
+          if (kAiEnabled)
+            SettingsRow(
+              icon: Icons.mic_rounded,
+              title: rs.voiceLanguage,
+              value: voice,
+              onTap: () => pushSettings(context, const VoiceLanguageScreen()),
+            ),
         ]),
         // "Okunabilirlik" kartı (yüksek kontrast anahtarı) bilinçli olarak
         // yok — sınıf notuna bak. Geri geldiğinde: ayrı kart, satırın tamamı

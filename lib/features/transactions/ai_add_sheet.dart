@@ -14,6 +14,7 @@ import '../../core/tokens.dart';
 import '../envelopes/budget_repository.dart';
 import '../envelopes/envelope.dart';
 import '../envelopes/envelope_l10n.dart';
+import '../pro/pro_state.dart';
 import '../settings/app_settings.dart';
 import '../settings/category_resolver.dart';
 import 'quick_entry_screen.dart';
@@ -105,7 +106,21 @@ String? voiceErrorMessage(
 /// AI hızlı giriş: yaz ya da SÖYLE — "kahve 90, market 450" → hazır
 /// işlemler. Sıkıcı kısmı (form doldurmayı) ortadan kaldıran ana akış;
 /// klasik form "Detaylı giriş"te duruyor.
-Future<void> showAiAdd(BuildContext context) {
+///
+/// 1.0: AI kapalı — hiçbir şey yapmadan döner (uyarı, "yakında" yok). "+"
+/// sayfası kartı zaten çizmiyor; bu ikinci kilit. Bkz. pro_state.dart,
+/// kAiEnabled.
+Future<void> showAiAdd(BuildContext context) async {
+  if (!kAiEnabled) return;
+  await showAiAddSheet(context);
+}
+
+/// [showAiAdd]'in bayrak kapısından sonraki kısmı: sayfanın kendisi. Ayrı
+/// tutuldu ki testte AI kapalıyken de sayfa (izin metinleri, sesli giriş
+/// hataları) sınanabilsin — receipt_scan.dart'taki [pickAndScanReceipt]
+/// gibi.
+@visibleForTesting
+Future<void> showAiAddSheet(BuildContext context) {
   return showModalBottomSheet(
     context: context,
     isScrollControlled: true,

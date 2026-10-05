@@ -11,6 +11,12 @@ import '../support/harness.dart';
 /// Sesli giriş dürüst konuşur: izin reddi "bu cihazda kullanılamıyor"
 /// DEĞİL — cihaz sağlam, ayara gitmeli. Tanıma sırasındaki hata da artık
 /// sessizce yutulmuyor; sebebi söyleniyor.
+///
+/// 1.0'da AI KAPALI (pro_state.dart, kAiEnabled): [showAiAdd] hiçbir şey
+/// yapmadan döner ve arayüzde bu sayfaya giden yol yok. Burası bayrağı
+/// atlayıp sayfanın kendisini ([showAiAddSheet]) sınıyor — kod 1.1 için
+/// duruyor ve çürümemeli. Kapalı kapının testi ai_hidden_test.dart'ta.
+/// AI geri gelince [showAiAdd] üzerinden açılan hâle dönülebilir.
 void main() {
   setUpAll(() async {
     for (final lang in AppLanguage.values) {
@@ -104,7 +110,8 @@ void main() {
         body: Center(
           child: Builder(
             builder: (context) => TextButton(
-              onPressed: () => showAiAdd(context),
+              // Bayrak kapısı olmadan: 1.0'da showAiAdd hiç açmaz.
+              onPressed: () => showAiAddSheet(context),
               child: const Text('aç'),
             ),
           ),

@@ -3,11 +3,14 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <!-- Zamanlanmış hatırlatmalar cihaz yeniden başlayınca yeniden kurulur. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
-    <!-- Face ID / parmak izi ile uygulama kilidi. -->
-    <!-- Döviz kuru sorgusu (open.er-api.com) + AI parser. -->
+    <!-- Döviz kuru sorgusu (open.er-api.com) ve Firestore. -->
     <uses-permission android:name="android.permission.INTERNET"/>
-    <!-- Sesle harcama ekleme (speech_to_text). -->
-    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <!-- RECORD_AUDIO (sesle harcama ekleme, speech_to_text) 1.0'da YOK: AI
+         kapalı (lib/features/pro/pro_state.dart, kAiEnabled) ve kullanılmayan
+         mikrofon izni Play listesinde görünür. speech_to_text kendi
+         manifestinde bildirmiyor, yani burada olmayınca ikilide de yok. AI
+         geri açılınca şu satır geri gelmeli:
+         <uses-permission android:name="android.permission.RECORD_AUDIO"/> -->
 
     <application
         android:label="Budgy"

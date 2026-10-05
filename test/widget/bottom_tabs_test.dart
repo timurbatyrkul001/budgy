@@ -310,23 +310,35 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('dört kart; hiçbirinde Pro rozeti yok', (tester) async {
+    // "1.0 ÜCRETSİZ + AI'SIZ": fiş tarama ve sesle ekleme kartları hiç yok
+    // (bkz. pro_state.dart, kAiEnabled); paywall da yok (kProEnabled). AI ve
+    // abonelik 1.1'de geri gelince dört kart + Pro değilse paywall hâli
+    // yeniden yazılmalı; eski testler git geçmişinde. Dar ekran × dil
+    // yerleşimi test/widget/ai_hidden_test.dart'ta.
+
+    testWidgets('iki kart: elle gider + elle gelir; AI kartı ve rozet yok', (
+      tester,
+    ) async {
       await openSheet(tester);
 
       expect(find.text(RS.tr.addSheetTitle), findsOneWidget);
       expect(find.text(RS.tr.addExpenseManual), findsOneWidget);
       expect(find.text(RS.tr.addIncomeManual), findsOneWidget);
-      expect(find.text(RS.tr.addScanReceipt), findsOneWidget);
-      expect(find.text(RS.tr.addByVoice), findsOneWidget);
-      // Rozet kaldırıldı: dört kart aynı görünüyor, kilit basınca anlaşılıyor.
+      expect(find.text(RS.tr.addScanReceipt), findsNothing);
+      expect(find.text(RS.tr.addByVoice), findsNothing);
+      expect(find.byIcon(Icons.document_scanner_outlined), findsNothing);
+      expect(find.byIcon(Icons.mic_rounded), findsNothing);
       expect(badge, findsNothing);
+      expect(paywall, findsNothing);
     });
 
-    testWidgets('Pro kullanıcı da aynı dört kartı görür', (tester) async {
+    testWidgets('Pro kullanıcı da aynı iki kartı görür', (tester) async {
       await openSheet(tester, pro: true);
 
-      expect(find.text(RS.tr.addScanReceipt), findsOneWidget);
-      expect(find.text(RS.tr.addByVoice), findsOneWidget);
+      expect(find.text(RS.tr.addExpenseManual), findsOneWidget);
+      expect(find.text(RS.tr.addIncomeManual), findsOneWidget);
+      expect(find.text(RS.tr.addScanReceipt), findsNothing);
+      expect(find.text(RS.tr.addByVoice), findsNothing);
       expect(badge, findsNothing);
     });
 
@@ -345,48 +357,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(QuickEntryScreen), findsOneWidget);
-    });
-
-    // "1.0 ÜCRETSİZ": fiş tarama ve sesli giriş herkese açık, paywall yok
-    // (bkz. pro_state.dart, kProEnabled). Abonelik geri gelince bu dört test
-    // eski kilitli hâle (Pro değilse paywall) geri yazılmalı.
-
-    testWidgets('fiş tara: abonesi olmayan için paywall yok, tarama akışı', (
-      tester,
-    ) async {
-      await openSheet(tester);
-      await tester.tap(find.text(RS.tr.addScanReceipt));
-      await tester.pumpAndSettle();
-
-      expect(paywall, findsNothing);
-      // Testte API anahtarı yok: akışın ilk adımı bunu söyler — kilit yok.
-      expect(find.text(RS.tr.aiKeyMissing), findsOneWidget);
-    });
-
-    testWidgets('fiş tara: Pro ise de tarama akışı', (tester) async {
-      await openSheet(tester, pro: true);
-      await tester.tap(find.text(RS.tr.addScanReceipt));
-      await tester.pumpAndSettle();
-
-      expect(paywall, findsNothing);
-      expect(find.text(RS.tr.aiKeyMissing), findsOneWidget);
-    });
-
-    testWidgets('sesle ekle: abonesi olmayan için paywall yok', (
-      tester,
-    ) async {
-      await openSheet(tester);
-      await tester.tap(find.text(RS.tr.addByVoice));
-      await tester.pumpAndSettle();
-      expect(paywall, findsNothing);
-      expect(find.text(Strings.tr.aiAddTitle), findsOneWidget);
-    });
-
-    testWidgets('sesle ekle: Pro ise de paywall yok', (tester) async {
-      await openSheet(tester, pro: true);
-      await tester.tap(find.text(RS.tr.addByVoice));
-      await tester.pumpAndSettle();
-      expect(paywall, findsNothing);
     });
   });
 
@@ -458,6 +428,11 @@ void main() {
         await tester.tap(addButton);
         await tester.pumpAndSettle();
         expect(find.text(rs.addSheetTitle), findsOneWidget);
+        // 1.0: yalnız iki kart (kAiEnabled kapalı).
+        expect(find.text(rs.addExpenseManual), findsOneWidget);
+        expect(find.text(rs.addIncomeManual), findsOneWidget);
+        expect(find.text(rs.addScanReceipt), findsNothing);
+        expect(find.text(rs.addByVoice), findsNothing);
         expect(tester.takeException(), isNull);
       });
     }
