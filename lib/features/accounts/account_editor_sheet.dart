@@ -7,16 +7,14 @@ import '../../core/formatters.dart';
 import '../../core/l10n.dart';
 import '../../core/redesign_l10n.dart';
 import 'account.dart';
+import '../converter/currency_picker_screen.dart';
 import 'account_card.dart';
 import 'accounts_repository.dart';
 import 'bank_catalog.dart';
 
-/// Para birimi simgesi. `kCurrencies` tablosunda AZN yok (manat), ama
-/// Azerbaycan kartı bu özelliğin çıkış sebebi; tabloya buradan dokunmadan
-/// eksikleri tamamlıyoruz. Bilinmeyen kod simge yerine kodun kendisiyle
+/// Para birimi simgesi. Bilinmeyen kod simge yerine kodun kendisiyle
 /// yazılır ("150 XYZ") — boş kalmasın.
-String accountCurrencySymbol(String code) =>
-    kCurrencies[code] ?? const {'AZN': '₼'}[code] ?? code;
+String accountCurrencySymbol(String code) => kCurrencies[code] ?? code;
 
 /// Tutarı HESABIN KENDİ biriminde yazar: "1.500,5 ₺", "50 ₼".
 /// `formatMoney` uygulamanın ana birimini basar; burada o yanlış olurdu.
@@ -26,21 +24,21 @@ String accountMoney(double amount, String currency) =>
 /// Ülke kodu → bayrak emojisi. Bayrak için ikon paketi gerekmiyor;
 /// bölgesel gösterge çiftleri her platformda metin olarak çiziliyor.
 String flagFor(String code) => switch (code) {
-      'TR' => '🇹🇷',
-      'AZ' => '🇦🇿',
-      'KZ' => '🇰🇿',
-      'RU' => '🇷🇺',
-      _ => '🏳️',
-    };
+  'TR' => '🇹🇷',
+  'AZ' => '🇦🇿',
+  'KZ' => '🇰🇿',
+  'RU' => '🇷🇺',
+  _ => '🏳️',
+};
 
 /// Ülke adı — kullanıcının dilinde. Katalogdaki kod ISO-2, ad bizde.
 String countryNameFor(RS rs, String code) => switch (code) {
-      'TR' => rs.accountCountryTR,
-      'AZ' => rs.accountCountryAZ,
-      'KZ' => rs.accountCountryKZ,
-      'RU' => rs.accountCountryRU,
-      _ => code,
-    };
+  'TR' => rs.accountCountryTR,
+  'AZ' => rs.accountCountryAZ,
+  'KZ' => rs.accountCountryKZ,
+  'RU' => rs.accountCountryRU,
+  _ => code,
+};
 
 /// Kart ekleme / düzenleme sayfası.
 ///
@@ -166,9 +164,8 @@ class _AccountEditorSheetState extends ConsumerState<_AccountEditorSheet> {
   @override
   Widget build(BuildContext context) {
     final rs = ref.watch(rsProvider);
-    final canSave = _name.text.trim().isNotEmpty &&
-        (_isEdit || _bank != null) &&
-        !_saving;
+    final canSave =
+        _name.text.trim().isNotEmpty && (_isEdit || _bank != null) && !_saving;
 
     return SheetFrame(
       title: _isEdit ? rs.accountEditTitle : rs.accountNewTitle,
@@ -203,8 +200,10 @@ class _AccountEditorSheetState extends ConsumerState<_AccountEditorSheet> {
               controller: _name,
               textCapitalization: TextCapitalization.sentences,
               textInputAction: TextInputAction.done,
-              style:
-                  const TextStyle(color: Ex.text, fontWeight: FontWeight.w600),
+              style: const TextStyle(
+                color: Ex.text,
+                fontWeight: FontWeight.w600,
+              ),
               decoration: InputDecoration(hintText: rs.accountNameHint),
               onChanged: (_) => setState(() => _nameTouched = true),
             ),
@@ -214,12 +213,27 @@ class _AccountEditorSheetState extends ConsumerState<_AccountEditorSheet> {
             else ...[
               _CurrencyChips(
                 selected: _currency,
-                // Ülkenin birimi başta; tabloda yoksa (AZN) yine de listede.
+                // Ülkenin birimi başta, sonra sık kullanılanlar. Ülke yalnız
+                // ilk TAHMİN: Türk bankasında sterlin, Azeri bankasında
+                // dolar hesabı olabilir — listede olmayan birim "Başka para
+                // birimi seç" ile tüm katalogdan seçilir ve çiplere eklenir.
                 codes: {
                   currencyForCountry(_country!),
                   ...kCurrencies.keys,
+                  _currency,
                 }.toList(),
                 onPick: (c) => setState(() => _currency = c),
+                moreLabel: rs.chooseAnother,
+                onMore: () async {
+                  final code = await showCurrencyPickerScreen(
+                    context,
+                    exclude: const {},
+                    selected: _currency,
+                  );
+                  if (code != null && mounted) {
+                    setState(() => _currency = code);
+                  }
+                },
               ),
               Padding(
                 padding: const EdgeInsets.only(top: 8),
@@ -231,10 +245,14 @@ class _AccountEditorSheetState extends ConsumerState<_AccountEditorSheet> {
               FieldLabel(rs.accountStartingBalance),
               TextField(
                 controller: _balance,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 style: const TextStyle(
-                    color: Ex.text, fontWeight: FontWeight.w700, fontSize: 18),
+                  color: Ex.text,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 18,
+                ),
                 decoration: InputDecoration(
                   hintText: '0',
                   suffixText: accountCurrencySymbol(_currency),
@@ -347,11 +365,17 @@ class _CurrencyChips extends StatelessWidget {
     required this.selected,
     required this.codes,
     required this.onPick,
+    this.moreLabel,
+    this.onMore,
   });
 
   final String selected;
   final List<String> codes;
   final ValueChanged<String> onPick;
+
+  /// Sondaki "Başka para birimi seç" çipi (tüm katalog); null ise yok.
+  final String? moreLabel;
+  final VoidCallback? onMore;
 
   @override
   Widget build(BuildContext context) {
@@ -365,6 +389,8 @@ class _CurrencyChips extends StatelessWidget {
             selected: c == selected,
             onTap: () => onPick(c),
           ),
+        if (moreLabel != null && onMore != null)
+          _Chip(label: '+ $moreLabel', selected: false, onTap: onMore),
       ],
     );
   }

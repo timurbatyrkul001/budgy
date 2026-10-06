@@ -69,8 +69,9 @@ void main() {
       expect(isCatalogCurrency('XAU'), isFalse, reason: 'altın yok — kaynak vermiyor');
       expect(isCatalogCurrency('BTC'), isFalse);
     });
-    test('kCurrencies dokunulmadı', () {
-      expect(kCurrencies.keys, ['TRY', 'USD', 'EUR', 'RUB', 'KZT', 'GBP']);
+    test('kCurrencies: desteklenen ana birimler (AZN 2026-10-06 eklendi)', () {
+      expect(kCurrencies.keys, ['TRY', 'USD', 'EUR', 'RUB', 'KZT', 'AZN', 'GBP']);
+      expect(kCurrencies['AZN'], '₼');
     });
   });
 

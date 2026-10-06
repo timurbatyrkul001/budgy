@@ -64,6 +64,8 @@ class _ForgetPasswordScreenState extends ConsumerState<ForgetPasswordScreen> {
   Future<void> _dispatch(String email) {
     final send = widget.sendResetEmail;
     if (send != null) return send(email);
+    // Uygulamanın dilinde şablon (bkz. EmailVerifyScreen).
+    FirebaseAuth.instance.setLanguageCode(ref.read(strProvider).localeCode);
     return FirebaseAuth.instance.sendPasswordResetEmail(email: email);
   }
 

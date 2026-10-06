@@ -19,6 +19,7 @@ class CurrencyScreen extends ConsumerWidget {
     'EUR': 'Euro',
     'RUB': 'Russian Ruble',
     'KZT': 'Kazakhstani Tenge',
+    'AZN': 'Azerbaijani Manat',
     'GBP': 'British Pound',
   };
 

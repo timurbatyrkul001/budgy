@@ -98,6 +98,9 @@ class _EmailVerifyScreenState extends ConsumerState<EmailVerifyScreen> {
       // sınıflandırılabilir bir hata fırlatıp aşağıda genel metne düşürüyoruz.
       throw FirebaseAuthException(code: 'user-not-found');
     }
+    // E-posta uygulamanın dilinde gitsin (Firebase şablonları TR/EN/RU
+    // destekliyor); dil verilmezse hep İngilizce şablon gidiyordu.
+    FirebaseAuth.instance.setLanguageCode(ref.read(strProvider).localeCode);
     return user.sendEmailVerification();
   }
 

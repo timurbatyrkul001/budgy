@@ -7,6 +7,7 @@ const kCurrencyNames = {
   'EUR': 'Euro',
   'RUB': 'Russian Ruble',
   'KZT': 'Kazakhstani Tenge',
+  'AZN': 'Azerbaijani Manat',
   'GBP': 'British Pound',
 };
 
@@ -16,6 +17,7 @@ const kCurrencyFlags = {
   'EUR': '🇪🇺',
   'RUB': '🇷🇺',
   'KZT': '🇰🇿',
+  'AZN': '🇦🇿',
   'GBP': '🇬🇧',
 };
 
@@ -34,6 +36,7 @@ String currencyForRegion(String? countryCode) {
   final code = switch (cc) {
     'TR' => 'TRY',
     'KZ' => 'KZT',
+    'AZ' => 'AZN',
     'RU' => 'RUB',
     'GB' => 'GBP',
     _ when _euroZone.contains(cc) => 'EUR',

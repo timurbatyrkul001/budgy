@@ -9,6 +9,7 @@ const kCurrencies = {
   'EUR': '€',
   'RUB': '₽',
   'KZT': '₸',
+  'AZN': '₼',
   'GBP': '£',
 };
 
