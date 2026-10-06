@@ -172,7 +172,14 @@ void main() {
 
       expect(find.byKey(const ValueKey('home-account-cash')), findsOneWidget);
       expect(find.text(RS.tr.cash), findsOneWidget);
-      expect(find.text('750 ₺'), findsOneWidget);
+      // Üst çipteki "Tüm hesaplar" toplamı da 750 ₺ — kartın içine bakılır.
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('home-account-cash')),
+          matching: find.text('750 ₺'),
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('"+" hesap editörünü açar (döviz cüzdanı değil)', (

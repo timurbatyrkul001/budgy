@@ -483,6 +483,24 @@ class RS {
     required this.intentAccountsUnavailable,
     required this.intentCurrencyUnavailable,
     required this.intentCategoriesUnavailable,
+    required this.homeNet,
+    required this.homeNoIncome,
+    required this.homeSavedTpl,
+    required this.homeOverTpl,
+    required this.homePrevMonth,
+    required this.homeNextMonth,
+    required this.homeAllAccounts,
+    required this.homeManageAccounts,
+    required this.homeSettings,
+    required this.homeRatesMissing,
+    required this.homeTrendTitle,
+    required this.homeTrendCard,
+    required this.homeVsPrev,
+    required this.homeLargest,
+    required this.homeNoExpenses,
+    required this.homeRecurring,
+    required this.homeBalance,
+    required this.homeNoCompare,
   });
 
   final String onbTitle;
@@ -1121,6 +1139,26 @@ class RS {
   final String intentCurrencyUnavailable;
   final String intentCategoriesUnavailable;
 
+  // Ana ekran özeti (dönem, net, eğilim, hesaplar çipi).
+  final String homeNet;
+  final String homeNoIncome;
+  final String homeSavedTpl;
+  final String homeOverTpl;
+  final String homePrevMonth;
+  final String homeNextMonth;
+  final String homeAllAccounts;
+  final String homeManageAccounts;
+  final String homeSettings;
+  final String homeRatesMissing;
+  final String homeTrendTitle;
+  final String homeTrendCard;
+  final String homeVsPrev;
+  final String homeLargest;
+  final String homeNoExpenses;
+  final String homeRecurring;
+  final String homeBalance;
+  final String homeNoCompare;
+
   static RS of(String code) => switch (code) {
     'tr' => tr,
     'ru' => ru,
@@ -1672,6 +1710,24 @@ class RS {
         'Couldn\'t load your main currency — the expense was not saved. Check your connection and try again, or add it in Budgy.',
     intentCategoriesUnavailable:
         'Couldn\'t load your categories — the expense was not saved. They are not deleted; try again in a moment, or add it in Budgy.',
+    homeNet: 'Net',
+    homeNoIncome: 'No income in this period',
+    homeSavedTpl: '{n}% of income saved',
+    homeOverTpl: 'Spent {n}% more than earned',
+    homePrevMonth: 'Previous month',
+    homeNextMonth: 'Next month',
+    homeAllAccounts: 'All accounts',
+    homeManageAccounts: 'Manage accounts',
+    homeSettings: 'Settings',
+    homeRatesMissing: 'Some rates are unavailable — total not shown',
+    homeTrendTitle: 'Spending so far',
+    homeTrendCard: 'Spending trend',
+    homeVsPrev: 'vs previous month',
+    homeLargest: 'Largest expense',
+    homeNoExpenses: 'No expenses yet',
+    homeRecurring: 'Recurring',
+    homeBalance: 'Balance',
+    homeNoCompare: 'No data last month to compare',
   );
 
   static const tr = RS(
@@ -2214,6 +2270,24 @@ class RS {
         'Ana para birimi yüklenemedi — harcama kaydedilmedi. Bağlantını kontrol edip tekrar dene ya da Budgy\'den elle ekle.',
     intentCategoriesUnavailable:
         'Kategoriler yüklenemedi — harcama kaydedilmedi. Silinmediler; birazdan tekrar dene ya da Budgy\'den elle ekle.',
+    homeNet: 'Net',
+    homeNoIncome: 'Bu dönemde gelir yok',
+    homeSavedTpl: 'Gelirin %{n} kadarı kaldı',
+    homeOverTpl: 'Gelirden %{n} fazla harcandı',
+    homePrevMonth: 'Önceki ay',
+    homeNextMonth: 'Sonraki ay',
+    homeAllAccounts: 'Tüm hesaplar',
+    homeManageAccounts: 'Hesapları yönet',
+    homeSettings: 'Ayarlar',
+    homeRatesMissing: 'Bazı kurlar alınamadı — toplam gösterilmiyor',
+    homeTrendTitle: 'Birikimli harcama',
+    homeTrendCard: 'Harcama eğilimi',
+    homeVsPrev: 'önceki aya göre',
+    homeLargest: 'En büyük harcama',
+    homeNoExpenses: 'Henüz harcama yok',
+    homeRecurring: 'Tekrarlayan',
+    homeBalance: 'Bakiye',
+    homeNoCompare: 'Geçen ay kıyas için veri yok',
   );
 
   static const ru = RS(
@@ -2758,5 +2832,23 @@ class RS {
         'Не удалось загрузить основную валюту — трата не записана. Проверь связь и попробуй ещё раз или добавь её в Budgy вручную.',
     intentCategoriesUnavailable:
         'Не удалось загрузить категории — трата не записана. Они не удалены; попробуй чуть позже или добавь её в Budgy вручную.',
+    homeNet: 'Итог',
+    homeNoIncome: 'Дохода за период нет',
+    homeSavedTpl: 'Сохранено {n}% дохода',
+    homeOverTpl: 'Потрачено на {n}% больше дохода',
+    homePrevMonth: 'Предыдущий месяц',
+    homeNextMonth: 'Следующий месяц',
+    homeAllAccounts: 'Все счета',
+    homeManageAccounts: 'Управлять счетами',
+    homeSettings: 'Настройки',
+    homeRatesMissing: 'Часть курсов недоступна — итог не показан',
+    homeTrendTitle: 'Расходы с начала месяца',
+    homeTrendCard: 'Динамика расходов',
+    homeVsPrev: 'к прошлому месяцу',
+    homeLargest: 'Крупнейшая трата',
+    homeNoExpenses: 'Трат пока нет',
+    homeRecurring: 'Регулярный',
+    homeBalance: 'Баланс',
+    homeNoCompare: 'Нет данных за прошлый месяц',
   );
 }

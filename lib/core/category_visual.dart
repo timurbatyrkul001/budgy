@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../features/envelopes/envelope.dart';
 import 'category_catalog.dart';
+import 'category_rules.dart';
 
 /// Kategori görseli: kâğıt-pastel yuvarlak zemin + o rengin mürekkep tonunda
 /// Material simgesi (çizim [CategoryAvatar]'da). Katalog (ve eski onboarding
@@ -39,12 +40,24 @@ abstract class CategoryPalette {
   static const indigo = Color(0xFF4A55B8); // çivit
   static const violet = Color(0xFF7A4FC0); // mor
   static const magenta = Color(0xFFA8428F); // fuşya
-  static const caramel = Color(0xFF8E5340); // kakao (düşük doygunluk; turuncudan böyle ayrılır)
+  static const caramel = Color(
+    0xFF8E5340,
+  ); // kakao (düşük doygunluk; turuncudan böyle ayrılır)
   static const slate = Color(0xFF5F6E80); // gri-mavi
 
   static const all = [
-    coral, orange, amber, yellow, lime, teal, sky, indigo, violet, magenta,
-    caramel, slate,
+    coral,
+    orange,
+    amber,
+    yellow,
+    lime,
+    teal,
+    sky,
+    indigo,
+    violet,
+    magenta,
+    caramel,
+    slate,
   ];
 
   /// Mürekkep tonunun kâğıt zemini: aynı hue, çok açık ve hafif doygun —
@@ -65,13 +78,28 @@ abstract class CategoryPalette {
 
 const _visuals = <String, CategoryVisual>{
   // Günlük — sıcak tonlar
-  'groceries': CategoryVisual(Icons.shopping_cart_rounded, CategoryPalette.amber),
-  'restaurants': CategoryVisual(Icons.restaurant_rounded, CategoryPalette.orange),
-  'delivery': CategoryVisual(Icons.delivery_dining_rounded, CategoryPalette.coral),
+  'groceries': CategoryVisual(
+    Icons.shopping_cart_rounded,
+    CategoryPalette.amber,
+  ),
+  'restaurants': CategoryVisual(
+    Icons.restaurant_rounded,
+    CategoryPalette.orange,
+  ),
+  'delivery': CategoryVisual(
+    Icons.delivery_dining_rounded,
+    CategoryPalette.coral,
+  ),
   'coffee': CategoryVisual(Icons.local_cafe_rounded, CategoryPalette.caramel),
   // Ulaşım — mavi / sarı
-  'publicTransport': CategoryVisual(Icons.directions_bus_rounded, CategoryPalette.indigo),
-  'fuel': CategoryVisual(Icons.local_gas_station_rounded, CategoryPalette.amber),
+  'publicTransport': CategoryVisual(
+    Icons.directions_bus_rounded,
+    CategoryPalette.indigo,
+  ),
+  'fuel': CategoryVisual(
+    Icons.local_gas_station_rounded,
+    CategoryPalette.amber,
+  ),
   'taxi': CategoryVisual(Icons.local_taxi_rounded, CategoryPalette.yellow),
   'car': CategoryVisual(Icons.directions_car_rounded, CategoryPalette.sky),
   // Ev & faturalar — kırmızı / amber
@@ -91,15 +119,24 @@ const _visuals = <String, CategoryVisual>{
   'sport': CategoryVisual(Icons.fitness_center_rounded, CategoryPalette.teal),
   // Sağlık — turkuaz / limon
   'pharmacy': CategoryVisual(Icons.medication_rounded, CategoryPalette.lime),
-  'doctor': CategoryVisual(Icons.medical_services_rounded, CategoryPalette.teal),
+  'doctor': CategoryVisual(
+    Icons.medical_services_rounded,
+    CategoryPalette.teal,
+  ),
   // Finans — gri-mavi / indigo
-  'bankFees': CategoryVisual(Icons.account_balance_rounded, CategoryPalette.slate),
+  'bankFees': CategoryVisual(
+    Icons.account_balance_rounded,
+    CategoryPalette.slate,
+  ),
   'insurance': CategoryVisual(Icons.shield_rounded, CategoryPalette.indigo),
   'taxes': CategoryVisual(Icons.receipt_long_rounded, CategoryPalette.coral),
   'loans': CategoryVisual(Icons.credit_card_rounded, CategoryPalette.amber),
   // Aile & diğer
   'gifts': CategoryVisual(Icons.card_giftcard_rounded, CategoryPalette.magenta),
-  'donations': CategoryVisual(Icons.volunteer_activism_rounded, CategoryPalette.teal),
+  'donations': CategoryVisual(
+    Icons.volunteer_activism_rounded,
+    CategoryPalette.teal,
+  ),
   'education': CategoryVisual(Icons.school_rounded, CategoryPalette.sky),
   'pets': CategoryVisual(Icons.pets_rounded, CategoryPalette.caramel),
   'kids': CategoryVisual(Icons.child_care_rounded, CategoryPalette.yellow),
@@ -120,12 +157,17 @@ const _visuals = <String, CategoryVisual>{
   'bonus': CategoryVisual(Icons.celebration_rounded, CategoryPalette.violet),
   'tips': CategoryVisual(Icons.paid_rounded, CategoryPalette.caramel),
   'dividends': CategoryVisual(Icons.trending_up_rounded, CategoryPalette.teal),
-  'rentalIncome': CategoryVisual(Icons.holiday_village_rounded, CategoryPalette.coral),
+  'rentalIncome': CategoryVisual(
+    Icons.holiday_village_rounded,
+    CategoryPalette.coral,
+  ),
   'pension': CategoryVisual(Icons.elderly_rounded, CategoryPalette.indigo),
   'scholarship': CategoryVisual(Icons.school_rounded, CategoryPalette.orange),
   // Komşuları turuncu (burs) ve sarı (ek iş); magenta ikisinden de uzak.
-  'familySupport':
-      CategoryVisual(Icons.diversity_1_rounded, CategoryPalette.magenta),
+  'familySupport': CategoryVisual(
+    Icons.diversity_1_rounded,
+    CategoryPalette.magenta,
+  ),
   'sideJob': CategoryVisual(Icons.handyman_rounded, CategoryPalette.yellow),
   'cashback': CategoryVisual(Icons.credit_score_rounded, CategoryPalette.lime),
   'otherIncome': CategoryVisual(Icons.payments_rounded, CategoryPalette.slate),
@@ -137,7 +179,8 @@ const _visuals = <String, CategoryVisual>{
 };
 
 /// Katalog/preset anahtarının görseli; bilinmeyen anahtar → null.
-CategoryVisual? categoryVisual(String? key) => key == null ? null : _visuals[key];
+CategoryVisual? categoryVisual(String? key) =>
+    key == null ? null : _visuals[key];
 
 /// Kullanıcının kendi kategorileri emojisini korur (oluştururken seçer);
 /// aynı boy daire içinde emoji, zemin ise zarf id'sinden türeyen SABİT
@@ -150,9 +193,39 @@ Color envelopeTint(String seed) {
   return CategoryPalette.all[h % CategoryPalette.all.length];
 }
 
-/// Zarfın görseli: preset anahtarı katalogda/preset'te varsa simge+renk,
-/// yoksa null (emoji ile çizilir).
-CategoryVisual? visualForEnvelope(Envelope e) => categoryVisual(e.presetKey);
+/// Zarfın görseli: preset anahtarı katalogda/preset'te varsa simge+renk.
+/// Preset'i ve emojisi olmayan kullanıcı kategorisinde (ör. elle açılmış
+/// "Fatura") adından katalog simgesi tahmin edilir — yoksa daire içinde
+/// yalnız baş harf kalıyordu ve listede diğerlerinden zayıf duruyordu.
+/// Kullanıcının seçtiği emoji her zaman önde; tahmin yalnız boşluğu doldurur.
+/// Hiçbiri yoksa null (emoji/harf ile çizilir).
+CategoryVisual? visualForEnvelope(Envelope e) =>
+    categoryVisual(e.presetKey) ??
+    (e.emoji.trim().isEmpty ? categoryVisual(catalogKeyForName(e.name)) : null);
+
+final _nameKeyCache = <String, String?>{};
+
+/// Kategori adından katalog anahtarı: önce üç dildeki katalog adlarıyla
+/// (tam ya da önek — "Fatura" → "Faturalar"), sonra yerleşik anahtar kelime
+/// kurallarıyla ("Kira ödemesi" → kira). Kısa adlar (<4 harf) önek
+/// eşleşmesine girmez: "Ev" her şeye benzerdi.
+String? catalogKeyForName(String name) {
+  final n = normalizeText(name);
+  if (n.isEmpty) return null;
+  return _nameKeyCache.putIfAbsent(n, () {
+    for (final section in kCategoryCatalog) {
+      for (final item in section.items) {
+        for (final label in [item.en, item.tr, item.ru]) {
+          final l = normalizeText(label);
+          if (l == n) return item.key;
+          if (n.length >= 4 && l.startsWith(n)) return item.key;
+          if (l.length >= 4 && n.startsWith('$l ')) return item.key;
+        }
+      }
+    }
+    return matchCategory(name)?.catalogKey;
+  });
+}
 
 /// Zarfın rengi — tembel göç: kayıtlı `color` varsa o; yoksa katalog
 /// rengi; o da yoksa id'den türeyen ton. Ekranda hiçbir şey kaymaz, yazma
@@ -167,7 +240,8 @@ Color envelopeColor(Envelope e) {
 
 /// Zarfın bölümü — kayıtlı `section` varsa o, yoksa katalogdan türetilir;
 /// katalog dışıysa null (bölümsüz).
-String? envelopeSection(Envelope e) => e.section ?? sectionOfCatalogKey(e.presetKey);
+String? envelopeSection(Envelope e) =>
+    e.section ?? sectionOfCatalogKey(e.presetKey);
 
 /// Gelir kategorisi mi? (Kayıtlı bölüm ya da katalog bölümü "income".)
 /// Gider seçicisi, bütçe ve harcama dökümleri bunları dışarıda tutar.
@@ -204,5 +278,6 @@ Map<String?, List<Envelope>> groupBySection(Iterable<Envelope> envelopes) {
   return m;
 }
 
-bool hasVisualForAllCatalogItems() => kCategoryCatalog
-    .every((s) => s.items.every((i) => _visuals.containsKey(i.key)));
+bool hasVisualForAllCatalogItems() => kCategoryCatalog.every(
+  (s) => s.items.every((i) => _visuals.containsKey(i.key)),
+);

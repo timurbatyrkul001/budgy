@@ -17,19 +17,15 @@ import '../accounts/account_editor_sheet.dart'
     show accountMoney, showAccountEditor;
 import '../accounts/accounts_repository.dart';
 import '../accounts/accounts_screen.dart';
-import '../accounts/bank_catalog.dart';
-import '../budget/budget_period.dart';
 import '../budget/budget_screen.dart';
 import '../converter/converter_logic.dart';
 import '../converter/converter_screen.dart';
 import '../goals/goals_screen.dart';
 import '../home/fx_providers.dart';
 import '../settings/app_settings.dart';
-import '../settings/settings_hub.dart';
 import '../reminders/reminders_repository.dart';
 import '../root/bottom_tab_bar.dart';
 import '../space/currency_wallets.dart';
-import '../space/space.dart';
 import '../stats/stats_screen.dart';
 import '../transactions/category_sheet.dart';
 import '../transactions/journal_screen.dart';
@@ -38,6 +34,8 @@ import 'budget_repository.dart';
 import 'envelope.dart';
 import 'envelope_detail_screen.dart';
 import 'envelope_l10n.dart';
+import 'home_overview.dart';
+import 'home_period.dart';
 
 /// Bu ay cüzdandan çıkan gerçek ₺ harcama: döviz çevirme, hedefe para
 /// ayırma ve döviz işlemleri hariç (ana para birimi içeride 'TRY' kodudur,
@@ -56,6 +54,19 @@ final greetingNameProvider = Provider<String?>((ref) {
     final name = FirebaseAuth.instance.currentUser?.displayName?.trim();
     if (name == null || name.isEmpty) return null;
     return name.split(RegExp(r'\s+')).first;
+  } catch (_) {
+    return null;
+  }
+});
+
+/// Üst çipte görünen ad soyad: profildeki ad (kayıt/kişisel bilgiler
+/// ekranı oraya yazar), yoksa giriş sağlayıcısının görünen adı.
+final profileNameProvider = Provider<String?>((ref) {
+  final n = (ref.watch(profileProvider).value?['name'] as String?)?.trim();
+  if (n != null && n.isNotEmpty) return n;
+  try {
+    final d = FirebaseAuth.instance.currentUser?.displayName?.trim();
+    return d == null || d.isEmpty ? null : d;
   } catch (_) {
     return null;
   }
@@ -146,11 +157,11 @@ class HomeScreen extends ConsumerWidget {
                 padding: const EdgeInsets.only(top: 18),
               ),
               const SizedBox(height: 34),
-              const _Hero().enterUp(context, index: 0),
-              const SizedBox(height: 14),
-              const _SpendSparkline().enterUp(context, index: 1),
-              const SizedBox(height: 22),
-              const _BudgetCard().enterUp(context, index: 2),
+              const HomeHero().enterUp(context, index: 0),
+              const SizedBox(height: 12),
+              const HomeTrendCard().enterUp(context, index: 1),
+              const SizedBox(height: 8),
+              const HomeInsightsRow().enterUp(context, index: 1),
               const _ReviewRow().enterUp(context, index: 3),
               const SizedBox(height: 26),
               const _AccountsSection().enterUp(context, index: 4),
@@ -165,97 +176,6 @@ class HomeScreen extends ConsumerWidget {
       ),
     );
   }
-}
-
-/// Bu ayın birikimli harcaması — nane çizgi + yumuşak dolgu.
-class _SpendSparkline extends ConsumerWidget {
-  const _SpendSparkline();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final txs = ref.watch(currentMonthTxsProvider);
-    final now = DateTime.now();
-    final days = DateTime(now.year, now.month + 1, 0).day;
-    final daily = List<double>.filled(days, 0);
-    for (final t in txs) {
-      if (t.type != TxType.expense || t.isConvert || t.isGoalFund) continue;
-      if (t.currency != 'TRY') continue;
-      daily[t.date.day - 1] += t.amount;
-    }
-    // Bugüne kadar birikimli; geri kalan günler çizilmez.
-    final cumulative = <double>[];
-    var sum = 0.0;
-    for (var d = 0; d < now.day; d++) {
-      sum += daily[d];
-      cumulative.add(sum);
-    }
-    return SizedBox(
-      height: 44,
-      width: double.infinity,
-      child: CustomPaint(
-        painter: _SparkPainter(values: cumulative, totalDays: days),
-      ),
-    );
-  }
-}
-
-class _SparkPainter extends CustomPainter {
-  _SparkPainter({required this.values, required this.totalDays});
-
-  final List<double> values;
-  final int totalDays;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (values.isEmpty) return;
-    final maxV = values.last <= 0 ? 1.0 : values.last;
-    final stepX = size.width / (totalDays - 1).clamp(1, 1 << 30);
-    double x(int i) => i * stepX;
-    double y(double v) => size.height - (v / maxV) * (size.height - 4) - 2;
-
-    final line = Path()..moveTo(x(0), y(values[0]));
-    for (var i = 1; i < values.length; i++) {
-      line.lineTo(x(i), y(values[i]));
-    }
-    final fill = Path.from(line)
-      ..lineTo(x(values.length - 1), size.height)
-      ..lineTo(0, size.height)
-      ..close();
-
-    canvas.drawPath(
-      fill,
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          // Vurgu yeşili koyulaşınca eski %28 dolgu beyaz kartta boyalı
-          // bir blok gibi duruyordu; çizginin altında hafif bir soluk kalsın.
-          colors: [
-            Ex.mint.withValues(alpha: 0.14),
-            Ex.mint.withValues(alpha: 0),
-          ],
-        ).createShader(Offset.zero & size),
-    );
-    canvas.drawPath(
-      line,
-      Paint()
-        ..color = Ex.mint
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round,
-    );
-    // Bugünün noktası.
-    canvas.drawCircle(
-      Offset(x(values.length - 1), y(values.last)),
-      3.5,
-      Paint()..color = Ex.mint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _SparkPainter old) =>
-      old.values != values || old.totalDays != totalDays;
 }
 
 /// "N işlem kategori bekliyor" — kategorisiz ₺ giderler; dokun → liste →
@@ -395,7 +315,6 @@ class _Header extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final space = ref.watch(spaceInfoProvider);
     final code = ref.watch(currencyCodeProvider);
     // Kur çipleri: yıldızlı paralar (en fazla 2), yoksa USD/EUR.
     final chips = dashboardCurrencies(
@@ -409,41 +328,7 @@ class _Header extends ConsumerWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Flexible(
-          child: GlassChip(
-            padding: const EdgeInsets.fromLTRB(5, 0, 8, 0),
-            onTap: () => _push(context, const SettingsHubScreen()),
-            child: Flexible(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SpaceAvatar(space: space, size: 30),
-                  // İki kur çipi varken ad gizlenir — dar ekranda yer açar.
-                  if (!compactWallet) ...[
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        space.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: Ex.text,
-                        ),
-                      ),
-                    ),
-                  ],
-                  const Icon(
-                    Icons.expand_more_rounded,
-                    size: 18,
-                    color: Ex.onGlowMuted,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
+        Flexible(child: HomeAccountsChip(compact: compactWallet)),
         Flexible(
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -516,272 +401,6 @@ class _Header extends ConsumerWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-// ── bu ay harcanan ────────────────────────────────────────────────────────
-
-class _Hero extends ConsumerWidget {
-  const _Hero();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final rs = ref.watch(rsProvider);
-    final code = ref.watch(strProvider).localeCode;
-    final spent = ref.watch(monthSpentProvider);
-    // Bağımsız ay adı (LLLL): TR/EN büyük harfle, RU «за сентябрь» küçük.
-    final month = DateFormat('LLLL', code).format(DateTime.now());
-    final label = tpl(rs.spentInTpl, {
-      'month': code == 'ru' ? month.toLowerCase() : _cap(month),
-    });
-
-    final first = ref.watch(greetingNameProvider);
-    final greeting = first == null
-        ? rs.heroGreetingPlain
-        : tpl(rs.heroGreetingTpl, {'name': first});
-
-    return Semantics(
-      container: true,
-      button: true,
-      label: '$greeting $label ${formatMoney(spent)}',
-      child: Material(
-        // Afişin mürekkebi: kâğıt zeminde en güçlü kontrast ve ekranın
-        // sahibi olan tek blok. Referanstaki siyah karşılama kartının işi.
-        color: Ex.text,
-        borderRadius: BorderRadius.circular(Ex.cardRadius + 6),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: () => _push(context, const JournalScreen()),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(22, 20, 18, 20),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Expanded(
-                  child: ExcludeSemantics(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          greeting,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontFamily: 'InterDisplay',
-                            fontSize: 24,
-                            height: 1.0,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -1.1,
-                            color: Ex.bg,
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        Text(
-                          label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            // Kâğıt rengi, kısılmış: başlıkla yarışmasın.
-                            color: Ex.bg.withValues(alpha: 0.62),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        TweenAnimationBuilder<double>(
-                          tween: Tween(begin: 0, end: spent),
-                          duration: const Duration(milliseconds: 650),
-                          curve: Curves.easeOutCubic,
-                          builder: (_, v, _) => Align(
-                            alignment: Alignment.centerLeft,
-                            child: FittedBox(
-                              fit: BoxFit.scaleDown,
-                              child: Text(
-                                formatMoney(v),
-                                // Afişteki başlıklarla aynı ses: Display
-                                // kesimi, en kalın ağırlık, sıkı aralık.
-                                style: const TextStyle(
-                                  fontFamily: 'InterDisplay',
-                                  fontSize: 44,
-                                  height: 0.96,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: -2.1,
-                                  color: Ex.bg,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                // Yuvarlak ok: kartın tamamı tıklanabilir ama dokunulabilir
-                // bir şey olduğunu görsel olarak da söylüyor.
-                ExcludeSemantics(
-                  child: Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Ex.bg.withValues(alpha: 0.3)),
-                    ),
-                    child: const Icon(
-                      Icons.arrow_forward_rounded,
-                      size: 19,
-                      color: Ex.bg,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  static String _cap(String s) =>
-      s.isEmpty ? s : s[0].toUpperCase() + s.substring(1);
-}
-
-// ── bütçe ─────────────────────────────────────────────────────────────────
-
-class _BudgetCard extends ConsumerWidget {
-  const _BudgetCard();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final rs = ref.watch(rsProvider);
-    final settings = ref.watch(budgetSettingsProvider);
-
-    if (settings == null) {
-      return ExCard(
-        onTap: () => _push(context, const BudgetScreen()),
-        padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: Ex.brand.withValues(alpha: 0.16),
-                borderRadius: Ex.squircle(40),
-              ),
-              child: const Icon(
-                Icons.account_balance_wallet_rounded,
-                size: 21,
-                color: Ex.mint,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    rs.monthlyBudget,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: Ex.text,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    rs.budgetEmpty,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      height: 1.35,
-                      color: Ex.textMuted,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  TintChipButton(
-                    label: rs.setBudget,
-                    onTap: () => _push(context, const BudgetScreen()),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    // Seçili döneme göre (haftalık/aylık) harcama ve kalan gün.
-    final budget = settings.amount;
-    final spent = ref.watch(periodSpentProvider);
-    final left = budget - spent;
-    final over = left < 0;
-    final daysLeft = ref.watch(budgetWindowProvider).daysLeft(DateTime.now());
-
-    return ExCard(
-      onTap: () => _push(context, const BudgetScreen()),
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  periodLabel(rs, settings.period),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: Ex.textMuted,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                tpl(rs.daysLeftTpl, {'n': '$daysLeft'}),
-                style: const TextStyle(fontSize: 12, color: Ex.textMuted),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            tpl(over ? rs.overTpl : rs.leftTpl, {
-              'amount': formatMoney(left.abs()),
-            }),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.6,
-              color: over ? Ex.red : Ex.text,
-            ),
-          ),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(3),
-            child: LinearProgressIndicator(
-              value: budget <= 0 ? 1 : (spent / budget).clamp(0, 1),
-              minHeight: 6,
-              backgroundColor: Ex.surfaceHi,
-              color: over ? Ex.red : Ex.brand,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            tpl(rs.ofTpl, {
-              'spent': formatMoney(spent),
-              'total': formatMoney(budget),
-            }),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 12.5, color: Ex.textMuted),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -894,13 +513,9 @@ class _AccountsSection extends ConsumerWidget {
       for (final a in list)
         _AccountCard(
           key: ValueKey('home-account-${a.id}'),
-          icon: switch (a.kind) {
-            AccountKind.cash => Icons.payments_rounded,
-            AccountKind.card => Icons.credit_card_rounded,
-            AccountKind.bank => Icons.account_balance_rounded,
-          },
+          icon: homeAccountIcon(a),
           emoji: a.emoji,
-          color: _accountTint(a),
+          color: homeAccountTint(a),
           title: a.isCash && a.name.trim().isEmpty ? rs.cash : a.name,
           // `formatMoneyIn` değil: o yalnız kumbara birimlerini (USD/EUR...)
           // tanır, manat/dolar kartı ₺ ile yazılırdı. Hesap ekranlarıyla
@@ -927,19 +542,6 @@ class _AccountsSection extends ConsumerWidget {
         _CardStrip(cards: cards),
       ],
     );
-  }
-
-  /// Kutucuktaki simge rengi: nakit marka yeşili; kartta kullanıcının seçtiği
-  /// vurgu → renk indeksi → bankanın kimlik rengi → amber. Büyük kart
-  /// görseli burada çizilmez (o yönetim ekranında); yalnız kartı nakitten
-  /// ayıracak kadar renk.
-  static Color _accountTint(Account a) {
-    if (a.kind == AccountKind.cash) return Ex.brand;
-    if (a.accentColor case final argb?) return Color(argb);
-    if (a.colorIndex case final i?) {
-      return Ex.spaceColors[i % Ex.spaceColors.length];
-    }
-    return bankByName(a.name)?.color ?? Ex.amber;
   }
 }
 
@@ -1192,27 +794,27 @@ class _RecentSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final rs = ref.watch(rsProvider);
-    final str = ref.watch(strProvider);
     final journal = ref.watch(journalProvider);
     // "Henüz hareket yok" yalnız akış gerçekten boş liste verdiyse. Veri
     // hiç gelmediyse (yükleniyor ya da düştü) bölüm çizilmez — düşme hâlini
     // üstteki [LoadErrorBanner] anlatıyor; sahte bir "boş" kart onunla
     // çelişirdi.
     if (!journal.hasValue) return const SizedBox.shrink();
-    final txs = (journal.value ?? const <Tx>[])
-        .where((t) => !t.isGoalFund)
-        .take(6)
-        .toList();
+    // Günlere bölünmüş, çevirme bacakları tek satırda (bkz. [groupRecent]).
+    final days = groupRecent(
+      journal.value ?? const <Tx>[],
+      main: ref.watch(currencyCodeProvider),
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _SectionTitle(
           title: rs.recent,
-          action: txs.isEmpty ? null : rs.seeAll,
+          action: days.isEmpty ? null : rs.seeAll,
           onAction: () => _push(context, const JournalScreen()),
         ),
-        if (txs.isEmpty)
+        if (days.isEmpty)
           ExCard(
             padding: const EdgeInsets.all(16),
             child: Text(
@@ -1225,17 +827,10 @@ class _RecentSection extends ConsumerWidget {
             ),
           )
         else
-          ExCard(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            child: Column(
-              children: [
-                for (final (i, t) in txs.indexed) ...[
-                  if (i > 0) const Divider(height: 1, color: Ex.border),
-                  TxTile(tx: t, str: str),
-                ],
-              ],
-            ),
-          ),
+          for (final (i, d) in days.indexed) ...[
+            if (i > 0) const SizedBox(height: 14),
+            RecentDayGroup(day: d),
+          ],
       ],
     );
   }

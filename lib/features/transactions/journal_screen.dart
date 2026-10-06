@@ -14,6 +14,7 @@ import '../accounts/accounts_repository.dart';
 import '../envelopes/budget_repository.dart';
 import '../envelopes/envelope.dart';
 import '../envelopes/envelope_l10n.dart';
+import '../envelopes/home_period.dart';
 import '../root/bottom_tab_bar.dart';
 import '../workdays/work_days_repository.dart';
 import 'journal_filter.dart';
@@ -659,18 +660,29 @@ class TxTile extends ConsumerWidget {
     final hasSource = _incomeHasSource(tx, envById);
     // Üst satır (isim) + alt satır (kategori / kaynak) — Cashly stili.
     final title = _titleOf(tx, str, hasSource);
+    // Alt satır: kategori (başlıkta değilse) · hesap. Eskiden notsuz
+    // giderde burada yalnız "Gider" yazıyordu — satırın türünü zaten tutar
+    // ve simge söylüyor; asıl bilinmeyen paranın hangi hesaptan çıktığı.
     // Döviz çevirme → "Döviz" etiketi (Income/Expense değil).
+    // Takvim maaş günü (wd_) bir hesaba yazılmıyor: hesap adı yok.
+    final wallet = tx.id.startsWith('wd_')
+        ? null
+        : accountLabelOf(tx, ref.watch(accountLabelsProvider));
+    final category = switch (tx.type) {
+      TxType.income => tx.note != null && hasSource ? tx.envelopeName : null,
+      TxType.expense => tx.note != null ? tx.envelopeName : null,
+      TxType.transfer => null,
+    };
     final subtitle = tx.isConvert
         ? str.convertTitle
-        : switch (tx.type) {
-            TxType.income =>
-              tx.note != null && hasSource ? tx.envelopeName! : str.incomeWord,
-            TxType.expense =>
-              tx.note != null
-                  ? (tx.envelopeName ?? str.expenseWord)
-                  : str.expenseWord,
-            TxType.transfer => str.transferTitle,
-          };
+        : tx.type == TxType.transfer
+        ? str.transferTitle
+        : [?category, ?wallet]
+              .join(' · ')
+              .ifEmpty(
+                tx.type == TxType.income ? str.incomeWord : str.expenseWord,
+              );
+    final recurring = isRecurringTx(tx, ref.watch(recurringSignaturesProvider));
 
     final accentColor = tx.isConvert
         ? c.accent
@@ -692,32 +704,35 @@ class TxTile extends ConsumerWidget {
           children: [
             // Gider: kategori görseli (kategorisizse soru işareti); kaynaklı
             // gelir: kaynağın görseli; diğer gelir / çevirme / transfer: yön.
-            if (tx.type == TxType.expense && !tx.isConvert)
-              switch (tx.envelopeId) {
-                final id? when envById[id] != null => CategoryAvatar(
-                  envelope: envById[id],
-                  size: 44,
-                ),
-                _ => const CategoryAvatar.none(size: 44),
-              }
-            else if (hasSource)
-              CategoryAvatar(envelope: envById[tx.envelopeId], size: 44)
-            else
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: isIncome ? c.envMarket : c.envFatura,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  tx.isConvert || isTransfer
-                      ? Icons.swap_horiz_rounded
-                      : Icons.south_west_rounded,
-                  size: 20,
-                  color: accentColor,
-                ),
-              ),
+            _RecurringBadge(
+              show: recurring,
+              tooltip: ref.watch(rsProvider).homeRecurring,
+              child: tx.type == TxType.expense && !tx.isConvert
+                  ? switch (tx.envelopeId) {
+                      final id? when envById[id] != null => CategoryAvatar(
+                        envelope: envById[id],
+                        size: 44,
+                      ),
+                      _ => const CategoryAvatar.none(size: 44),
+                    }
+                  : hasSource
+                  ? CategoryAvatar(envelope: envById[tx.envelopeId], size: 44)
+                  : Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: isIncome ? c.envMarket : c.envFatura,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        tx.isConvert || isTransfer
+                            ? Icons.swap_horiz_rounded
+                            : Icons.south_west_rounded,
+                        size: 20,
+                        color: accentColor,
+                      ),
+                    ),
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -761,6 +776,56 @@ class TxTile extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+extension on String {
+  String ifEmpty(String fallback) => isEmpty ? fallback : this;
+}
+
+/// Tekrarlayan işlemin simgesine köşe rozeti (↻) — referanstaki abonelik
+/// işareti. Kural silinince rozet de kalkar.
+class _RecurringBadge extends StatelessWidget {
+  const _RecurringBadge({
+    required this.show,
+    required this.tooltip,
+    required this.child,
+  });
+
+  final bool show;
+  final String tooltip;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!show) return child;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        child,
+        Positioned(
+          right: -3,
+          top: -3,
+          child: Tooltip(
+            message: tooltip,
+            child: Container(
+              width: 18,
+              height: 18,
+              decoration: BoxDecoration(
+                color: Ex.text,
+                shape: BoxShape.circle,
+                border: Border.all(color: Ex.surface, width: 2),
+              ),
+              child: const Icon(
+                Icons.autorenew_rounded,
+                size: 10,
+                color: Ex.bg,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

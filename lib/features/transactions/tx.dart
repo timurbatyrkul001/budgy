@@ -23,6 +23,7 @@ class Tx {
     this.baseAmount,
     this.baseCurrency,
     this.fxRate,
+    this.groupId,
   });
 
   final String id;
@@ -78,6 +79,11 @@ class Tx {
   /// Kullanılan kur (1 [currency] kaç [baseCurrency]). Kullanıcıya
   /// "1 ₼ = 1,97 ₺ üzerinden" diye göstermek ve denetlemek için.
   final double? fxRate;
+
+  /// Döviz çevirmenin iki bacağını (çıkan gider + giren gelir) bağlayan
+  /// ortak kimlik. Ana ekran ikisini tek "A → B" satırında gösterir; silme
+  /// zaten grubu birlikte siler. Çevirme dışı kayıtlarda null.
+  final String? groupId;
 
   /// Analizlerde kullanılacak tutar — her zaman ana para biriminde.
   ///
@@ -146,6 +152,7 @@ class Tx {
       baseAmount: (data['baseAmount'] as num?)?.toDouble(),
       baseCurrency: data['baseCurrency'] as String?,
       fxRate: (data['fxRate'] as num?)?.toDouble(),
+      groupId: data['groupId'] as String?,
     );
   }
 }
